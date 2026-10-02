@@ -13,7 +13,7 @@ class AppPagamentosFaltando(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Pagamentos que faltam no DDATA SOL")
-        self.setGeometry(400, 200, 650, 500)
+        self.setGeometry(400, 200, 650, 520)
 
         self.arquivo_extrato = ""
         self.arquivo_ddata = ""
@@ -34,7 +34,7 @@ class AppPagamentosFaltando(QWidget):
         self.label_ddata = QLabel("Nenhum arquivo selecionado")
         self.layout.addWidget(self.label_ddata)
 
-        # Opção
+        # Opções
         self.chk_rende = QCheckBox("Ignorar aplicações/resgates automáticos (BB Rende Fácil)")
         self.chk_rende.setChecked(True)
         self.layout.addWidget(self.chk_rende)
@@ -42,6 +42,10 @@ class AppPagamentosFaltando(QWidget):
         self.chk_creditos = QCheckBox("Ignorar créditos (comparar só débitos/pagamentos)")
         self.chk_creditos.setChecked(False)
         self.layout.addWidget(self.chk_creditos)
+
+        self.chk_datas = QCheckBox("Ignorar datas e procurar só pelos valores")
+        self.chk_datas.setChecked(False)
+        self.layout.addWidget(self.chk_datas)
 
         # Processar
         self.btn_processar = QPushButton("3) Comparar e gerar planilha")
@@ -170,40 +174,90 @@ class AppPagamentosFaltando(QWidget):
             extrato = extrato[extrato["Tipo"] == "Débito"]
             ddata = ddata[ddata["Valor"] < 0]
 
+        # índices limpos (0..n-1) para trabalhar com posições
+        extrato = extrato.reset_index(drop=True)
+        ddata = ddata.reset_index(drop=True)
+        extrato["_dt"] = pd.to_datetime(extrato["Data"], format="%d/%m/%Y")
+        ddata["_dt"] = pd.to_datetime(ddata["Data"], format="%d/%m/%Y")
+
+        ignorar_datas = self.chk_datas.isChecked()
+
         self.texto_status.append(f"Lançamentos no extrato: {len(extrato)}")
-        self.texto_status.append(f"Lançamentos no DDATA: {len(ddata)}\n")
+        self.texto_status.append(f"Lançamentos no DDATA: {len(ddata)}")
+        if ignorar_datas:
+            self.texto_status.append("Modo: comparando só pelos valores (datas ignoradas)\n")
+        else:
+            self.texto_status.append("Modo: comparando por data + valor\n")
 
-        # Conta quantas vezes cada (data, valor) aparece no DDATA.
-        # Cada lançamento do extrato "consome" um do DDATA (evita casar 2x o mesmo).
-        disponiveis = defaultdict(int)
-        for data, valor in zip(ddata["Data"], ddata["Valor"]):
-            disponiveis[(data, valor)] += 1
+        def montar_chave(data, valor):
+            return valor if ignorar_datas else (data, valor)
 
-        faltando = []
-        for _, linha in extrato.iterrows():
-            chave = (linha["Data"], round(linha["_chave"], 2))
-            if disponiveis[chave] > 0:
-                disponiveis[chave] -= 1
+        # ---- Passo 1: casa extrato x DDATA (cada lançamento "consome" um do DDATA) ----
+        pool = defaultdict(list)  # chave -> posições do DDATA ainda disponíveis
+        for pos in range(len(ddata)):
+            chave = montar_chave(ddata.at[pos, "Data"], ddata.at[pos, "Valor"])
+            pool[chave].append(pos)
+
+        faltando_pos = []
+        for pos in range(len(extrato)):
+            chave = montar_chave(extrato.at[pos, "Data"], round(extrato.at[pos, "_chave"], 2))
+            if pool[chave]:
+                pool[chave].pop(0)
             else:
-                faltando.append(linha.drop("_chave"))
+                faltando_pos.append(pos)
 
-        resultado = pd.DataFrame(faltando)
+        restantes = sorted(p for lista in pool.values() for p in lista)  # DDATA sem par
+
+        # ---- Passo 2: dos faltantes, quais têm o valor no DDATA em outra data? ----
+        faltando_real = []
+        outra_data = []
+        consumidos = set()
+
+        if ignorar_datas:
+            faltando_real = faltando_pos
+        else:
+            por_valor = defaultdict(list)
+            for p in restantes:
+                por_valor[round(ddata.at[p, "Valor"], 2)].append(p)
+
+            for pos in faltando_pos:
+                valor = round(extrato.at[pos, "_chave"], 2)
+                candidatos = por_valor.get(valor)
+                if candidatos:
+                    # escolhe o lançamento do DDATA com a data mais próxima
+                    melhor = min(
+                        candidatos,
+                        key=lambda p: abs((ddata.at[p, "_dt"] - extrato.at[pos, "_dt"]).days)
+                    )
+                    candidatos.remove(melhor)
+                    consumidos.add(melhor)
+                    dif = (ddata.at[melhor, "_dt"] - extrato.at[pos, "_dt"]).days
+                    linha = extrato.loc[pos].drop(["_chave", "_dt"]).to_dict()
+                    linha["Data no DDATA"] = ddata.at[melhor, "Data"]
+                    linha["Título no DDATA"] = ddata.at[melhor, "Título"] if "Título" in ddata.columns else ""
+                    linha["Descrição no DDATA"] = ddata.at[melhor, "Descrição"] if "Descrição" in ddata.columns else ""
+                    linha["Diferença (dias)"] = dif
+                    outra_data.append(linha)
+                else:
+                    faltando_real.append(pos)
+
+        resultado = extrato.loc[faltando_real].drop(columns=["_chave", "_dt"])
+        outra_data = pd.DataFrame(outra_data)
 
         # O que sobrou no DDATA sem par no extrato (informativo)
         sobras = []
-        for _, linha in ddata.iterrows():
-            chave = (linha["Data"], linha["Valor"])
-            if disponiveis[chave] > 0:
-                disponiveis[chave] -= 1
-                sobras.append({
-                    "Data": linha["Data"],
-                    "Valor": linha["Valor"],
-                    "Título": linha.get("Título", ""),
-                    "Descrição": linha.get("Descrição", ""),
-                })
+        for p in restantes:
+            if p in consumidos:
+                continue
+            sobras.append({
+                "Data": ddata.at[p, "Data"],
+                "Valor": ddata.at[p, "Valor"],
+                "Título": ddata.at[p, "Título"] if "Título" in ddata.columns else "",
+                "Descrição": ddata.at[p, "Descrição"] if "Descrição" in ddata.columns else "",
+            })
         sobras = pd.DataFrame(sobras)
 
-        if resultado.empty:
+        if resultado.empty and outra_data.empty:
             self.texto_status.append("Nenhum pagamento faltando no DDATA. Tudo conferiu!")
             return
 
@@ -218,6 +272,8 @@ class AppPagamentosFaltando(QWidget):
         try:
             with pd.ExcelWriter(caminho) as writer:
                 resultado.to_excel(writer, sheet_name="Faltando no DDATA", index=False)
+                if not outra_data.empty:
+                    outra_data.to_excel(writer, sheet_name="Valor existe em outra data", index=False)
                 if not sobras.empty:
                     sobras.to_excel(writer, sheet_name="So no DDATA", index=False)
         except Exception as erro:
@@ -225,6 +281,8 @@ class AppPagamentosFaltando(QWidget):
             return
 
         self.texto_status.append(f"Faltando no DDATA: {len(resultado)} lançamentos")
+        if not ignorar_datas:
+            self.texto_status.append(f"Valor existe no DDATA, mas em outra data: {len(outra_data)}")
         self.texto_status.append(f"Só no DDATA (sem par no extrato): {len(sobras)}")
         self.texto_status.append(f"\nArquivo salvo em: {caminho}")
 
