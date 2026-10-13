@@ -79,12 +79,63 @@ class AppPagamentosFaltando(QWidget):
 
     # ---------- Leitura das planilhas ----------
     def ler_extrato(self, arquivo):
-        """
-        O extrato do banco tem 2 linhas por lançamento:
-        linha 1 = data, histórico, documento, valor, C/D
-        linha 2 = detalhe (nome do favorecido, horário, etc.)
-        """
+        """Aceita 2 layouts: (A) antigo, 2 linhas por lançamento; (B) novo, 1 linha por
+        lançamento com cabeçalho 'Data / Historico / Valor R$' e débito/crédito em colunas separadas."""
         df = pd.read_excel(arquivo, header=None)
+        for i in range(min(15, len(df))):
+            valores = [str(v).strip() for v in df.iloc[i].values]
+            if "Historico" in valores and "Valor R$" in valores:
+                return self.ler_extrato_colunas(df, i, valores)
+        return self.ler_extrato_antigo(df)
+
+    @staticmethod
+    def _numero(v):
+        """'1.015.951,19' -> 1015951.19 ; 1429.42 -> 1429.42 ; vazio -> None"""
+        if pd.isna(v) or str(v).strip() == "":
+            return None
+        if isinstance(v, str):
+            return round(float(v.replace(".", "").replace(",", ".")), 2)
+        return round(float(v), 2)
+
+    def ler_extrato_colunas(self, df, linha_cab, cab):
+        c_data = cab.index("Data")
+        c_hist = cab.index("Historico")
+        c_deb = cab.index("Valor R$")   # débitos; a coluna seguinte (sem título) tem os créditos
+        c_cred = c_deb + 1
+        c_doc = cab.index("Numero Documento") if "Numero Documento" in cab else None
+        c_det = next((i for i, v in enumerate(cab) if v.startswith("Detalhamento")), None)
+
+        dados = []
+        for i in range(linha_cab + 1, len(df)):
+            linha = df.iloc[i]
+            data = pd.to_datetime(linha[c_data], dayfirst=True, errors="coerce")
+            historico = str(linha[c_hist]).strip()
+            if pd.isna(data) or "SALDO" in historico.upper().replace(" ", ""):
+                continue
+            deb, cred = self._numero(linha[c_deb]), self._numero(linha[c_cred])
+            if deb is None and cred is None:   # ex.: BB Rende Fácil (sem valor na linha)
+                continue
+            valor = deb if deb is not None else cred
+            doc = ""
+            if c_doc is not None and not pd.isna(linha[c_doc]):
+                try:
+                    doc = str(int(float(linha[c_doc])))
+                except ValueError:
+                    doc = str(linha[c_doc])
+            detalhe = "" if c_det is None or pd.isna(linha[c_det]) else str(linha[c_det]).strip()
+            dados.append({
+                "Data": data.strftime("%d/%m/%Y"),
+                "Tipo": "Débito" if deb is not None else "Crédito",
+                "Valor": valor,
+                "Histórico": historico,
+                "Documento": doc,
+                "Detalhe": detalhe,
+                "_chave": -valor if deb is not None else valor,
+            })
+        return pd.DataFrame(dados, columns=["Data", "Tipo", "Valor", "Histórico", "Documento", "Detalhe", "_chave"])
+
+    def ler_extrato_antigo(self, df):
+        """linha 1 = data, histórico, documento, valor, C/D; linha 2 = detalhe"""
         dados = []
 
         for i in range(len(df)):
@@ -128,7 +179,7 @@ class AppPagamentosFaltando(QWidget):
                 "_chave": valor_assinado,
             })
 
-        return pd.DataFrame(dados)
+        return pd.DataFrame(dados, columns=["Data", "Tipo", "Valor", "Histórico", "Documento", "Detalhe", "_chave"])
 
     def ler_ddata(self, arquivo):
         bruto = pd.read_excel(arquivo, header=None)
@@ -166,6 +217,10 @@ class AppPagamentosFaltando(QWidget):
 
         if ddata is None:
             self.texto_status.append("Não encontrei as colunas 'Data' e 'Valor' na planilha do DDATA.")
+            return
+
+        if extrato.empty:
+            self.texto_status.append("Não encontrei lançamentos no extrato. Confira se o arquivo do botão 1 é o extrato do banco.")
             return
 
         if self.chk_rende.isChecked():
