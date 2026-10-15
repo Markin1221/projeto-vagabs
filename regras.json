@@ -320,5 +320,55 @@
     "item": "520 - FORNECEDORES A PAGAR DDA",
     "forma": "Boleto",
     "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - PNEU1 COMERCIO"
+  },
+  {
+    "kw": "S FERREIRA",
+    "centro": "ADM01 - ADMINISTRAÇÃO",
+    "item": "025 - ENERGIA ELETRICA",
+    "forma": "Boleto",
+    "titulo": "ENERGIA ELETRICA"
+  },
+  {
+    "kw": "MAIS PREVENTIVA",
+    "centro": "ADM01 - ADMINISTRAÇÃO",
+    "item": "029 - PREVENTIVA - SEGURANÇA DO TRABALHO",
+    "forma": "Boleto",
+    "titulo": "SEGURANÇA DO TRABALHO"
+  },
+  {
+    "kw": "TBI",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "521 - TRANSFERÊNCIAS ENTRE BANCOS",
+    "forma": "Transferência Bancária",
+    "titulo": "AMORTIZAÇAO DA CONTA GARANTIDA",
+    "nat": "DEBITO"
+  },
+  {
+    "kw": "TBI",
+    "campos": {
+      "CENTRO DE CUSTO": "CTPAS - CONTAS DE PASSAGENS",
+      "FONTE DE RECURSO": "14 - TED ENTRE BANCOS"
+    },
+    "titulo": "EMPRESTIMO DA CONTA GARANTIDA",
+    "nat": "CREDITO"
+  },
+  {
+    "kw": "USO CONTA",
+    "campos": {
+      "CENTRO DE CUSTO": "CTPAS - CONTAS DE PASSAGENS",
+      "FONTE DE RECURSO": "14 - TED ENTRE BANCOS"
+    },
+    "titulo": "EMPRESTIMO DA CONTA GARANTIDA",
+    "nat": "CREDITO"
+  },
+  {
+    "kw": "PAGAMENTO CONTA",
+    "campos": {
+      "CENTRO DE CUSTO": "CTPAS - CONTAS DE PASSAGENS",
+      "ITEM DE DESPESA": "521 - TRANSFERÊNCIAS ENTRE BANCOS",
+      "FORMA DE PAGAMENTO": "Transferência Bancária"
+    },
+    "titulo": "AMORTIZAÇAO DA CONTA GARANTIDA",
+    "nat": "DEBITO"
   }
 ]
