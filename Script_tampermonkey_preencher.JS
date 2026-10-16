@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OFX Assistente (Coopernorte)
 // @namespace    coopernorte.ofx
-// @version      1.2
+// @version      1.9
 // @description  Percorre itens PENDENTES do Importar OFX, preenche por regras (inclui Titulo com {NOME}) e pergunta antes de liquidar
 // @match        https://coopernorte.con-nectar.com/financeiro/admin/importar_arquivo_ofx*
 // @grant        GM_getValue
@@ -45,6 +45,9 @@
   const getState = () =>
     load("state", {
       active: false,
+      auto: false,
+      onlyRules: false,
+      onlyEx: false,
       skipped: [],
       done: [],
       current: null,
@@ -57,6 +60,7 @@
     return s;
   };
   const getRules = () => load("rules", []);
+  const getExRules = () => load("exrules", []); // regras de EXCLUSAO (clica no botao vermelho)
   const LIST_URL = location.origin + "/financeiro/admin/importar_arquivo_ofx";
 
   // Volta no historico (como a seta do navegador) ate a lista, mantendo filtros/pagina.
@@ -78,19 +82,46 @@
       setState({ done: (s.done || []).concat(id) });
   };
 
-  function matchRule(text) {
-    const t = norm(text);
+  function normNat(n) {
+    const t = norm(n);
+    return t.includes("CREDIT")
+      ? "CREDITO"
+      : t.includes("DEBIT")
+        ? "DEBITO"
+        : "";
+  }
+  // text = descricao/memo; nat = natureza do item (DEBITO/CREDITO). Regra sem "nat" vale para ambos.
+  function matchIn(list, text, nat) {
+    const t = norm(text),
+      n = normNat(nat);
     let best = null,
-      bestLen = 0;
-    for (const r of getRules()) {
+      bestLen = 0,
+      bestSpec = false;
+    for (const r of list) {
+      const rn = normNat(r.nat);
+      if (rn && rn !== n) continue; // regra de um tipo so; natureza diferente ou desconhecida -> ignora
       for (const kw of String(r.kw).split("|").map(norm).filter(Boolean)) {
-        if (t.includes(kw) && kw.length > bestLen) {
+        if (!t.includes(kw)) continue;
+        if (kw.length > bestLen || (kw.length === bestLen && rn && !bestSpec)) {
           best = r;
           bestLen = kw.length;
+          bestSpec = !!rn;
         }
       }
     }
-    return best;
+    return best ? { rule: best, len: bestLen } : null;
+  }
+  // Acha a regra (normal ou de exclusao). Palavra-chave mais longa ganha; empate -> regra normal.
+  function matchAny(text, nat) {
+    const a = matchIn(getRules(), text, nat),
+      b = matchIn(getExRules(), text, nat);
+    if (a && b)
+      return b.len > a.len
+        ? { ex: true, rule: b.rule }
+        : { ex: false, rule: a.rule };
+    if (b) return { ex: true, rule: b.rule };
+    if (a) return { ex: false, rule: a.rule };
+    return null;
   }
 
   // Nome do favorecido: texto depois do ultimo " - " da descricao
@@ -195,19 +226,16 @@
   }
 
   /* ---------- editor de regras ---------- */
-  function openRules() {
-    const ta = h("textarea", { value: JSON.stringify(getRules(), null, 2) });
+  function openEditor(key, title, hint) {
+    const ta = h("textarea", { value: JSON.stringify(load(key, []), null, 2) });
     Object.assign(ta.style, {
       width: "100%",
       height: "220px",
       font: "12px monospace",
     });
     panel(
-      "Regras (JSON)",
-      [
-        'Formato: {"kw":"REDIESEL|CPX","centro":"...","item":"...","forma":"...","titulo":"PGTO. AO FORNECEDOR DO PERMISSIONARIO - {NOME}"}. Use | para varias palavras-chave. {NOME} = nome tirado da descricao. "titulo" e opcional.',
-        ta,
-      ],
+      title,
+      [hint, ta],
       [
         [
           "Salvar",
@@ -215,7 +243,7 @@
             try {
               const v = JSON.parse(ta.value);
               if (!Array.isArray(v)) throw 0;
-              save("rules", v);
+              save(key, v);
               init();
             } catch (e) {
               alert("JSON invalido");
@@ -227,6 +255,18 @@
       ],
     );
   }
+  const openRules = () =>
+    openEditor(
+      "rules",
+      "Regras (JSON)",
+      'Formato: {"kw":"REDIESEL|CPX","campos":{"CENTRO DE CUSTO":"...","FONTE DE RECURSO":"..."},"nat":"DEBITO","titulo":"PGTO. AO FORNECEDOR DO PERMISSIONARIO - {NOME}"}. Use | para varias palavras-chave. "nat" (DEBITO ou CREDITO) e opcional: sem ele a regra vale para os dois. {NOME} = nome tirado da descricao. "titulo" e opcional.',
+    );
+  const openEx = () =>
+    openEditor(
+      "exrules",
+      "Exclusões (JSON)",
+      'Itens que batem aqui sao EXCLUIDOS (botao vermelho). Formato: {"kw":"PALAVRA1|PALAVRA2","nat":"DEBITO"}. "nat" e opcional.',
+    );
 
   /* ---------- LISTA ---------- */
   function readRows() {
@@ -258,7 +298,12 @@
         (r) =>
           /PENDENTE/i.test(r.status) &&
           !st.skipped.includes(r.id) &&
-          !(st.done || []).includes(r.id),
+          !(st.done || []).includes(r.id) &&
+          (!st.onlyRules ||
+            (() => {
+              const m = matchAny(r.memo, r.nat);
+              return m && (!st.onlyEx || m.ex);
+            })()),
       );
       if (row) return row;
       const next = document.querySelector("#tabela-ImportarArquivoOfx_next");
@@ -280,12 +325,65 @@
         [
           "▶ Iniciar fila",
           () => {
-            setState({ active: true, skipped: [], done: [] });
+            setState({
+              active: true,
+              auto: false,
+              onlyRules: false,
+              onlyEx: false,
+              skipped: [],
+              done: [],
+            });
             listPage();
           },
           GREEN,
         ],
+        [
+          "⚡ Fila automática",
+          () => {
+            setState({
+              active: true,
+              auto: true,
+              onlyRules: false,
+              onlyEx: false,
+              skipped: [],
+              done: [],
+            });
+            listPage();
+          },
+          "#f59f00",
+        ],
+        [
+          "🎯 Só com regra",
+          () => {
+            setState({
+              active: true,
+              auto: true,
+              onlyRules: true,
+              onlyEx: false,
+              skipped: [],
+              done: [],
+            });
+            listPage();
+          },
+          "#1e88e5",
+        ],
+        [
+          "🗑 Só exclusões",
+          () => {
+            setState({
+              active: true,
+              auto: true,
+              onlyRules: true,
+              onlyEx: true,
+              skipped: [],
+              done: [],
+            });
+            listPage();
+          },
+          RED,
+        ],
         ["Regras (" + getRules().length + ")", openRules, GRAY],
+        ["Exclusões (" + getExRules().length + ")", openEx, GRAY],
       ]);
       return;
     }
@@ -295,32 +393,60 @@
     const row = await findNext();
     if (!row) {
       setState({ active: false });
+      const n = (st.skipped || []).length;
       panel(
         "OFX Assistente",
-        "Fila acabou: nenhum pendente (fora os pulados).",
+        st.onlyEx
+          ? "Fila acabou: todas as exclusões foram feitas. Ficaram " +
+              n +
+              " pulado(s) (com problema)."
+          : st.onlyRules
+            ? "Fila acabou: todos os itens com regra foram feitos. Ficaram " +
+              n +
+              " pulado(s) (sem regra ou com problema)."
+            : "Fila acabou: nenhum pendente (fora os pulados).",
         [["Ok", () => init(), GRAY]],
       );
       return;
     }
-    const rule = matchRule(row.memo);
+    const m = matchAny(row.memo, row.nat);
+    const rule = m && m.rule;
+    const rdesc = m
+      ? m.ex
+        ? "🗑 EXCLUIR (" + rule.kw + ")"
+        : rule.kw + " → " + ruleSummary(rule)
+      : null;
+    if (st.auto && m) {
+      // automatico: tem regra -> vai direto, sem perguntar
+      panel(
+        "⚡ Automático — item #" + row.id,
+        [
+          line("Valor", row.valor),
+          line("Memo", row.memo),
+          line("Regra", rdesc),
+        ],
+        [["■ Parar", stop, RED]],
+      );
+      await sleep(1200);
+      if (!getState().active) return;
+      setState({ current: row.id, curNat: row.nat });
+      row.btn.click();
+      return;
+    }
     panel(
       "Proximo item #" + row.id,
       [
         line("Valor", row.valor),
+        line("Natureza", row.nat),
         line("Data", row.data),
         line("Memo", row.memo),
-        line(
-          "Regra",
-          rule
-            ? rule.kw + " → " + rule.centro + " / " + rule.item
-            : "nenhuma (vou perguntar)",
-        ),
+        line("Regra", rdesc || "nenhuma (vou perguntar)"),
       ],
       [
         [
           "✅ Fazer este",
           () => {
-            setState({ current: row.id });
+            setState({ current: row.id, curNat: row.nat });
             row.btn.click();
           },
           GREEN,
@@ -340,16 +466,25 @@
     );
   }
   function stop() {
-    setState({ active: false, awaiting: null });
+    setState({
+      active: false,
+      auto: false,
+      onlyRules: false,
+      onlyEx: false,
+      awaiting: null,
+    });
     init();
   }
 
   /* ---------- DETALHES ---------- */
   function findCreateBtn() {
-    return [
+    const all = [
       ...document.querySelectorAll("button, input[type=submit], a.btn"),
-    ].find((b) =>
-      norm(b.textContent || b.value).includes("CRIAR LANCAMENTO E LIQUIDAR"),
+    ];
+    const t = (b) => norm(b.textContent || b.value);
+    return (
+      all.find((b) => t(b).includes("CRIAR LANCAMENTO E LIQUIDAR")) ||
+      all.find((b) => /CRIAR LANCAMENTO E /.test(t(b)))
     );
   }
   function findContainer(btn) {
@@ -414,10 +549,248 @@
     sel && sel.selectedIndex > 0 && sel.value !== ""
       ? optText(sel.options[sel.selectedIndex])
       : "";
+  /* ---- campos de selecao do formulario (qualquer rotulo), em ordem de tela ---- */
+  const cleanLabel = (t) => norm(t).replace(/\*/g, "").trim();
+  function getSelects(c) {
+    const heading = [
+      ...document.querySelectorAll("h1,h2,h3,h4,h5,h6,legend,div,span,p"),
+    ].find(
+      (e) =>
+        e.children.length === 0 &&
+        norm(e.textContent).startsWith("CRIAR NOVO LANCAMENTO"),
+    );
+    const out = [],
+      seen = new Set();
+    for (const l of c.querySelectorAll("label")) {
+      const s =
+        (l.htmlFor && c.querySelector("#" + CSS.escape(l.htmlFor))) ||
+        l.parentElement.querySelector("select");
+      if (!s || s.tagName !== "SELECT" || seen.has(s)) continue;
+      // so os campos do formulario "Criar novo lancamento" (ignora filtros acima)
+      if (
+        heading &&
+        !(heading.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING)
+      )
+        continue;
+      seen.add(s);
+      out.push({ key: cleanLabel(l.textContent), sel: s });
+    }
+    return out;
+  }
+  const findSelByKey = (list, key) =>
+    list.find((x) => x.key === key) || list.find((x) => x.key.startsWith(key));
+  function readCampos(list) {
+    const o = {};
+    for (const x of list) {
+      const v = curText(x.sel);
+      if (v) o[x.key] = v;
+    }
+    return o;
+  }
+  // regras antigas (centro/item/forma) viram "campos"
+  function ruleCampos(r) {
+    if (r.campos) return r.campos;
+    const o = {};
+    if (r.centro) o["CENTRO DE CUSTO"] = r.centro;
+    if (r.item) o["ITEM DE DESPESA"] = r.item;
+    if (r.forma) o["FORMA DE PAGAMENTO"] = r.forma;
+    return o;
+  }
+  const ruleSummary = (r) => Object.values(ruleCampos(r)).join(" / ");
+  const campoLines = (c) => Object.entries(c || {}).map(([k, v]) => line(k, v));
+
   const curTitulo = (el) =>
     !el ? "" : el.tagName === "SELECT" ? curText(el) : (el.value || "").trim();
 
-  async function detailsPage() {
+  // Acha o botao "Fechar" do modal "Novo lancamento criado e liquidado com sucesso!"
+  function findFecharBtn() {
+    const btns = [
+      ...document.querySelectorAll("button, a.btn, input[type=button]"),
+    ].filter(
+      (b) =>
+        b.getClientRects().length &&
+        /^(FECHAR|OK)$/.test(norm(b.textContent || b.value)),
+    );
+    for (const b of btns) {
+      let p = b.parentElement;
+      for (let i = 0; i < 8 && p; i++, p = p.parentElement) {
+        if (norm(p.textContent).includes("COM SUCESSO")) return b;
+      }
+    }
+    return null;
+  }
+
+  // Depois de clicar em Criar e liquidar: espera o modal de sucesso, clica em Fechar e volta pra lista
+  async function afterCreate(id) {
+    panel("Item #" + id, "Criando... aguardando a confirmação do sistema.", [
+      ["■ Parar", stop, RED],
+    ]);
+    const fechar = await waitFor(findFecharBtn, 20000, 200);
+    if (!getState().active) return;
+    if (!fechar) {
+      panel(
+        "Item #" + id,
+        "Não vi a mensagem de sucesso. Pode ter dado erro — confira a página.",
+        [
+          ["↩ Voltar / proximo", goBack, GREEN],
+          ["■ Parar", stop, RED],
+        ],
+      );
+      return;
+    }
+    await sleep(500);
+    fechar.click();
+    markDone(id);
+    setState({ awaiting: null });
+    await sleep(800);
+    if (!getState().active) return;
+    goBack();
+  }
+
+  /* ---------- EXCLUSAO (botao vermelho) ---------- */
+  function findDeleteBtn(c) {
+    const q =
+      "button, a.btn, a[class*=btn], input[type=submit], input[type=button]";
+    const t = (b) => norm(b.textContent || b.value || b.title);
+    for (const root of [c, document]) {
+      const all = [...root.querySelectorAll(q)].filter(
+        (b) => b.getClientRects().length > 0,
+      );
+      const b =
+        all.find((x) =>
+          /^(EXCLUIR|DESCARTAR|IGNORAR|REMOVER|DELETAR|APAGAR|EXCLUSAO)/.test(
+            t(x),
+          ),
+        ) ||
+        all.find((x) => /EXCLUIR|DESCARTAR|IGNORAR|APAGAR/.test(t(x))) ||
+        all.find(
+          (x) =>
+            /btn-(outline-)?danger/.test(x.className) &&
+            !/FECHAR|CANCELAR|NAO/.test(t(x)),
+        );
+      if (b) return b;
+    }
+    return null;
+  }
+  // botao dentro de um dialog/modal (confirmacao ou sucesso)
+  function findDlgBtn(textRe, btnRe) {
+    return [
+      ...document.querySelectorAll("button, a.btn, input[type=button]"),
+    ].find((b) => {
+      if (
+        !b.getClientRects().length ||
+        !btnRe.test(norm(b.textContent || b.value))
+      )
+        return false;
+      const d = b.closest(
+        ".swal2-popup, .swal2-container, .modal, [role=dialog]",
+      );
+      return d && textRe.test(norm(d.textContent));
+    });
+  }
+  function doExclude(id, del) {
+    setState({ awaiting: id });
+    del.click();
+    afterExclude(id);
+  }
+
+  // depois de clicar no botao vermelho: confirma o popup (se houver), fecha o aviso de sucesso e volta
+  async function afterExclude(id) {
+    panel("Item #" + id, "Excluindo... aguardando o sistema.", [
+      ["■ Parar", stop, RED],
+    ]);
+    const t0 = Date.now();
+    let confirmed = 0;
+    while (Date.now() - t0 < 20000) {
+      if (!getState().active) return;
+      const ok = findDlgBtn(
+        /SUCESSO|EXCLUID|REMOVID|DESCARTAD|IGNORAD|APAGAD/,
+        /^(FECHAR|OK)$/,
+      );
+      if (ok) {
+        await sleep(500);
+        ok.click();
+        markDone(id);
+        setState({ awaiting: null });
+        await sleep(800);
+        if (!getState().active) return;
+        return goBack();
+      }
+      const conf =
+        confirmed < 2 &&
+        findDlgBtn(
+          /CERTEZA|CONFIRM|DESEJA|EXCLUIR|REMOVER|DESCARTAR|IGNORAR|APAGAR/,
+          /^(SIM|CONFIRM|EXCLUIR|REMOVER|DESCARTAR|IGNORAR|APAGAR|OK|CONTINUAR)/,
+        );
+      if (conf) {
+        confirmed++;
+        await sleep(400);
+        conf.click();
+        await sleep(800);
+        continue;
+      }
+      await sleep(250);
+    }
+    panel(
+      "Item #" + id,
+      "Não vi a confirmação da exclusão. Confira a página.",
+      [
+        ["↩ Voltar / proximo", goBack, GREEN],
+        ["■ Parar", stop, RED],
+      ],
+    );
+  }
+
+  async function exclusionStep(id, descr, rule, c, ctrl, st0, forceConfirm) {
+    const del = findDeleteBtn(c);
+    if (!del) {
+      if (st0.onlyRules && !forceConfirm) {
+        panel(
+          "Item #" + id,
+          "Não achei o botão vermelho de exclusão. Pulando este item.",
+          [["■ Parar", stop, RED]],
+        );
+        await sleep(2000);
+        if (!getState().active) return;
+        return ctrl.skip();
+      }
+      panel(
+        "Item #" + id + " — exclusão",
+        [
+          line("Descricao", descr),
+          "A regra de exclusão bateu, mas não achei o botão vermelho de exclusão na tela. Exclua você mesmo ou pule.",
+        ],
+        [
+          ["✋ Manual", ctrl.manual, GRAY],
+          ["⏭ Pular", ctrl.skip, GRAY],
+          ["■ Parar", stop, RED],
+        ],
+      );
+      return;
+    }
+    del.scrollIntoView({ block: "center" });
+    if (st0.auto && !forceConfirm) {
+      panel(
+        "⚡ Automático — EXCLUINDO #" + id,
+        [line("Descricao", descr), line("Regra", rule.kw)],
+        [["■ Parar", stop, RED]],
+      );
+      await sleep(1200);
+      if (!getState().active) return;
+      return doExclude(id, del);
+    }
+    panel(
+      "Item #" + id + " — Excluir?",
+      [line("Descricao", descr), line("Regra de exclusão", rule.kw)],
+      [
+        ["🗑 Excluir", () => doExclude(id, del), RED],
+        ["✋ Manual", ctrl.manual, GRAY],
+        ["⏭ Pular", ctrl.skip, GRAY],
+      ],
+    );
+  }
+
+  async function detailsPage(forceConfirm) {
     const st0 = getState();
     const id = (location.pathname.match(/detalhes\/(\d+)/) || [])[1];
     if (!st0.active) {
@@ -454,7 +827,7 @@
             "🔁 Tentar de novo",
             () => {
               setState({ awaiting: null });
-              detailsPage();
+              detailsPage(true);
             },
             GRAY,
           ],
@@ -464,11 +837,14 @@
       return;
     }
     const c = findContainer(btn);
-    const selC = fieldSelect(c, "Centro de custo"),
-      selI = fieldSelect(c, "Item de despesa"),
-      selF = fieldSelect(c, "Forma de pagamento");
     const fldT = fieldAny(c, "Titulo");
     const descr = (fieldAny(c, "Descricao") || {}).value || "";
+    // natureza: vem da lista (quando abriu pelo assistente); senao tenta ler da tela
+    const natFld = fieldAny(document.body, "Natureza");
+    const nat =
+      st0.current === id && st0.curNat
+        ? normNat(st0.curNat)
+        : normNat(natFld ? natFld.value || curText(natFld) : "");
     c.scrollIntoView({ block: "center" });
 
     const ctrl = {
@@ -489,12 +865,12 @@
         );
       },
       current() {
-        return {
-          centro: curText(selC),
-          item: curText(selI),
-          forma: curText(selF),
-          titulo: curTitulo(fldT),
-        };
+        return { campos: readCampos(getSelects(c)), titulo: curTitulo(fldT) };
+      },
+      required() {
+        return getSelects(c)
+          .filter((x) => x.sel.required && !curText(x.sel))
+          .map((x) => x.key);
       },
       hasTitulo: !!fldT,
       setTitulo(v) {
@@ -502,20 +878,57 @@
       },
     };
 
-    const rule = matchRule(descr);
-    if (!rule) return askRule(id, descr, ctrl);
+    const m = matchAny(descr, nat);
+    if (!m) {
+      if (st0.onlyRules) return ctrl.skip();
+      return askRule(id, descr, ctrl, nat);
+    }
+    if (st0.onlyEx && !m.ex) return ctrl.skip();
+    if (m.ex)
+      return exclusionStep(id, descr, m.rule, c, ctrl, st0, forceConfirm);
+    const rule = m.rule;
 
     const miss = [];
-    if (!(await setSelect(selC, rule.centro)))
-      miss.push('Centro de custo "' + rule.centro + '"');
-    if (!(await setSelect(selI, rule.item)))
-      miss.push('Item de despesa "' + rule.item + '"');
-    if (rule.forma && !(await setSelect(selF, rule.forma)))
-      miss.push('Forma de pagamento "' + rule.forma + '"');
+    for (const [key, val] of Object.entries(ruleCampos(rule))) {
+      const e = findSelByKey(getSelects(c), key);
+      if (!e) miss.push('campo "' + key + '" nao encontrado na tela');
+      else if (!(await setSelect(e.sel, val)))
+        miss.push(key + ' "' + val + '"');
+    }
     if (rule.titulo) {
       if (!fldT) miss.push("campo Titulo nao encontrado na tela");
       else if (!(await ctrl.setTitulo(buildTitulo(rule.titulo, descr))))
         miss.push("Titulo");
+    }
+    if (st0.onlyRules && !forceConfirm && miss.length) {
+      // so com regra: nao conseguiu preencher -> pula sem perguntar
+      panel(
+        "Item #" + id,
+        "Não consegui preencher: " + miss.join("; ") + ". Pulando este item.",
+        [["■ Parar", stop, RED]],
+      );
+      await sleep(2000);
+      if (!getState().active) return;
+      return ctrl.skip();
+    }
+    if (st0.auto && !forceConfirm && !miss.length) {
+      // automatico: preenchido sem faltas -> cria e liquida direto
+      const cur = ctrl.current();
+      panel(
+        "⚡ Automático — item #" + id,
+        [
+          line("Descricao", descr),
+          ...campoLines(cur.campos),
+          line("Titulo", cur.titulo || "—"),
+        ],
+        [["■ Parar", stop, RED]],
+      );
+      await sleep(1200);
+      if (!getState().active) return;
+      setState({ awaiting: id });
+      btn.click();
+      afterCreate(id);
+      return;
     }
     confirmStep(id, descr, rule, miss, btn, ctrl);
   }
@@ -523,11 +936,9 @@
   function confirmStep(id, descr, rule, miss, btn, ctrl) {
     const cur = ctrl.current();
     const body = [
-      line("Regra", rule.kw),
+      line("Regra", rule.kw + (rule.nat ? " (" + rule.nat + ")" : "")),
       line("Descricao", descr),
-      line("Centro", cur.centro || "—"),
-      line("Item", cur.item || "—"),
-      line("Forma", cur.forma || "—"),
+      ...campoLines(cur.campos),
     ];
     let tituloInput = null;
     if (rule.titulo) {
@@ -550,6 +961,7 @@
           if (tituloInput) await ctrl.setTitulo(tituloInput.value.trim());
           setState({ awaiting: id });
           btn.click();
+          afterCreate(id);
         },
         GREEN,
       ],
@@ -557,11 +969,14 @@
         "💾 Atualizar regra",
         () => {
           const v = ctrl.current();
-          if (!v.centro || !v.item)
-            return alert("Selecione Centro e Item primeiro.");
+          if (!Object.keys(v.campos).length)
+            return alert("Selecione os campos na tela primeiro.");
           const rules = getRules();
           const r = rules.find((x) => x.kw === rule.kw);
-          Object.assign(r, { centro: v.centro, item: v.item, forma: v.forma }); // titulo (modelo) fica como esta
+          r.campos = v.campos;
+          delete r.centro;
+          delete r.item;
+          delete r.forma; // titulo (modelo) fica como esta
           save("rules", rules);
           confirmStep(id, descr, r, [], btn, ctrl);
         },
@@ -572,19 +987,37 @@
     ]);
   }
 
-  function askRule(id, descr, ctrl) {
+  function askRule(id, descr, ctrl, nat) {
     // sugestao de palavra-chave: nome do favorecido, 2 primeiras palavras
     const sugg = norm(extractNome(descr)).split(" ").slice(0, 2).join(" ");
     const kw = textInput(sugg);
     const tit = textInput("");
+    const natSel = h("select", {});
+    [
+      ["", "Débito e crédito (ambos)"],
+      ["DEBITO", "Só DÉBITO"],
+      ["CREDITO", "Só CRÉDITO"],
+    ].forEach(([v, t]) => natSel.append(h("option", { value: v }, t)));
+    natSel.value = nat || "";
+    Object.assign(natSel.style, {
+      width: "100%",
+      border: "1px solid #aaa",
+      borderRadius: "4px",
+      padding: "4px",
+      marginBottom: "6px",
+    });
     panel(
       "Item #" + id + " — sem regra",
       [
         line("Descricao", descr),
-        "Preencha Centro de custo, Item de despesa e Forma na tela. Palavra-chave (use | para varias; nada de datas/numeros):",
+        "Preencha todos os campos de seleção na tela (Centro de custo, Fonte de recurso, Item, Forma...), menos o Título. Palavra-chave (use | para varias; nada de datas/numeros):",
         kw,
         "Titulo (deixe vazio se nao quiser padrao). Use {NOME} para o nome tirado da descricao (ex.: PGTO. AO FORNECEDOR DO PERMISSIONARIO - {NOME}):",
         tit,
+        "Esta regra vale para (este item é " +
+          (nat || "natureza não detectada") +
+          "):",
+        natSel,
         "Nome detectado nesta descricao: " + extractNome(descr),
       ],
       [
@@ -592,23 +1025,35 @@
           "💾 Salvar regra",
           () => {
             const v = ctrl.current();
-            if (!kw.value.trim() || !v.centro || !v.item)
-              return alert("Preencha Centro e Item na tela e a palavra-chave.");
-            const rule = {
-              kw: kw.value.trim(),
-              centro: v.centro,
-              item: v.item,
-              forma: v.forma,
-            };
+            if (!kw.value.trim() || !Object.keys(v.campos).length)
+              return alert("Preencha os campos na tela e a palavra-chave.");
+            const faltam = ctrl.required();
+            if (faltam.length)
+              return alert("Faltou preencher: " + faltam.join(", "));
+            const rule = { kw: kw.value.trim(), campos: v.campos };
             // titulo: modelo digitado; se vazio, usa o que ja esta na tela (texto fixo)
             const t = tit.value.trim() || v.titulo;
             if (t) rule.titulo = t;
+            if (natSel.value) rule.nat = natSel.value;
             const rules = getRules();
             rules.push(rule);
             save("rules", rules);
-            detailsPage();
+            detailsPage(true); // regra nova: confirma uma vez antes de liquidar
           },
           GREEN,
+        ],
+        [
+          "🗑 Salvar como EXCLUSÃO",
+          () => {
+            if (!kw.value.trim()) return alert("Preencha a palavra-chave.");
+            const r = { kw: kw.value.trim() };
+            if (natSel.value) r.nat = natSel.value;
+            const ex = getExRules();
+            ex.push(r);
+            save("exrules", ex);
+            detailsPage(true); // regra nova: confirma uma vez antes de excluir
+          },
+          RED,
         ],
         ["✋ Deixar manual", ctrl.manual, GRAY],
         ["⏭ Pular", ctrl.skip, GRAY],
