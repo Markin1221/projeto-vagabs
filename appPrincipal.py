@@ -3,6 +3,7 @@ from vagabsCopy import AppExcelPrimeiro
 from appContinued import AppExcelSegundo  
 from hapvida import AppHapvida  
 from avisos import MonitorGUI  
+from quinzena.app_classificador import AppClassificador
 import openpyxl
 import pandas as pd
 import numpy as np
@@ -42,6 +43,10 @@ class AppPrincipal(QWidget):
         btn_renomear.clicked.connect(self.abrir_renomear)
         layout.addWidget(btn_renomear)
         
+        btn_class = QPushButton("Abrir Classificador do Extrato (Sol)")
+        btn_class.clicked.connect(self.abrir_classificador)
+        layout.addWidget(btn_class)
+        
         self.setLayout(layout)
         
         # Variáveis separadas para cada janela
@@ -49,6 +54,7 @@ class AppPrincipal(QWidget):
         self.janela_excel2 = None
         self.janela_avisos = None
         self.janela_renomear = None
+        self.janela_classificador = None
 
     # Métodos para abrir cada janela
     def abrir_excel1(self):
@@ -70,6 +76,11 @@ class AppPrincipal(QWidget):
         if self.janela_renomear is None:
             self.janela_renomear = AppHapvida()
         self.janela_renomear.show()
+
+    def abrir_classificador(self):
+        if self.janela_classificador is None:
+            self.janela_classificador = AppClassificador()
+        self.janela_classificador.show()
 
 if __name__ == "__main__":
     import sys

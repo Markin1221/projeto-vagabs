@@ -1,0 +1,4 @@
+{
+  "limiar_valor_alto": 5000,
+  "palavras_transporte": ["\\bTRANS(P|PORTES?)?\\b", "VIACAO|VIAÇÃO"]
+}

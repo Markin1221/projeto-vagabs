@@ -1,0 +1,6 @@
+
+# dados reais da empresa - nao versionar
+*.xlsx
+.superpowers/
+.pytest_cache/
+__pycache__/
