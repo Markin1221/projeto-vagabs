@@ -1,30 +1,31 @@
-from PyQt6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
-from vagabsCopy import AppExcelPrimeiro   
-from appContinued import AppExcelSegundo  
-from hapvida import AppHapvida  
-from avisos import MonitorGUI  
-from quinzena.app_classificador import AppClassificador
-import openpyxl
-import pandas as pd
-import numpy as np
-import re
 import sys
-import os
-import threading
-import queue
-import time
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, QFileDialog, QLabel
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+
+from PyQt6.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QWidget
+
+import estilo
+from vagabsCopy import AppExcelPrimeiro
+from appContinued import AppExcelSegundo
+from hapvida import AppHapvida
+from avisos import MonitorGUI
+from quinzena.app_classificador import AppClassificador
+from AppDiferençaExtratos import AppPagamentosFaltando
+from Appresumofolha import AppResumoFolha
 
 
 class AppPrincipal(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("App Principal")
-        self.setGeometry(400, 200, 300, 200)
+        self.setGeometry(400, 200, 460, 440)
         
         layout = QVBoxLayout()
+
+        titulo = QLabel("VAGABS")
+        titulo.setProperty("titulo", True)
+        sub = QLabel("Escolha a ferramenta que quer abrir")
+        sub.setProperty("sub", True)
+        layout.addWidget(titulo)
+        layout.addWidget(sub)
         
         # Botões para abrir cada janela
         btn_excel1 = QPushButton("Abrir Processamento de Excel")
@@ -47,6 +48,14 @@ class AppPrincipal(QWidget):
         btn_class.clicked.connect(self.abrir_classificador)
         layout.addWidget(btn_class)
         
+        btn_dif = QPushButton("Abrir Comparador de Extrato x DDATA")
+        btn_dif.clicked.connect(self.abrir_diferenca)
+        layout.addWidget(btn_dif)
+
+        btn_resumo = QPushButton("Abrir Resumo da Folha (PDF -> planilha base)")
+        btn_resumo.clicked.connect(self.abrir_resumo)
+        layout.addWidget(btn_resumo)
+
         self.setLayout(layout)
         
         # Variáveis separadas para cada janela
@@ -55,6 +64,8 @@ class AppPrincipal(QWidget):
         self.janela_avisos = None
         self.janela_renomear = None
         self.janela_classificador = None
+        self.janela_diferenca = None
+        self.janela_resumo = None
 
     # Métodos para abrir cada janela
     def abrir_excel1(self):
@@ -82,9 +93,20 @@ class AppPrincipal(QWidget):
             self.janela_classificador = AppClassificador()
         self.janela_classificador.show()
 
+    def abrir_diferenca(self):
+        if self.janela_diferenca is None:
+            self.janela_diferenca = AppPagamentosFaltando()
+        self.janela_diferenca.show()
+
+    def abrir_resumo(self):
+        if self.janela_resumo is None:
+            self.janela_resumo = AppResumoFolha()
+        self.janela_resumo.show()
+
+
 if __name__ == "__main__":
-    import sys
     app = QApplication(sys.argv)
+    estilo.aplicar(app)
     principal = AppPrincipal()
     principal.show()
     sys.exit(app.exec())

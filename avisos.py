@@ -97,6 +97,7 @@ class MonitorGUI(QWidget):
 # ===== Inicialização =====
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    import estilo; estilo.aplicar(app)
     window = MonitorGUI()
     window.show()
     sys.exit(app.exec())

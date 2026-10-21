@@ -1,0 +1,374 @@
+[
+  {
+    "kw": "TAR. AGRUPADAS",
+    "centro": "ADM01 - ADMINISTRAÇÃO",
+    "item": "048 - TAXA SOBRE PIX, FOLHA SALARIAL, TED E OUTROS",
+    "forma": "DESCONTO AUTOMÁTICO EM CONTA",
+    "titulo": "TARIFA BANCARIA"
+  },
+  {
+    "kw": "DEPTO ESTADUAL-DETRAN",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "580 - EMPRESTIMO AO PERMISSIONÁRIO",
+    "forma": "Boleto",
+    "titulo": "DEBITO DE ACORDO PARA O PERMISSIONARIO"
+  },
+  {
+    "kw": "REDIESEL RECIFE",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - REDIESEL"
+  },
+  {
+    "kw": "WURTH BR",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - WURTH"
+  },
+  {
+    "kw": "CPX DISTRIBUIDORA",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - CPX DISTRIBUIDORA"
+  },
+  {
+    "kw": "POLY ONIBUS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - POLY ONIBUS"
+  },
+  {
+    "kw": "MAGNUM TIRES",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - MAGNUM TIRES"
+  },
+  {
+    "kw": "DAFONTE COMERCIO",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - DAFONTE"
+  },
+  {
+    "kw": "JOSAFA SOARES",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - JOSAFA SOARES"
+  },
+  {
+    "kw": "LITORAL PNEUS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - LITORAL PNEUS"
+  },
+  {
+    "kw": "H S DA SILVA",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - HS DA SILVA"
+  },
+  {
+    "kw": "SILVIO RODRIG",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "580 - EMPRESTIMO AO PERMISSIONÁRIO",
+    "forma": "Transferência Bancária",
+    "titulo": "ACORDO COM PERMISSIONARIO"
+  },
+  {
+    "kw": "VENEZA DIESEL",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - VENEZA DIESEL"
+  },
+  {
+    "kw": "COMPACTO VEICULOS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - COMPACTO VEICULOS"
+  },
+  {
+    "kw": "ID AUTO PECAS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - ID AUTO PEÇAS"
+  },
+  {
+    "kw": "W E G COMERCIO",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - WEG COMERCIO"
+  },
+  {
+    "kw": "FIGUEIRA COMERCIO",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - FIGUEIRA COMERCIO"
+  },
+  {
+    "kw": "COBRANCA REFERENTE",
+    "centro": "ADM01 - ADMINISTRAÇÃO",
+    "item": "048 - TAXA SOBRE PIX, FOLHA SALARIAL, TED E OUTROS",
+    "forma": "DESCONTO AUTOMÁTICO EM CONTA",
+    "titulo": "TARIFA DE PAGAMENTO SALARIAL"
+  },
+  {
+    "kw": "MARIA DE LOURDES CABRAL",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "505 - PENSÃO ALIMENTÍCIA A PAGAR",
+    "forma": "Pix",
+    "titulo": "PAGAMENTO DE PENSAO ALIMENTICIA DO PERMISSIONARIO"
+  },
+  {
+    "kw": "BANCO RODOBENS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - RODOBENS"
+  },
+  {
+    "kw": "KROPNEUS PECAS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - KROPNEUS"
+  },
+  {
+    "kw": "FORTEBUS COMERCIO",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - FORTEBUS"
+  },
+  {
+    "kw": "PABLO R DOS SANTOS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - PABLO R"
+  },
+  {
+    "kw": "ECOPECAS COMERCIO",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - ECOPECAS"
+  },
+  {
+    "kw": "FENATRAL FED",
+    "centro": "ADM01 - ADMINISTRAÇÃO",
+    "item": "042 - CONTRIBUIÇÃO SIDICAIS (FENATRACOOP, OCB, ANTP)",
+    "forma": "Boleto",
+    "titulo": "FENATRAL"
+  },
+  {
+    "kw": "54885932 ERIVALDO",
+    "centro": "ADM01 - ADMINISTRAÇÃO",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - ERIVALDO"
+  },
+  {
+    "kw": "AUTO PECAS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - PADRE CICERO"
+  },
+  {
+    "kw": "JS PECAS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - JS PECAS"
+  },
+  {
+    "kw": "A B VILELA",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - AB VILELA"
+  },
+  {
+    "kw": "AUTO NORTE",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - AUTO NORTE"
+  },
+  {
+    "kw": "REAL ONIBUS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - REAL ONIBUS"
+  },
+  {
+    "kw": "NOVO MUN",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - NOVO MUN"
+  },
+  {
+    "kw": "CFD SOLUCOES",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - CFD SOLUCOES"
+  },
+  {
+    "kw": "COMERCIAL E",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - CAMPNEUS"
+  },
+  {
+    "kw": "POLOBUS COMERCIO",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - POLOBUS"
+  },
+  {
+    "kw": "DISTRIBUIDORA CUMMINS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - DISTRIBUIDORA CUMMINS"
+  },
+  {
+    "kw": "TRANSACTION NETWORK",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - TRANSACTION NETWORK"
+  },
+  {
+    "kw": "VANNUCCI IMP",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - VANNUCCI"
+  },
+  {
+    "kw": "ASTEP-PE",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO -  ASTEP"
+  },
+  {
+    "kw": "CR PNEUS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO -  CR PNEUS"
+  },
+  {
+    "kw": "EVOLTEC ELETRONICA",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO -  EVOLTEC"
+  },
+  {
+    "kw": "CAMINUS PECAS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - CAMINUS PECAS"
+  },
+  {
+    "kw": "GOMMA PNEUS",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - GOMMA PNEUS"
+  },
+  {
+    "kw": "COML AUTOMOTIVA",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - COML AUTOMOTIVA"
+  },
+  {
+    "kw": "PAULO SOARES",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - PAULO SOARES"
+  },
+  {
+    "kw": "PNEU1 COMERCIO",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "520 - FORNECEDORES A PAGAR DDA",
+    "forma": "Boleto",
+    "titulo": "PGTO. AO FORNECEDOR DO PERMISSIONARIO - PNEU1 COMERCIO"
+  },
+  {
+    "kw": "S FERREIRA",
+    "centro": "ADM01 - ADMINISTRAÇÃO",
+    "item": "025 - ENERGIA ELETRICA",
+    "forma": "Boleto",
+    "titulo": "ENERGIA ELETRICA"
+  },
+  {
+    "kw": "MAIS PREVENTIVA",
+    "centro": "ADM01 - ADMINISTRAÇÃO",
+    "item": "029 - PREVENTIVA - SEGURANÇA DO TRABALHO",
+    "forma": "Boleto",
+    "titulo": "SEGURANÇA DO TRABALHO"
+  },
+  {
+    "kw": "TBI",
+    "centro": "CTPAS - CONTAS DE PASSAGENS",
+    "item": "521 - TRANSFERÊNCIAS ENTRE BANCOS",
+    "forma": "Transferência Bancária",
+    "titulo": "AMORTIZAÇAO DA CONTA GARANTIDA",
+    "nat": "DEBITO"
+  },
+  {
+    "kw": "TBI",
+    "campos": {
+      "CENTRO DE CUSTO": "CTPAS - CONTAS DE PASSAGENS",
+      "FONTE DE RECURSO": "14 - TED ENTRE BANCOS"
+    },
+    "titulo": "EMPRESTIMO DA CONTA GARANTIDA",
+    "nat": "CREDITO"
+  },
+  {
+    "kw": "USO CONTA",
+    "campos": {
+      "CENTRO DE CUSTO": "CTPAS - CONTAS DE PASSAGENS",
+      "FONTE DE RECURSO": "14 - TED ENTRE BANCOS"
+    },
+    "titulo": "EMPRESTIMO DA CONTA GARANTIDA",
+    "nat": "CREDITO"
+  },
+  {
+    "kw": "PAGAMENTO CONTA",
+    "campos": {
+      "CENTRO DE CUSTO": "CTPAS - CONTAS DE PASSAGENS",
+      "ITEM DE DESPESA": "521 - TRANSFERÊNCIAS ENTRE BANCOS",
+      "FORMA DE PAGAMENTO": "Transferência Bancária"
+    },
+    "titulo": "AMORTIZAÇAO DA CONTA GARANTIDA",
+    "nat": "DEBITO"
+  }
+]

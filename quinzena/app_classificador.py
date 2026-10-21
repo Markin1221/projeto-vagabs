@@ -1,6 +1,8 @@
 """Tela do classificador do extrato (PyQt6), no estilo dos outros módulos do projeto."""
 import json
 import os
+import shutil
+import sys
 
 from PyQt6.QtWidgets import QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog, QTextEdit
 
@@ -12,8 +14,17 @@ from .revisao import exportar_revisao, importar_decisoes
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(AQUI)
-REGRAS = os.path.join(RAIZ, "regras.json")
-CONFIG = os.path.join(AQUI, "config_classificador.json")
+if getattr(sys, "frozen", False):
+    # dentro do .exe: a config vai embutida; o regras.json fica AO LADO do .exe (assim as regras
+    # novas ficam salvas). Na primeira execução copia o regras.json embutido como ponto de partida.
+    CONFIG = os.path.join(sys._MEIPASS, "quinzena", "config_classificador.json")
+    REGRAS = os.path.join(os.path.dirname(sys.executable), "regras.json")
+    _padrao = os.path.join(sys._MEIPASS, "regras.json")
+    if not os.path.exists(REGRAS) and os.path.exists(_padrao):
+        shutil.copy(_padrao, REGRAS)
+else:
+    REGRAS = os.path.join(RAIZ, "regras.json")
+    CONFIG = os.path.join(AQUI, "config_classificador.json")
 
 
 class AppClassificador(QWidget):
