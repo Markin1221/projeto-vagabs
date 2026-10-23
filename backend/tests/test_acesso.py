@@ -15,3 +15,8 @@ def test_com_senha(client, monkeypatch):
     assert client.get("/eventos").status_code == 401
     assert client.get("/eventos", headers={"Authorization": f"Bearer {token}"}).status_code == 200
     assert client.get("/eventos", headers={"Authorization": "Bearer x"}).status_code == 401
+
+
+def test_espacos_nas_pontas_da_senha_nao_atrapalham(client, monkeypatch):
+    monkeypatch.setattr(config, "SENHA_ACESSO", "segredo")
+    assert client.post("/login", json={"senha": " segredo\n"}).status_code == 200

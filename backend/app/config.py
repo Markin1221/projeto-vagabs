@@ -26,4 +26,4 @@ for _prefixo in ("postgres://", "postgresql://"):
 CORS_ORIGENS = [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGENS", "http://localhost:3000").split(",") if o.strip()]  # frontend Next.js
 
 # Senha de acesso ao sistema. Vazia = sem senha (uso local). No Render, defina SENHA_ACESSO.
-SENHA_ACESSO = os.getenv("SENHA_ACESSO", "")
+SENHA_ACESSO = os.getenv("SENHA_ACESSO", "").strip()  # copiar/colar costuma trazer espaço ou quebra de linha no fim

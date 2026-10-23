@@ -23,7 +23,7 @@ class Login(BaseModel):
 
 @router.post("/login")
 def login(d: Login):
-    if config.SENHA_ACESSO and not hmac.compare_digest(d.senha, config.SENHA_ACESSO):
+    if config.SENHA_ACESSO and not hmac.compare_digest(d.senha.strip(), config.SENHA_ACESSO):
         time.sleep(0.8)  # atrapalha tentativa em massa
         raise HTTPException(401, "Senha incorreta")
     return {"token": _token() if config.SENHA_ACESSO else ""}
