@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OFX Assistente (Coopernorte)
 // @namespace    coopernorte.ofx
-// @version      1.9
+// @version      2.4
 // @description  Percorre itens PENDENTES do Importar OFX, preenche por regras (inclui Titulo com {NOME}) e pergunta antes de liquidar
 // @match        https://coopernorte.con-nectar.com/financeiro/admin/importar_arquivo_ofx*
 // @grant        GM_getValue
@@ -48,6 +48,7 @@
       auto: false,
       onlyRules: false,
       onlyEx: false,
+      onlyConcilia: false,
       skipped: [],
       done: [],
       current: null,
@@ -66,7 +67,13 @@
   // Volta no historico (como a seta do navegador) ate a lista, mantendo filtros/pagina.
   // Se nao der, abre a lista pela URL.
   function goBack() {
-    const e = getState().entry;
+    const s = getState();
+    // Conciliação: o histórico fica bagunçado após conciliar, então vai direto pra lista
+    if (s.onlyConcilia) {
+      location.href = LIST_URL;
+      return;
+    }
+    const e = s.entry;
     if (e && e.len && history.length < 50 && history.length >= e.len) {
       history.go(-(history.length - e.len + 1));
       setTimeout(() => {
@@ -268,6 +275,208 @@
       'Itens que batem aqui sao EXCLUIDOS (botao vermelho). Formato: {"kw":"PALAVRA1|PALAVRA2","nat":"DEBITO"}. "nat" e opcional.',
     );
 
+  /* ---------- FILTROS DA LISTA ---------- */
+  // Ao iniciar a fila, guarda os filtros preenchidos na tela. Sempre que a lista for
+  // reaberta (ela volta com tudo zerado), os filtros sao colocados de novo.
+  let filtersApplied = false;
+  const getFilters = () => load("filters", []);
+
+  function isFilterCtl(el) {
+    if (
+      el.disabled ||
+      el.closest(
+        "#ofx-assist, table, .dataTables_filter, .dataTables_length, .select2-container, .daterangepicker, .modal, .swal2-container",
+      )
+    )
+      return false;
+    return ![
+      "hidden",
+      "button",
+      "submit",
+      "reset",
+      "file",
+      "password",
+      "image",
+    ].includes((el.type || "").toLowerCase());
+  }
+  function filterLabel(el) {
+    const l =
+      (el.id &&
+        document.querySelector('label[for="' + CSS.escape(el.id) + '"]')) ||
+      (el.closest("div") && el.closest("div").querySelector("label"));
+    return ((l && l.textContent) || el.placeholder || el.name || el.id || "?")
+      .replace(/\s+/g, " ")
+      .replace(/\*/g, "")
+      .trim();
+  }
+  // Le os filtros que estao preenchidos agora (sem salvar)
+  function readFilters() {
+    const out = [];
+    document.querySelectorAll("input, select, textarea").forEach((el) => {
+      if (!isFilterCtl(el) || (!el.id && !el.name)) return;
+      const t = (el.type || "").toLowerCase();
+      let v, text, active, kind;
+      if (t === "checkbox" || t === "radio") {
+        kind = t;
+        v = el.checked;
+        active = v;
+        text = "marcado";
+      } else if (el.multiple) {
+        kind = "multiple";
+        v = [...el.selectedOptions].map((o) => o.value).filter(Boolean);
+        active = v.length > 0;
+        text = [...el.selectedOptions].map(optText).join(", ");
+      } else {
+        kind = "value";
+        v = el.value;
+        active = String(v).trim() !== "";
+        text = el.tagName === "SELECT" ? curText(el) : String(v).trim();
+      }
+      if (active)
+        out.push({
+          id: el.id || "",
+          name: el.name || "",
+          type: kind,
+          value: el.value,
+          v,
+          label: filterLabel(el),
+          text,
+        });
+    });
+    return out;
+  }
+  function captureFilters() {
+    const f = readFilters();
+    save("filters", f);
+    return f;
+  }
+
+  function findCtl(x) {
+    if (x.id) return document.getElementById(x.id);
+    if (!x.name) return null;
+    const val =
+      x.type === "radio" || x.type === "checkbox"
+        ? '[value="' + CSS.escape(x.value) + '"]'
+        : "";
+    return (
+      [
+        ...document.querySelectorAll(
+          '[name="' + CSS.escape(x.name) + '"]' + val,
+        ),
+      ].find(isFilterCtl) || null
+    );
+  }
+  function findFilterBtn(ctl) {
+    const re = /^(FILTRAR|BUSCAR|PESQUISAR|APLICAR|CONSULTAR|PROCURAR)/;
+    const q = "button, input[type=submit], input[type=button], a.btn";
+    const ok = (b) =>
+      b.getClientRects().length &&
+      !b.closest("#ofx-assist, .dataTables_paginate, .modal");
+    const txt = (b) => norm(b.textContent || b.value || b.title);
+    const scope = (ctl && ctl.closest("form")) || document;
+    return (
+      [...scope.querySelectorAll(q)].filter(ok).find((b) => re.test(txt(b))) ||
+      [...document.querySelectorAll(q)]
+        .filter(ok)
+        .find((b) => re.test(txt(b))) ||
+      (ctl && ctl.form && ctl.form.querySelector("[type=submit]"))
+    );
+  }
+  // Poe os filtros salvos de volta na tela e clica no botao de filtrar
+  async function restoreFilters() {
+    const f = getFilters();
+    if (!f.length) return;
+    // trava anti-loop: so reaplica uma vez por "progresso" (se a pagina recarregar sem manter os filtros)
+    const s = getState(),
+      key = (s.done || []).length + "/" + (s.skipped || []).length;
+    if (load("filtKey", "") === key) return;
+    let changed = false,
+      ctl = null;
+    for (const x of f) {
+      const el = findCtl(x);
+      if (!el) continue;
+      ctl = ctl || el;
+      if (x.type === "checkbox" || x.type === "radio") {
+        if (!el.checked) {
+          el.checked = true;
+          fire(el);
+          changed = true;
+        }
+      } else if (x.type === "multiple") {
+        const cur = [...el.selectedOptions]
+          .map((o) => o.value)
+          .filter(Boolean)
+          .join("|");
+        if (cur !== x.v.join("|")) {
+          await waitFor(
+            () => x.v.every((v) => [...el.options].some((o) => o.value === v)),
+            5000,
+          );
+          [...el.options].forEach((o) => {
+            o.selected = x.v.includes(o.value);
+          });
+          fire(el);
+          changed = true;
+        }
+      } else if (el.value !== x.value) {
+        if (el.tagName === "SELECT")
+          await waitFor(
+            () => [...el.options].some((o) => o.value === x.value),
+            5000,
+          );
+        el.value = x.value;
+        if (el.value === x.value) {
+          fire(el);
+          changed = true;
+        }
+      }
+    }
+    if (!changed) return;
+    save("filtKey", key);
+    const btn = findFilterBtn(ctl);
+    if (btn) {
+      const sig = () =>
+        readRows()
+          .map((r) => r.id)
+          .join(",");
+      const before = sig();
+      btn.click();
+      await waitFor(() => sig() !== before, 5000);
+    }
+    await sleep(800);
+  }
+  // Inicia a fila: guarda os filtros atuais e comeca
+  function startQueue(patch) {
+    // guarda a tela de onde veio (home) para voltar no fim da conciliacao
+    const ref = document.referrer;
+    save(
+      "home",
+      ref &&
+        ref.startsWith(location.origin) &&
+        !/importar_arquivo_ofx/.test(ref)
+        ? ref
+        : "",
+    );
+    captureFilters();
+    filtersApplied = true; // ja estao na tela, nao precisa reaplicar agora
+    save("filtKey", "");
+    setState(
+      Object.assign(
+        {
+          active: true,
+          auto: false,
+          onlyRules: false,
+          onlyEx: false,
+          onlyConcilia: false,
+          skipped: [],
+          done: [],
+        },
+        patch,
+      ),
+    );
+    listPage();
+  }
+
   /* ---------- LISTA ---------- */
   function readRows() {
     return [...document.querySelectorAll("#tabela-ImportarArquivoOfx tbody tr")]
@@ -321,71 +530,54 @@
     setState({ awaiting: null });
     const st = getState();
     if (!st.active) {
-      panel("OFX Assistente", "Pronto. Inicia a fila de itens PENDENTES.", [
+      const fl = readFilters();
+      panel(
+        "OFX Assistente",
         [
-          "▶ Iniciar fila",
-          () => {
-            setState({
-              active: true,
-              auto: false,
-              onlyRules: false,
-              onlyEx: false,
-              skipped: [],
-              done: [],
-            });
-            listPage();
-          },
-          GREEN,
+          "Pronto. Inicia a fila de itens PENDENTES.",
+          h(
+            "div",
+            { style: { marginTop: "6px", fontSize: "12px", color: "#555" } },
+            fl.length
+              ? "Filtros detectados (serão reaplicados sempre que voltar à lista): " +
+                  fl.map((x) => x.label + " = " + x.text).join("; ")
+              : "Nenhum filtro detectado agora.",
+          ),
         ],
         [
-          "⚡ Fila automática",
-          () => {
-            setState({
-              active: true,
-              auto: true,
-              onlyRules: false,
-              onlyEx: false,
-              skipped: [],
-              done: [],
-            });
-            listPage();
-          },
-          "#f59f00",
+          ["▶ Iniciar fila", () => startQueue({}), GREEN],
+          ["⚡ Fila automática", () => startQueue({ auto: true }), "#f59f00"],
+          [
+            "🎯 Só com regra",
+            () => startQueue({ auto: true, onlyRules: true }),
+            "#1e88e5",
+          ],
+          [
+            "🔗 Só conciliar",
+            () => startQueue({ auto: true, onlyConcilia: true }),
+            "#7e57c2",
+          ],
+          [
+            "🗑 Só exclusões",
+            () => startQueue({ auto: true, onlyRules: true, onlyEx: true }),
+            RED,
+          ],
+          ["🔄 Ler filtros", () => init(), GRAY],
+          ["Regras (" + getRules().length + ")", openRules, GRAY],
+          ["Exclusões (" + getExRules().length + ")", openEx, GRAY],
         ],
-        [
-          "🎯 Só com regra",
-          () => {
-            setState({
-              active: true,
-              auto: true,
-              onlyRules: true,
-              onlyEx: false,
-              skipped: [],
-              done: [],
-            });
-            listPage();
-          },
-          "#1e88e5",
-        ],
-        [
-          "🗑 Só exclusões",
-          () => {
-            setState({
-              active: true,
-              auto: true,
-              onlyRules: true,
-              onlyEx: true,
-              skipped: [],
-              done: [],
-            });
-            listPage();
-          },
-          RED,
-        ],
-        ["Regras (" + getRules().length + ")", openRules, GRAY],
-        ["Exclusões (" + getExRules().length + ")", openEx, GRAY],
-      ]);
+      );
       return;
+    }
+    if (!filtersApplied) {
+      filtersApplied = true; // uma vez por carregamento da pagina
+      if (getFilters().length) {
+        panel("OFX Assistente", "Reaplicando os filtros...", [
+          ["■ Parar", stop, RED],
+        ]);
+        await restoreFilters();
+        if (!getState().active) return;
+      }
     }
     panel("OFX Assistente", "Procurando proximo pendente...", [
       ["■ Parar", stop, RED],
@@ -394,6 +586,22 @@
     if (!row) {
       setState({ active: false });
       const n = (st.skipped || []).length;
+      if (st.onlyConcilia) {
+        // fim da conciliacao: fecha o modal e volta para a tela anterior (home)
+        panel(
+          "OFX Assistente",
+          "Fila de conciliação acabou (" +
+            n +
+            " pulado(s)). Fechando e voltando...",
+          [],
+        );
+        await waitFor(closeModals, 4000, 200);
+        await sleep(800);
+        const home = load("home", "");
+        if (home) location.href = home;
+        else history.back();
+        return;
+      }
       panel(
         "OFX Assistente",
         st.onlyEx
@@ -407,6 +615,22 @@
             : "Fila acabou: nenhum pendente (fora os pulados).",
         [["Ok", () => init(), GRAY]],
       );
+      return;
+    }
+    if (st.onlyConcilia) {
+      panel(
+        "🔗 Conciliação — item #" + row.id,
+        [
+          line("Valor", row.valor),
+          line("Data", row.data),
+          line("Memo", row.memo),
+        ],
+        [["■ Parar", stop, RED]],
+      );
+      await sleep(900);
+      if (!getState().active) return;
+      setState({ current: row.id, curNat: row.nat });
+      row.btn.click();
       return;
     }
     const m = matchAny(row.memo, row.nat);
@@ -471,6 +695,7 @@
       auto: false,
       onlyRules: false,
       onlyEx: false,
+      onlyConcilia: false,
       awaiting: null,
     });
     init();
@@ -647,6 +872,235 @@
     goBack();
   }
 
+  /* ---------- CONCILIACAO (marca a parcela e clica em "Conciliar e liquidar") ---------- */
+  // Regra de datas: a parcela tem a data em que foi gerada/vence (em cima) e o extrato tem a data do pagamento (embaixo).
+  // Se a parcela cai em sabado/domingo/feriado, o pagamento vale no 1o dia util seguinte. O pagamento nunca vem antes.
+  // Depois do dia util esperado, aceita ate MAX_DIAS_APOS_UTIL dias de folga. Alem disso: pula.
+  const MAX_DIAS_APOS_UTIL = 3;
+  const FERIADOS = [
+    "01-01",
+    "04-21",
+    "05-01",
+    "09-07",
+    "10-12",
+    "11-02",
+    "11-15",
+    "11-20",
+    "12-25",
+  ]; // nacionais fixos
+  const DAY = 86400000;
+  const parseBR = (t) => {
+    const m = (t || "").match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? Date.UTC(+m[3], +m[2] - 1, +m[1]) : null;
+  };
+  const fmtBR = (ms) => {
+    if (ms == null) return "?";
+    const d = new Date(ms);
+    return (
+      String(d.getUTCDate()).padStart(2, "0") +
+      "/" +
+      String(d.getUTCMonth() + 1).padStart(2, "0") +
+      "/" +
+      d.getUTCFullYear()
+    );
+  };
+  function isUtil(ms) {
+    const d = new Date(ms),
+      wd = d.getUTCDay();
+    if (wd === 0 || wd === 6) return false;
+    return !FERIADOS.includes(
+      String(d.getUTCMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(d.getUTCDate()).padStart(2, "0"),
+    );
+  }
+  function proxUtil(ms) {
+    while (!isUtil(ms)) ms += DAY;
+    return ms;
+  }
+  const dataCompativel = (gerado, pago) =>
+    pago >= gerado && pago <= proxUtil(gerado) + MAX_DIAS_APOS_UTIL * DAY;
+  // campos de resumo do topo da tela (Data, Natureza, Valor, Status)
+  function miniField(label) {
+    const e = [...document.querySelectorAll(".ofx-mini-label")].find(
+      (x) => norm(x.textContent) === norm(label),
+    );
+    return e && e.nextElementSibling
+      ? e.nextElementSibling.textContent.trim()
+      : "";
+  }
+  // modal de resposta do sistema (sucesso ou erro)
+  function readMsgModal() {
+    const m = document.querySelector(".modal-MsgResponse");
+    if (
+      !m ||
+      !m.getClientRects().length ||
+      getComputedStyle(m).display === "none"
+    )
+      return null;
+    const okEl = m.querySelector("#msg-sucesso"),
+      erEl = m.querySelector("#msg-erro");
+    const ok = !!okEl && !okEl.classList.contains("d-none"),
+      er = !!erEl && !erEl.classList.contains("d-none");
+    if (!ok && !er) return null;
+    const txt = ((ok ? okEl : erEl).textContent || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return { ok, text: txt, fechar: m.querySelector(".fecharbtn") };
+  }
+  // Fecha qualquer modal aberto (sucesso/erro do sistema, bootstrap, swal)
+  function closeModals() {
+    const r = readMsgModal();
+    if (r && r.fechar) {
+      r.fechar.click();
+      return true;
+    }
+    const f = findFecharBtn();
+    if (f) {
+      f.click();
+      return true;
+    }
+    const b = [
+      ...document.querySelectorAll(
+        ".modal.show .fecharbtn, .modal.show [data-dismiss=modal], .modal.show [data-bs-dismiss=modal], .modal.show .close, .swal2-confirm",
+      ),
+    ].find((x) => x.getClientRects().length);
+    if (b) {
+      b.click();
+      return true;
+    }
+    return false;
+  }
+  function pularItem(id) {
+    const s = getState();
+    s.skipped.push(id);
+    save("state", s);
+    setState({ awaiting: null });
+    goBack();
+  }
+
+  async function afterConcilia(id) {
+    panel("Item #" + id, "Conciliando... aguardando o sistema.", [
+      ["■ Parar", stop, RED],
+    ]);
+    const t0 = Date.now();
+    while (Date.now() - t0 < 25000) {
+      if (!getState().active) return;
+      // mesmo jeito da fila automatica: botao Fechar dentro do modal "com sucesso"
+      const fOk = findFecharBtn();
+      if (fOk) {
+        await sleep(500);
+        fOk.click();
+        markDone(id);
+        setState({ awaiting: null });
+        await sleep(800);
+        if (!getState().active) return;
+        return goBack();
+      }
+      const r = readMsgModal();
+      if (r && r.fechar) {
+        if (r.ok) {
+          await sleep(500);
+          r.fechar.click();
+          markDone(id);
+          setState({ awaiting: null });
+          await sleep(800);
+          if (!getState().active) return;
+          return goBack();
+        }
+        panel(
+          "Item #" + id,
+          "O sistema recusou: " + r.text + ". Pulando este item.",
+          [["■ Parar", stop, RED]],
+        );
+        await sleep(1800);
+        r.fechar.click();
+        if (!getState().active) return;
+        return pularItem(id);
+      }
+      await sleep(250);
+    }
+    // Não apareceu modal: segue em frente em vez de travar a fila
+    panel(
+      "Item #" + id,
+      "Não vi a resposta do sistema. Voltando para a lista...",
+      [["■ Parar", stop, RED]],
+    );
+    await sleep(1500);
+    if (!getState().active) return;
+    markDone(id); // se realmente conciliou, não volta a aparecer; se não, o status na lista ainda mostra
+    return goBack();
+  }
+
+  async function conciliaStep(id) {
+    const skipIt = async (why) => {
+      panel("Item #" + id + " — pulando", why, [["■ Parar", stop, RED]]);
+      await sleep(1500);
+      if (!getState().active) return;
+      pularItem(id);
+    };
+    const pago = parseBR(miniField("Data"));
+    const rows = [...document.querySelectorAll("[data-lancamento-row]")];
+    if (!pago) return skipIt("Não consegui ler a data do extrato.");
+    if (!rows.length)
+      return skipIt("Não há parcela candidata na tela (" + fmtBR(pago) + ").");
+    const cands = rows.map((row) => {
+      const tds = [...row.children];
+      const dTd = tds.find((td) =>
+        /^\d{2}\/\d{2}\/\d{4}$/.test(td.textContent.trim()),
+      );
+      return {
+        row,
+        gerado: parseBR(dTd && dTd.textContent),
+        titulo: ((tds[2] || {}).textContent || "").replace(/\s+/g, " ").trim(),
+      };
+    });
+    const ok = cands.filter(
+      (x) => x.gerado != null && dataCompativel(x.gerado, pago),
+    );
+    if (!ok.length)
+      return skipIt(
+        "Datas não batem. Parcela(s): " +
+          cands.map((x) => fmtBR(x.gerado)).join(", ") +
+          " | extrato: " +
+          fmtBR(pago) +
+          ".",
+      );
+    if (ok.length > 1)
+      return skipIt(
+        "Mais de uma parcela com data compatível (" +
+          ok.map((x) => fmtBR(x.gerado)).join(", ") +
+          "). Ambíguo.",
+      );
+    const pick = ok[0];
+    pick.row.scrollIntoView({ block: "center" });
+    panel(
+      "⚡ Conciliando #" + id,
+      [
+        line("Parcela", pick.titulo.slice(0, 80)),
+        line("Gerada em", fmtBR(pick.gerado)),
+        line("Paga em (extrato)", fmtBR(pago)),
+      ],
+      [["■ Parar", stop, RED]],
+    );
+    await sleep(1200);
+    if (!getState().active) return;
+    const chk = pick.row.querySelector(".ofx-chk-lanc");
+    chk.checked = true;
+    chk.dispatchEvent(new Event("change", { bubbles: true }));
+    await sleep(400);
+    const btn = document.querySelector('#form-conciliar button[type="submit"]');
+    if (!btn || btn.disabled)
+      return skipIt(
+        "Botão Conciliar bloqueado: a soma não fecha com o extrato.",
+      );
+    if (!/CONCILIAR E LIQUIDAR/.test(norm(btn.textContent)))
+      return skipIt("Seria pagamento parcial. Não faço isso no automático.");
+    setState({ awaiting: id });
+    btn.click();
+    afterConcilia(id);
+  }
+
   /* ---------- EXCLUSAO (botao vermelho) ---------- */
   function findDeleteBtn(c) {
     const q =
@@ -817,6 +1271,24 @@
       goBack();
       return;
     }
+    if (st0.onlyConcilia) {
+      const f = findFecharBtn();
+      if (f) {
+        f.click();
+        await sleep(600);
+      }
+    }
+    if (retry && st0.onlyConcilia) {
+      // recarregou depois de conciliar: se não está mais pendente, deu certo
+      if (!/PENDENTE/i.test(miniField("Status"))) {
+        markDone(id);
+        return goBack();
+      }
+      const s = getState();
+      s.skipped.push(id);
+      save("state", s); // continua pendente: pula pra não repetir
+      return goBack();
+    }
     if (retry) {
       panel(
         "Item #" + id,
@@ -836,6 +1308,7 @@
       );
       return;
     }
+    if (st0.onlyConcilia) return conciliaStep(id);
     const c = findContainer(btn);
     const fldT = fieldAny(c, "Titulo");
     const descr = (fieldAny(c, "Descricao") || {}).value || "";
@@ -844,7 +1317,9 @@
     const nat =
       st0.current === id && st0.curNat
         ? normNat(st0.curNat)
-        : normNat(natFld ? natFld.value || curText(natFld) : "");
+        : normNat(
+            natFld ? natFld.value || curText(natFld) : miniField("Natureza"),
+          );
     c.scrollIntoView({ block: "center" });
 
     const ctrl = {
