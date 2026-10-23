@@ -1,0 +1,47 @@
+[
+ {
+  "codigo": "ADM01",
+  "nome": "Administração",
+  "tipo": "departamento"
+ },
+ {
+  "codigo": "ADM02",
+  "nome": "Posto",
+  "tipo": "departamento"
+ },
+ {
+  "codigo": "ADM03",
+  "nome": "Oficina",
+  "tipo": "departamento"
+ },
+ {
+  "codigo": "ADM04",
+  "nome": "Coleta",
+  "tipo": "departamento"
+ },
+ {
+  "codigo": "ADM05",
+  "nome": "Almoxarifado",
+  "tipo": "departamento"
+ },
+ {
+  "codigo": "ADM06",
+  "nome": "Terrenos e Prédios",
+  "tipo": "departamento"
+ },
+ {
+  "codigo": "ADM10",
+  "nome": "Taxa Administrativa-Cooperativa",
+  "tipo": "departamento"
+ },
+ {
+  "codigo": "CTPAS",
+  "nome": "Contas Passívo/Passagem",
+  "tipo": "passagem"
+ },
+ {
+  "codigo": "REC01",
+  "nome": "Receitas Operacionais",
+  "tipo": "receita"
+ }
+]

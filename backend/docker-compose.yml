@@ -1,0 +1,28 @@
+# Sobe banco + API:  docker compose up -d --build
+# API: http://localhost:8000/docs   |   Resetar o banco: docker compose exec api python -m app.seed.carregar --reset
+name: vagabs   # nome próprio do projeto (evita misturar com outro compose chamado "backend")
+services:
+  db:
+    container_name: vagabs-db
+    image: postgres:16
+    environment:
+      POSTGRES_USER: vagabs
+      POSTGRES_PASSWORD: vagabs
+      POSTGRES_DB: vagabs
+    ports: ["5433:5432"]  # 5433 no seu PC, para não colidir com outro Postgres
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vagabs"]
+      interval: 3s
+      retries: 20
+  api:
+    container_name: vagabs-api
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://vagabs:vagabs@db:5432/vagabs
+      CORS_ORIGENS: http://localhost:3000
+    ports: ["8000:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+volumes:
+  pgdata:

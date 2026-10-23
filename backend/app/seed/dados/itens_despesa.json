@@ -1,0 +1,492 @@
+[
+ {
+  "codigo": 1,
+  "nome": "Assessora juridica",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 2,
+  "nome": "Contadora",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 3,
+  "nome": "Contrato Manutenção Validadores",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 4,
+  "nome": "Aluguel granja",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 5,
+  "nome": "Aquisição de Equipamentos e Ferramentas",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 6,
+  "nome": "Manuteção Moveis, Equipamentos e Ferramentas",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 7,
+  "nome": "Aquisição de Equipamentos, Moveis, Utensilios e Administrativos",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 8,
+  "nome": "Manuteção Moveis, Equipamentos e Ferramentas",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 9,
+  "nome": "Manutenção e Construçao do Prédio",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 10,
+  "nome": "Material Escritorio e Expediente",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 11,
+  "nome": "Higiene e limpeza",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 12,
+  "nome": "Compesa",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 13,
+  "nome": "Feira",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 14,
+  "nome": "Agua Mineral e GÁS",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 15,
+  "nome": "Gás",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 16,
+  "nome": "Impostos e Taxas (bombeiro, predial, CIM e etc)",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 17,
+  "nome": "Manutenção Carros e Motos",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 18,
+  "nome": "IPVA, Bombeiro e licenciamento",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 19,
+  "nome": "Rastreamento",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 20,
+  "nome": "Abastecimento Carros e Motos",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 21,
+  "nome": "Vivo cooperativa",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 22,
+  "nome": "Vivo Diretoria",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 23,
+  "nome": "Internet - Netway",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 24,
+  "nome": "Internet de TI",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 25,
+  "nome": "Energia Eletrica",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 26,
+  "nome": "Sistema de gestão  (Serviço Prestado)",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 27,
+  "nome": "Transporte do diesel",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 28,
+  "nome": "Prestação de serviço - Posto",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 29,
+  "nome": "PREVENTIVA - Segurança do trabalho",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 30,
+  "nome": "OMNI - Manutenção camaras",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 31,
+  "nome": "IGGOR - TI",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 32,
+  "nome": "ADELTEC - Relogio de Ponto",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 33,
+  "nome": "Stethos / Gestão de medicina nos func.",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 34,
+  "nome": "Nucleo saude / Exaqmes de saude",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 35,
+  "nome": "Gold saude / Desintetização e desratização",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 36,
+  "nome": "Conserto de ar condicionado",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 37,
+  "nome": "Outros serviços",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 38,
+  "nome": "Sistema financeiro em desenvolvimento",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 39,
+  "nome": "Renovação de extintores",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 40,
+  "nome": "Aluguel da Sede",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 41,
+  "nome": "Fardamentos dos Funcionarios",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 42,
+  "nome": "Contribuição Sindicais (Fenatracoop, OCB, ANTP)",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 44,
+  "nome": "Publicações Diário da Manhã + Registro de Atas",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 45,
+  "nome": "Eventos ( Seminários, Fenatral e Visitas á Cooperativas)",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 46,
+  "nome": "Centro de Controle Operacional",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 47,
+  "nome": "Taxa de manutenção Banco",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 48,
+  "nome": "Pix,  Folha Salarial, TED e outros",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 49,
+  "nome": "Juros e IOF",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 50,
+  "nome": "Consorcio de veiculo",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 51,
+  "nome": "Outras Despesas",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 52,
+  "nome": "Treinamentos/Capacitações  - Custa Estadias, Passagens e Inscrições",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 53,
+  "nome": "Almoço Funcionários",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 56,
+  "nome": "Honorários de Diretoria / Conselho Fiscal",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 57,
+  "nome": "INSS Parcelado",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 58,
+  "nome": "Evaporação Diesel S10 (0,13%)",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 59,
+  "nome": "Combustivel Presidente",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 70,
+  "nome": "Salários",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 71,
+  "nome": "FGTS",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 72,
+  "nome": "INSS - Previdência Social",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 73,
+  "nome": "Pis Folha+Férias e 13° Salário",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 74,
+  "nome": "Vale Transporte",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 75,
+  "nome": "Plano Saúde -50%",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 76,
+  "nome": "Cesta Basica",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 77,
+  "nome": "Férias e Abono de Férias",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 78,
+  "nome": "Décimo Terceiro Salário",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 79,
+  "nome": "INSS E FGTS s/Férias - Acrescido ao mensal",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 80,
+  "nome": "INSS E FGTS s/13° Salário",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 81,
+  "nome": "Multa FGTS 40%",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 82,
+  "nome": "Horas Extras Por Fora",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 84,
+  "nome": "Passagem Vem",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 85,
+  "nome": "Seguro de Vida",
+  "grupo": "despesa"
+ },
+ {
+  "codigo": 500,
+  "nome": "Salários a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 501,
+  "nome": "INSS e PIS a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 502,
+  "nome": "FGTS e Consignados  a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 503,
+  "nome": "Vale transportes a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 504,
+  "nome": "Plano Saude/Odonto a Pagar- Funcionário",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 505,
+  "nome": "Pensão Alimenticia a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 506,
+  "nome": "Cestas Básica a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 520,
+  "nome": "Fornecedores a Pagar DDA",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 521,
+  "nome": "Transferência Entre Bancos",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 522,
+  "nome": "Repasse ao permissionário",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 523,
+  "nome": "Emprestimo Cartão Crédito",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 524,
+  "nome": "SINPETRACOOPE a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 525,
+  "nome": "Fornecedores Vibras e Dislub",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 526,
+  "nome": "Cittati GPS a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 527,
+  "nome": "Plano Saude/Odonto a Pagar- Permissionário a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 528,
+  "nome": "Bandeira, Camara de Compensação e Outros a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 529,
+  "nome": "Financiamento de Veículos P/Pemissionários",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 530,
+  "nome": "Pensão Alimenticia a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 531,
+  "nome": "Contador a Pagar",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 532,
+  "nome": "Acordo Entre Permissionários",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 533,
+  "nome": "Sinistros - FAP",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 534,
+  "nome": "Receitas COOPERNORTE",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 580,
+  "nome": "Empréstimo ao Permissionário",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 581,
+  "nome": "ESTOQUE POSTO - MATRIZ",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 582,
+  "nome": "ESTOQUE POSTO - PONTE DOS CARVALHOS",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 583,
+  "nome": "ESTOQUE POSTO - TIUMA",
+  "grupo": "passagem"
+ },
+ {
+  "codigo": 584,
+  "nome": "ESTOQUE ALMOXARIFADO - MATRIZ",
+  "grupo": "passagem"
+ }
+]
