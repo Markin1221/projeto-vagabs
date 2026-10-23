@@ -1,0 +1,15 @@
+const P = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true };
+export const Chevron = (p) => <svg {...P} {...p}><path d="M5.5 3.5 10 8l-4.5 4.5" /></svg>;
+export const Sol = () => <svg {...P}><circle cx="8" cy="8" r="2.8" /><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" /></svg>;
+export const Lua = () => <svg {...P}><path d="M13.2 9.6A5.4 5.4 0 0 1 6.4 2.8a5.4 5.4 0 1 0 6.8 6.8Z" /></svg>;
+export const Pdf = () => <svg {...P}><path d="M4 1.8h5.2L12.5 5v9.2H4z" /><path d="M9 1.8V5h3.5" /></svg>;
+export const Ok = () => <svg {...P}><path d="m3.5 8.5 3 3 6-7" /></svg>;
+export const Alerta = () => <svg {...P}><path d="M8 2 14.2 13H1.8z" /><path d="M8 6.5v3M8 11.3v.2" /></svg>;
+export const Fechar = () => <svg {...P}><path d="m4 4 8 8M12 4l-8 8" /></svg>;
+export const Lupa = () => <svg {...P}><circle cx="7" cy="7" r="4.2" /><path d="m10.2 10.2 3.6 3.6" /></svg>;
+export const Lapis = () => <svg {...P}><path d="m2.5 13.5.6-3L10.8 2.8l2.4 2.4-7.7 7.7z" /></svg>;
+export const Lixo = () => <svg {...P}><path d="M2.8 4.2h10.4M6 4.2V2.6h4v1.6M4 4.2l.6 9h6.8l.6-9" /></svg>;
+export const Baixar = () => <svg {...P}><path d="M8 2v8M4.8 7 8 10.2 11.2 7M2.5 13h11" /></svg>;
+export const Mais = () => <svg {...P}><path d="M8 3v10M3 8h10" /></svg>;
+export const Folha = () => <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="2.5" y="1.8" width="11" height="12.4" rx="1.2" /><path d="M5 5.2h6M5 8h6M5 10.8h3.5" /></svg>;
+export const Olho = () => <svg {...P}><path d="M1.5 8s2.3-4.5 6.5-4.5S14.5 8 14.5 8 12.2 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="1.8" /></svg>;

@@ -10,8 +10,8 @@ def _ev(db, nome):
 
 def test_seed_conta_tudo(db):
     novos = carregar(db)
-    assert novos == {"centros_custo": 9, "itens_despesa": 98, "eventos": 80}
-    assert db.scalar(select(func.count()).select_from(Evento).where(Evento.gera_lancamento)) == 49
+    assert novos == {"centros_custo": 9, "itens_despesa": 98, "eventos": 91}
+    assert db.scalar(select(func.count()).select_from(Evento).where(Evento.gera_lancamento, Evento.grupo == "folha")) == 49
 
 
 def test_seed_e_idempotente(db):
@@ -72,5 +72,5 @@ def test_eventos_calculados(db):
 
 def test_ordem_segue_o_csv(db):
     carregar(db)
-    primeiros = [e.nome_pdf for e in db.scalars(select(Evento).order_by(Evento.ordem).limit(3))]
+    primeiros = [e.nome_pdf for e in db.scalars(select(Evento).where(Evento.grupo == "folha").order_by(Evento.ordem).limit(3))]
     assert primeiros == ["Salário Base", "Saldo de Salário", "Férias"]

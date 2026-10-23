@@ -1,3 +1,4 @@
+import io
 """Leitura do PDF "Resumo Geral" da folha (pdfplumber, por coordenadas das palavras).
 
 Adaptado do legado (legado/Appresumofolha.py), sem Excel/PyQt. Localiza as partes pelo CONTEÚDO, não pelo
@@ -111,6 +112,19 @@ def ler_blocos(page):
     y0 = y_blocos(words)
     if y0 is None:
         return None
+    y1, colunas = _geometria_blocos(page, words, y0)
+    gps = ler_bloco(page, *colunas["gps"], y0, y1)
+    fgts = ler_bloco(page, *colunas["fgts"], y0, y1)
+    darf = ler_bloco(page, *colunas["darf"], y0, y1)
+    return {
+        "GPS": gps[["Nome", "Valor"]],
+        "FGTS": fgts[fgts["Seção"] != "F G T S"].reset_index(drop=True),
+        "DARF PIS": darf.reset_index(drop=True),
+    }
+
+
+def _geometria_blocos(page, words, y0):
+    """(y_fim, {origem: (x0, x1)}) das três colunas GPS / FGTS / DARF PIS."""
     larg = page.width
 
     # fim da faixa: antes de "INFORMAÇÕES AUXILIARES"
@@ -124,17 +138,86 @@ def ler_blocos(page):
             x_darf = w["x0"] - 3
             break
 
-    gps = ler_bloco(page, 0, x_fgts, y0, y1)
-    fgts = ler_bloco(page, x_fgts, x_darf, y0, y1)
-    darf = ler_bloco(page, x_darf, larg, y0, y1)
-    return {
-        "GPS": gps[["Nome", "Valor"]],
-        "FGTS": fgts[fgts["Seção"] != "F G T S"].reset_index(drop=True),
-        "DARF PIS": darf.reset_index(drop=True),
-    }
+    return y1, {"gps": (0, x_fgts), "fgts": (x_fgts, x_darf), "darf": (x_darf, larg)}
 
 
-# ---------- Férias (só existe em alguns relatórios) ----------
+# ---------- Recorte do PDF onde um evento aparece ----------
+def _rotulo_linha(textos, origem):
+    """Nome do evento numa linha: tudo antes do primeiro valor; no resumo sem o código de 3 dígitos."""
+    nome = list(textos)
+    while len(nome) > 1 and (NUM_BR.match(nome[-1]) or origem == "resumo" and re.fullmatch(r"-?\d+", nome[-1])):
+        nome.pop()  # valores no fim da linha (um no bloco, várias colunas no resumo)
+    if origem == "resumo" and nome and re.fullmatch(r"\d{3}", nome[0]):
+        nome = nome[1:]
+    txt = " ".join(nome).strip().rstrip(":").strip()
+    txt = re.sub(r"\s+Parc\.\s*\d+/\d+\s*$", "", txt)
+    return re.sub(r"=(\S)", r"= \1", txt)
+
+
+def localizar(pdf_path, nome, origem, valor=None):
+    """Acha a linha do evento no PDF. Devolve {pagina, linha:(x0,top,x1,bottom), coluna:(x0,x1), cabecalho:(...)|None}
+    ou None. `origem` = resumo | gps | fgts | darf (a região da página onde o evento é lido)."""
+    alvo = norm(re.sub(r"=(\S)", r"= \1", nome))
+    with pdfplumber.open(pdf_path) as pdf:
+        for i, page in enumerate(pdf.pages):
+            words = page.extract_words()
+            y0 = y_blocos(words)
+            if origem == "resumo":
+                area, col = (0, 0, page.width, y0 or page.height), (0, page.width)
+            else:
+                if y0 is None:
+                    continue
+                y1, colunas = _geometria_blocos(page, words, y0)
+                col = colunas[origem]
+                area = (col[0], y0, col[1], y1)
+            ws = [w for w in words if w["x0"] >= area[0] - 1 and w["x1"] <= area[2] + 1 and area[1] <= w["top"] <= area[3]]
+            achados = []
+            for lin in agrupar_linhas(ws):
+                textos = [w["text"] for w in lin]
+                if norm(_rotulo_linha(textos, origem)) == alvo:
+                    nums = [t for t in textos if NUM_BR.match(t)]
+                    achados.append((lin, nums))
+            if achados:
+                lin, nums = next(((l, n) for l, n in achados if valor is not None and any(abs(br_para_float(x) - valor) < .006 for x in n)), achados[0])
+                cab = None
+                if origem == "resumo":
+                    cab_l = next((l for l in agrupar_linhas(words) if l[0]["text"].upper().startswith("ADICIONAIS")), None)
+                    if cab_l:
+                        cab = (min(w["x0"] for w in cab_l), min(w["top"] for w in cab_l), max(w["x1"] for w in cab_l),
+                               max(w["bottom"] for w in cab_l))
+                return {"pagina": i, "coluna": col, "cabecalho": cab,
+                        "linha": (min(w["x0"] for w in lin), min(w["top"] for w in lin), max(w["x1"] for w in lin),
+                                  max(w["bottom"] for w in lin))}
+    return None
+
+
+def recorte_png(pdf_path, nome, origem, valor=None, resolucao=130):
+    """PNG com a linha do evento destacada (e, no resumo, a linha de títulos das colunas); None se não achar."""
+    from PIL import Image, ImageDraw
+    achou = localizar(pdf_path, nome, origem, valor)
+    if not achou:
+        return None
+    k = resolucao / 72
+    with pdfplumber.open(pdf_path) as pdf:
+        page = pdf.pages[achou["pagina"]]
+        img = page.to_image(resolution=resolucao).original.convert("RGBA")
+    x0, t, x1, b = achou["linha"]
+    cx0, cx1 = achou["coluna"]
+    sobre = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sobre).rectangle([(x0 - 4) * k, (t - 3) * k, (x1 + 4) * k, (b + 3) * k], fill=(255, 196, 0, 70),
+                                    outline=(230, 150, 0, 255), width=2)
+    img = Image.alpha_composite(img, sobre).convert("RGB")
+    esq, dir_ = max(0, cx0 - 8) * k, min(page.width, cx1 + 8) * k
+    faixa = img.crop((int(esq), int(max(0, t - 40) * k), int(dir_), int(min(page.height, b + 40) * k)))
+    if achou["cabecalho"] and achou["cabecalho"][1] < t - 40:
+        h = achou["cabecalho"]
+        topo = img.crop((int(esq), int((h[1] - 6) * k), int(dir_), int((h[3] + 6) * k)))
+        tela = Image.new("RGB", (faixa.width, topo.height + faixa.height + 6), "white")
+        tela.paste(topo, (0, 0)); tela.paste(faixa, (0, topo.height + 6)); faixa = tela
+    buf = io.BytesIO(); faixa.save(buf, "PNG")
+    return buf.getvalue()
+
+
 def ler_ferias(page):
     padrao = re.compile(
         rf"^(\d{{6}})\s+(.+?)\s+(\d{{1,3}}(?:\.\d{{3}})*,\d{{2}})\s+(\d{{2}}/\d{{2}}/\d{{2}})\s+({PERIODO})\s+({PERIODO})"

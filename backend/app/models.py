@@ -43,6 +43,8 @@ class Evento(Base):
     gera_lancamento: Mapped[bool] = mapped_column(Boolean, default=True)
     calculo: Mapped[str | None] = mapped_column(Text)  # ex.: "{PIS Folha}" ou "{A} - {B|Ativos}"
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    grupo: Mapped[str] = mapped_column(String(20), default="folha")  # folha (departamentos) | conselho (sócios/autônomos)
+    observacao: Mapped[str | None] = mapped_column(Text)  # nota livre (ex.: "item a confirmar")
 
     apelidos: Mapped[list["EventoApelido"]] = relationship(lazy="selectin", cascade="all, delete-orphan")
     centro_custo_fixo: Mapped[CentroCusto | None] = relationship(lazy="joined")

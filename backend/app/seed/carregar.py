@@ -37,12 +37,15 @@ def carregar(db: Session) -> dict:
             db.add(itens[d["codigo"]])
             novos["itens_despesa"] += 1
     db.flush()
-    chave = lambda nome, desc: nome or desc  # nome do PDF identifica o evento; calculados usam a descrição
-    existentes = {chave(e.nome_pdf, e.descricao): e for e in db.scalars(select(Evento))}
+    def chave(grupo, nome, desc, tipo):
+        # nome do PDF identifica o evento; calculados usam descrição + tipo (débito/crédito têm a mesma descrição)
+        return (grupo, nome) if nome else (grupo, desc, tipo)
+
+    existentes = {chave(e.grupo, e.nome_pdf, e.descricao, e.tipo_lancamento): e for e in db.scalars(select(Evento))}
     nomes_apelidos = {a.nome.lower() for a in db.scalars(select(EventoApelido))}
-    for d in _ler("eventos"):
+    for d in _ler("eventos") + _ler("eventos_conselho"):
         apelidos = d.pop("apelidos", [])
-        ev = existentes.get(chave(d["nome_pdf"], d["descricao"]))
+        ev = existentes.get(chave(d.get("grupo", "folha"), d["nome_pdf"], d["descricao"], d["tipo_lancamento"]))
         if ev is None:
             centro, item = d.pop("centro_custo_fixo"), d.pop("item_despesa")
             ev = Evento(**d, centro_custo_fixo=centros[centro] if centro else None,

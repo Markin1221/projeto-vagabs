@@ -34,6 +34,9 @@ class EventoIn(BaseModel):
     gera_lancamento: bool = True
     calculo: str | None = None
     ordem: int | None = None  # vazio = vai para o fim da lista
+    grupo: Literal["folha", "conselho"] = "folha"
+    observacao: str | None = None
+    ativo: bool = True
 
 
 class EventoOut(BaseModel):
@@ -50,6 +53,9 @@ class EventoOut(BaseModel):
     calculo: str | None
     ativo: bool
     apelidos: list[str] = []
+    apelidos_ids: list[int] = []
+    grupo: str = "folha"
+    observacao: str | None = None
 
 
 class ApelidoIn(BaseModel):

@@ -9,8 +9,8 @@ def test_lista_centros_e_itens(client):
 
 def test_lista_eventos_com_filtro(client):
     todos = client.get("/eventos").json()
-    assert len(todos) == 80
-    lanca = client.get("/eventos", params={"gera_lancamento": True}).json()
+    assert len(todos) == 91  # 80 da folha + 11 do conselho (sócios)
+    lanca = client.get("/eventos", params={"gera_lancamento": True, "grupo": "folha"}).json()
     assert len(lanca) == 49 and lanca[0]["nome_pdf"] == "Salário Base"
     assert [e["nome_pdf"] for e in client.get("/eventos", params={"q": "insS folha"}).json()] == ["INSS Folha"]
 
@@ -41,3 +41,23 @@ def test_atualizar_evento(client):
     r = client.put(f"/eventos/{e['id']}", json=corpo)
     assert r.status_code == 200 and r.json()["centro_custo_fixo"] == "ADM01"
     assert client.get("/eventos/99999").status_code == 404
+
+
+def test_excluir_evento_e_apelido(client):
+    e = client.get("/eventos", params={"q": "Periculosidade 30%"}).json()[0]
+    assert e["apelidos"] == ["Periculosidade"] and len(e["apelidos_ids"]) == 1
+    sem = client.delete(f"/eventos/{e['id']}/apelidos/{e['apelidos_ids'][0]}").json()
+    assert sem["apelidos"] == []
+    assert client.delete(f"/eventos/{e['id']}").status_code == 204
+    assert client.get(f"/eventos/{e['id']}").status_code == 404
+    assert client.delete(f"/eventos/{e['id']}").status_code == 404
+
+
+def test_desativar_evento_tira_do_csv(client):
+    from pathlib import Path
+    pdf = Path(__file__).parent / "fixtures" / "folha_oficina_08.pdf"
+    e = client.get("/eventos", params={"q": "Salário Base"}).json()[0]
+    corpo = {k: v for k, v in e.items() if k not in ("id", "apelidos", "apelidos_ids")}
+    assert client.put(f"/eventos/{e['id']}", json={**corpo, "ativo": False}).json()["ativo"] is False
+    linhas = client.post("/folha/processar", files={"arquivo": ("o.pdf", pdf.read_bytes(), "application/pdf")}).json()["linhas"]
+    assert "Salário Base" not in [l["descricao"] for l in linhas]

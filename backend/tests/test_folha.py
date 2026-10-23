@@ -103,7 +103,7 @@ def test_evento_novo_gera_alerta_e_some_depois_de_cadastrar(client, db):
 
 def test_csv_tem_as_17_colunas_na_ordem(client):
     r = enviar(client, rota="/folha/csv")
-    assert r.status_code == 200 and "lancamentos_ADM03_2026-05.csv" in r.headers["content-disposition"]
+    assert r.status_code == 200 and "lancamentos_Oficina_05-2026.csv" in r.headers["content-disposition"]
     linhas = r.content.decode("utf-8-sig").splitlines()
     assert linhas[0] == ("titulo;descricao;tipo_lancamento;codigo_centro_de_custo;numero_conta;codigo_item_despesa;"
                          "codigo_fonte_recurso;id_forma_pagamento;num_parcelas;data_inicial;dias_intervalo;valor;"
@@ -150,3 +150,179 @@ def test_vincular_apelido(client):
     r = client.post(f"/eventos/{eventos[0]['id']}/apelidos", json={"nome": "Hora Extra 60%"})
     assert r.status_code == 201 and r.json()["apelidos"] == ["Hora Extra 60%"]
     assert client.post(f"/eventos/{eventos[0]['id']}/apelidos", json={"nome": "hora extra 60%"}).status_code == 409
+
+
+@pytest.mark.parametrize("arq,centro,liquido_sem_ferias", [
+    ("folha_coleta_08.pdf", "ADM04", 327.20),      # sem 'TOTAL LÍQUIDO (FÉRIAS)' no PDF
+    ("folha_oficina_08.pdf", "ADM03", 30717.48),
+    ("folha_posto_08.pdf", "ADM02", 1936.96),      # 'Periculosidade 30%' com o nome completo
+])
+def test_outros_departamentos_de_agosto(client, arq, centro, liquido_sem_ferias):
+    pdf = Path(__file__).parent / "fixtures" / arq
+    r = client.post("/folha/processar", files={"arquivo": (arq, pdf.read_bytes(), "application/pdf")})
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    assert corpo["centro_custo"]["codigo"] == centro and corpo["avisos"] == [] and corpo["eventos_novos"] == []
+    assert all(c["ok"] for c in corpo["conferencias"]), corpo["conferencias"]
+    assert len(corpo["linhas"]) == 49
+    d = {l["descricao"]: l for l in corpo["linhas"]}
+    assert d["TOTAL LÍQUIDO A PAGAR SEM FÉRIAS"]["valor"] == liquido_sem_ferias
+    assert d["Salário Base"]["codigo_centro_de_custo"] == centro
+
+
+def test_socios_conselho(client):
+    pdf = Path(__file__).parent / "fixtures" / "folha_socios_08.pdf"
+    r = client.post("/folha/processar", files={"arquivo": ("s.pdf", pdf.read_bytes(), "application/pdf")})
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    assert corpo["perfil"] == "conselho" and corpo["centro_custo"]["codigo"] == "ADM01"
+    assert corpo["eventos_novos"] == [] and corpo["avisos"] == []
+    assert all(c["ok"] for c in corpo["conferencias"]), corpo["conferencias"]
+    l = [(x["descricao"], x["tipo_lancamento"], x["codigo_centro_de_custo"], x["codigo_item_despesa"], x["valor"])
+         for x in corpo["linhas"]]
+    assert l == [
+        ("INSS  Conselheiros/Diretoria", "DEBITO", "ADM01", "*056", 713.24),
+        ("INSS  Conselheiros/Diretoria", "CREDITO", "CTPAS", "501", 713.24),
+        ("INSS  Conselheiros/Diretoria - Empresa", "DEBITO", "ADM01", "*056", 1945.2),
+        ("INSS  Conselheiros/Diretoria - Empresa", "CREDITO", "CTPAS", "501", 1945.2),
+        ("IRRF Sobre Folha", "DEBITO", "CTPAS", "500", 0.0),
+        ("IRRF Sobre Folha", "CREDITO", "CTPAS", "501", 0.0),
+        ("PIS Folha", "DEBITO", "ADM01", "*056", 0.0),
+        ("PIS Folha", "CREDITO", "CTPAS", "501", 0.0),
+    ]
+    assert {x["titulo"] for x in corpo["linhas"]} == {"Folha Conselho/Diretoria"}
+    assert {x["observacoes"] for x in corpo["linhas"]} == {"Folha agosto 26 Conselho"}
+
+
+def test_item_do_conselho_e_facil_de_mudar(client):
+    ev = [e for e in client.get("/eventos", params={"grupo": "conselho", "gera_lancamento": True}).json()
+          if e["item_despesa"] == 56]
+    assert len(ev) == 3 and ev[0]["observacao"]
+    corpo = {k: v for k, v in ev[0].items() if k not in ("id", "ativo", "apelidos")}
+    corpo["item_despesa"] = 70
+    assert client.put(f"/eventos/{ev[0]['id']}", json=corpo).json()["item_despesa"] == 70
+    pdf = Path(__file__).parent / "fixtures" / "folha_socios_08.pdf"
+    linhas = client.post("/folha/processar", files={"arquivo": ("s.pdf", pdf.read_bytes(), "application/pdf")}).json()["linhas"]
+    assert linhas[0]["codigo_item_despesa"] == "*070"
+
+
+def _lote(client, rota, nomes, extra=None, centros=None):
+    fx = Path(__file__).parent / "fixtures"
+    files = [("arquivos", (n, (fx / n).read_bytes(), "application/pdf")) for n in nomes]
+    data = {"centros": centros} if centros else {}
+    return client.post(rota, files=files, data={**data, **(extra or {})})
+
+
+NOMES = ["folha_administrativo_08.pdf", "folha_coleta_08.pdf", "folha_oficina_08.pdf", "folha_posto_08.pdf",
+         "folha_socios_08.pdf"]
+
+
+def test_lote_resumo(client):
+    r = _lote(client, "/folha/lote/processar", NOMES)
+    assert r.status_code == 200
+    arq = r.json()["arquivos"]
+    assert [a["centro_custo"]["codigo"] for a in arq] == ["ADM01", "ADM04", "ADM03", "ADM02", "ADM01"]
+    assert all(a["ok"] and a["conferencias_ok"] and a["eventos_novos"] == [] for a in arq)
+    assert arq[4]["perfil"] == "conselho" and arq[4]["nome_csv"] == "lancamentos_Conselho_08-2026.csv"
+
+
+def test_lote_zip_com_um_csv_por_arquivo(client):
+    import io, zipfile
+    r = _lote(client, "/folha/lote/csv", NOMES)
+    assert r.status_code == 200 and r.headers["content-type"] == "application/zip"
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    assert sorted(z.namelist()) == sorted([
+        "lancamentos_Administração_08-2026.csv", "lancamentos_Coleta_08-2026.csv", "lancamentos_Oficina_08-2026.csv",
+        "lancamentos_Posto_08-2026.csv", "lancamentos_Conselho_08-2026.csv"])
+    linhas = z.read("lancamentos_Coleta_08-2026.csv").decode("utf-8-sig").splitlines()
+    assert len(linhas) == 50 and linhas[1].startswith("Folha Coleta;Salário Base;DEBITO;ADM04;1-1;*070")
+
+
+def test_lote_arquivo_ruim_nao_derruba_os_outros(client):
+    import io, zipfile
+    fx = Path(__file__).parent / "fixtures"
+    files = [("arquivos", ("ok.pdf", (fx / "folha_coleta_08.pdf").read_bytes(), "application/pdf")),
+             ("arquivos", ("ruim.pdf", b"nao e pdf", "application/pdf"))]
+    resumo = client.post("/folha/lote/processar", files=files).json()["arquivos"]
+    assert [a["ok"] for a in resumo] == [True, False] and resumo[1]["erro"]
+    z = zipfile.ZipFile(io.BytesIO(client.post("/folha/lote/csv", files=files).content))
+    assert sorted(z.namelist()) == ["LEIAME-erros.txt", "lancamentos_Coleta_08-2026.csv"]
+    assert "ruim.pdf" in z.read("LEIAME-erros.txt").decode()
+
+
+def test_lote_mesmo_centro_duas_vezes_nao_sobrescreve(client):
+    import io, zipfile
+    r = _lote(client, "/folha/lote/csv", ["folha_coleta_08.pdf", "folha_coleta_08.pdf"])
+    assert sorted(zipfile.ZipFile(io.BytesIO(r.content)).namelist()) == [
+        "lancamentos_Coleta_08-2026.csv", "lancamentos_Coleta_08-2026_2.csv"]
+
+
+def test_lote_todos_com_erro(client):
+    files = [("arquivos", ("x.pdf", b"nada", "application/pdf"))]
+    assert client.post("/folha/lote/csv", files=files).status_code == 422
+
+
+def test_centro_vem_do_nome_do_arquivo_antes_do_cabecalho(client):
+    # PDF da Oficina enviado com nome de arquivo de outro departamento: vale o nome do arquivo, com aviso
+    pdf = Path(__file__).parent / "fixtures" / "folha_oficina_08.pdf"
+    r = client.post("/folha/processar", files={"arquivo": ("Relatório COOPERNORTE Coleta 08-2026.pdf",
+                                                           pdf.read_bytes(), "application/pdf")})
+    corpo = r.json()
+    assert corpo["centro_custo"]["codigo"] == "ADM04" and corpo["origem_centro"] == "nome do arquivo"
+    assert any("Coleta" in a and "OFICINA" in a for a in corpo["avisos"])
+    assert {l["codigo_centro_de_custo"] for l in corpo["linhas"]} == {"ADM04", "CTPAS"}
+
+
+def test_nome_do_arquivo_sem_departamento_usa_o_pdf(client):
+    pdf = Path(__file__).parent / "fixtures" / "folha_oficina_08.pdf"
+    r = client.post("/folha/processar", files={"arquivo": ("relatorio.pdf", pdf.read_bytes(), "application/pdf")})
+    assert r.json()["centro_custo"]["codigo"] == "ADM03" and r.json()["origem_centro"] == "cabeçalho do PDF"
+
+
+def test_escolha_manual_vence_o_nome_do_arquivo(client):
+    pdf = Path(__file__).parent / "fixtures" / "folha_oficina_08.pdf"
+    r = client.post("/folha/processar", files={"arquivo": ("Posto.pdf", pdf.read_bytes(), "application/pdf")},
+                    data={"centro_custo": "ADM05"})
+    assert r.json()["centro_custo"]["codigo"] == "ADM05" and r.json()["origem_centro"] == "escolhido"
+
+
+@pytest.mark.parametrize("nome,centro", [
+    ("Relatório COOPERNORTE Administrativo 08-2026.pdf", "ADM01"), ("Relatório_COOPERNORTE_Coleta_08-2026.pdf", "ADM04"),
+    ("Relat#U00f3rio COOPERNORTE Oficina 08-2026.pdf", "ADM03"), ("folha POSTO agosto.pdf", "ADM02"),
+    ("Folha Administração.pdf", "ADM01"), ("almoxarifado.pdf", "ADM05")])
+def test_centro_pelo_nome_do_arquivo(db, nome, centro):
+    from app.folha import sugerir_centro_por_arquivo
+    from app.seed.carregar import carregar
+    carregar(db)
+    assert sugerir_centro_por_arquivo(db, nome).codigo == centro
+
+
+# ---------- pré-checagem, composição dos totais e recorte do PDF ----------
+def lote(client):
+    return client.post("/folha/lote/processar", files=[("arquivos", ("folha.pdf", PDF.read_bytes(), "application/pdf"))],
+                       data={"centros": "ADM03"}).json()["arquivos"][0]
+
+
+def test_pre_checagem_ok_sem_problemas(client):
+    r = lote(client)
+    assert r["ok"] and r["problemas"] == [] and r["linhas"]
+
+
+def test_composicao_soma_o_total(client):
+    r = lote(client)
+    for c in r["conferencias"]:
+        soma = sum(p["valor"] if p["sinal"] == "+" else -p["valor"] for p in c["composicao"])
+        assert round(soma, 2) == c["calculado"]
+
+
+def test_evento_novo_vira_problema_que_bloqueia(client):
+    eid = next(e["id"] for e in client.get("/eventos").json() if e["nome_pdf"] == "Salário Base")
+    client.delete(f"/eventos/{eid}")
+    r = lote(client)
+    assert not r["ok"] and {p["tipo"] for p in r["problemas"]} >= {"evento_novo", "conferencia"}
+
+
+def test_trecho_devolve_png(client):
+    r = client.post("/folha/trecho", files={"arquivo": ("f.pdf", PDF.read_bytes())}, data={"nome": "Salário Base", "origem": "resumo"})
+    assert r.status_code == 200 and r.content[:4] == b"\x89PNG"
+    assert client.post("/folha/trecho", files={"arquivo": ("f.pdf", PDF.read_bytes())}, data={"nome": "Nada", "origem": "resumo"}).status_code == 404
