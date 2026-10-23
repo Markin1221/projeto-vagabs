@@ -1,0 +1,18 @@
+# Blueprint do Render: backend (FastAPI) em Docker. O banco fica no Neon e o front no Vercel.
+# No Render: New > Blueprint > escolha o repositório. Ele pede os dois valores marcados "sync: false".
+services:
+  - type: web
+    name: vagabs-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /saude
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL      # string de conexão do Neon (pode ser a "postgresql://...?sslmode=require" original)
+        sync: false
+      - key: CORS_ORIGENS      # URL do front no Vercel, ex.: https://vagabs.vercel.app (várias, separadas por vírgula)
+        sync: false
+      - key: SENHA_ACESSO      # senha única do sistema (sem ela, qualquer pessoa com o link entra)
+        sync: false

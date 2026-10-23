@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import Base, engine
-from ..models import CentroCusto, Evento, EventoApelido, ItemDespesa
+from ..models import CentroCusto, Evento, EventoApelido, ItemDespesa, RegraClassificacao
 
 DADOS = Path(__file__).parent / "dados"
 
@@ -56,6 +56,13 @@ def carregar(db: Session) -> dict:
             if nome.lower() not in nomes_apelidos:
                 ev.apelidos.append(EventoApelido(nome=nome))
                 nomes_apelidos.add(nome.lower())
+    existentes_r = {(r.kw.upper(), r.nat) for r in db.scalars(select(RegraClassificacao))}
+    novos["regras"] = 0
+    for d in _ler("regras_classificacao"):
+        if (d["kw"].upper(), d["nat"]) not in existentes_r:
+            db.add(RegraClassificacao(**d))
+            existentes_r.add((d["kw"].upper(), d["nat"]))
+            novos["regras"] += 1
     db.commit()
     return novos
 

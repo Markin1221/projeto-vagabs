@@ -326,3 +326,17 @@ def test_trecho_devolve_png(client):
     r = client.post("/folha/trecho", files={"arquivo": ("f.pdf", PDF.read_bytes())}, data={"nome": "Salário Base", "origem": "resumo"})
     assert r.status_code == 200 and r.content[:4] == b"\x89PNG"
     assert client.post("/folha/trecho", files={"arquivo": ("f.pdf", PDF.read_bytes())}, data={"nome": "Nada", "origem": "resumo"}).status_code == 404
+
+
+def test_xlsx_mantem_1_1_como_texto(client):
+    import io
+    from openpyxl import load_workbook
+    r = enviar(client, rota="/folha/csv", formato="xlsx")
+    assert r.status_code == 200 and r.headers["content-disposition"].endswith('.xlsx"')
+    ws = load_workbook(io.BytesIO(r.content)).active
+    cab = [c.value for c in ws[1]]
+    linha = {k: ws.cell(2, i + 1) for i, k in enumerate(cab)}
+    assert linha["numero_conta"].value == "1-1" and linha["numero_conta"].number_format == "@"
+    assert linha["banco_liquidacao"].value == "1-1" and linha["banco_liquidacao"].number_format == "@"
+    assert linha["codigo_item_despesa"].value.startswith("*0") and linha["data_inicial"].number_format == "DD/MM/YYYY"
+    assert isinstance(linha["valor"].value, float)

@@ -19,4 +19,11 @@ _carregar_env()
 
 # PostgreSQL por padrão (ver docker-compose.yml, porta 5433). Nos testes usa-se SQLite em memória.
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://vagabs:vagabs@localhost:5433/vagabs")
-CORS_ORIGENS = os.getenv("CORS_ORIGENS", "http://localhost:3000").split(",")  # frontend Next.js
+# Neon/Render entregam "postgresql://..." ou "postgres://...": o SQLAlchemy precisa do driver psycopg explícito
+for _prefixo in ("postgres://", "postgresql://"):
+    if DATABASE_URL.startswith(_prefixo):
+        DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL[len(_prefixo):]
+CORS_ORIGENS = [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGENS", "http://localhost:3000").split(",") if o.strip()]  # frontend Next.js
+
+# Senha de acesso ao sistema. Vazia = sem senha (uso local). No Render, defina SENHA_ACESSO.
+SENHA_ACESSO = os.getenv("SENHA_ACESSO", "")

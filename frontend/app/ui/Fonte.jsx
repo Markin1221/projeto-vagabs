@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Modal from "./Modal";
-import { API, ORIGEM, fmt } from "../lib";
+import { API, ORIGEM, fmt, autFetch } from "../lib";
 
 // Mostra o pedaço do PDF de onde saiu um valor. `alvo` = { titulo, valor, pdf_nome, pdf_origem, componentes? }
 export default function Fonte({ alvo, arquivo, nomeArquivo, onClose }) {
@@ -17,7 +17,7 @@ export default function Fonte({ alvo, arquivo, nomeArquivo, onClose }) {
     const fd = new FormData();
     fd.append("arquivo", arquivo); fd.append("nome", sel.pdf_nome); fd.append("origem", sel.pdf_origem || "resumo");
     if (sel.valor != null) fd.append("valor", String(sel.valor));
-    fetch(API + "/folha/trecho", { method: "POST", body: fd })
+    autFetch(API + "/folha/trecho", { method: "POST", body: fd })
       .then((r) => (r.ok ? r.blob() : Promise.reject()))
       .then((b) => { if (vivo) { url = URL.createObjectURL(b); setImg(url); setEstado("ok"); } })
       .catch(() => vivo && setEstado("erro"));

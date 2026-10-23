@@ -1,5 +1,5 @@
 def test_saude(client):
-    assert client.get("/saude").json() == {"status": "ok"}
+    assert client.get("/saude").json() == {"status": "ok", "protegido": False}
 
 
 def test_lista_centros_e_itens(client):

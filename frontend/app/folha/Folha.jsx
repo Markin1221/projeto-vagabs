@@ -4,9 +4,10 @@ import Arquivo from "./Arquivo";
 import Eventos from "./Eventos";
 import Cadastro from "./Cadastro";
 import Fonte from "../ui/Fonte";
+import Dica from "../ui/Dica";
 import Modal from "../ui/Modal";
 import { Baixar, Pdf } from "../ui/Icones";
-import { API, VAZIO, api } from "../lib";
+import { API, VAZIO, api, autFetch } from "../lib";
 
 let seq = 0;
 
@@ -20,6 +21,7 @@ export default function Folha() {
   const [checando, setChecando] = useState(false);
   const [abertos, setAbertos] = useState(new Set());
   const [ocultarZero, setOcultarZero] = useState(false);
+  const [formato, setFormato] = useState("xlsx");
   const [versao, setVersao] = useState(0);
   const [arrastando, setArrastando] = useState(false);
   const [erroGerar, setErroGerar] = useState("");
@@ -50,7 +52,7 @@ export default function Folha() {
     files.forEach((f) => { fd.append("arquivos", f.file); fd.append("centros", f.centro || ""); });
     fd.append("ocultar_zerados", ocultarZero ? "true" : "false");
     const t = setTimeout(() => {
-      fetch(API + "/folha/lote/processar", { method: "POST", body: fd })
+      autFetch(API + "/folha/lote/processar", { method: "POST", body: fd })
         .then(async (r) => { const c = await r.json().catch(() => ({})); if (!r.ok) throw new Error(typeof c.detail === "string" ? c.detail : "Erro ao ler os PDFs"); return c; })
         .then((c) => {
           if (meu !== req.current) return;
@@ -87,9 +89,10 @@ export default function Folha() {
       const unico = files.length === 1;
       files.forEach((f) => { fd.append(unico ? "arquivo" : "arquivos", f.file); if (unico) { if (f.centro) fd.append("centro_custo", f.centro); } else fd.append("centros", f.centro || ""); });
       fd.append("ocultar_zerados", ocultarZero ? "true" : "false");
-      const r = await fetch(API + (unico ? "/folha/csv" : "/folha/lote/csv"), { method: "POST", body: fd });
+      fd.append("formato", formato);
+      const r = await autFetch(API + (unico ? "/folha/csv" : "/folha/lote/csv"), { method: "POST", body: fd });
       if (!r.ok) { const c = await r.json().catch(() => ({})); throw new Error(c.detail || "Erro ao gerar os lançamentos"); }
-      const nome = (r.headers.get("content-disposition") || "").match(/filename="(.+)"/)?.[1] || (unico ? "lancamentos.csv" : "lancamentos.zip");
+      const nome = (r.headers.get("content-disposition") || "").match(/filename="(.+)"/)?.[1] || (unico ? `lancamentos.${formato}` : "lancamentos.zip");
       const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = nome; a.click();
     } catch (x) { setErroGerar(x.message); }
     setGerando(false);
@@ -146,6 +149,12 @@ export default function Folha() {
   return (
     <>
       {erroApi && <div className="faixa-erro" role="alert">{erroApi}</div>}
+      <Dica passos={[
+        "Envie o PDF “Resumo Geral” de cada departamento (pode mandar vários de uma vez, mais os dos Sócios).",
+        "Cada PDF é conferido sozinho. Abra o arquivo para ver as conferências e os lançamentos; toque num total para ver a soma que o forma e numa linha para ver o trecho do PDF de onde o valor saiu.",
+        "Se aparecer um problema (evento novo ou total que não bate), resolva ali mesmo: cadastre o evento ou diga que é o mesmo que um já existente.",
+        "Escolha o formato: Excel (recomendado, mantém “1-1” como texto) ou CSV. Se abrir o CSV direto no Excel, ele troca “1-1” por data.",
+        "Com tudo sem problemas, clique em Gerar lançamentos: um PDF gera um arquivo, vários geram um ZIP com um arquivo para cada."]} />
 
       <section className="painel" aria-labelledby="t-enviar">
         <div className="painel-cab"><h2 id="t-enviar">Enviar PDFs da folha</h2>
@@ -168,10 +177,16 @@ export default function Folha() {
 
         <div className="gerar">
           <label className="marca"><input type="checkbox" checked={ocultarZero} onChange={(e) => setOcultarZero(e.target.checked)} />Não incluir linhas com valor zero</label>
+          <label className="formato">Formato
+            <select value={formato} onChange={(e) => setFormato(e.target.value)}>
+              <option value="xlsx">Excel (.xlsx) — mantém 1-1 como texto</option>
+              <option value="csv">CSV (.csv)</option>
+            </select>
+          </label>
           <span style={{ flex: 1 }} />
           {(bloqueio || erroGerar) && <p className={"gerar-msg" + (erroGerar ? " ruim" : "")} role="status">{erroGerar || bloqueio}</p>}
           <button type="button" className="btn primario grande" disabled={!!bloqueio || gerando} onClick={gerar}>
-            <Baixar />{gerando ? "Gerando…" : files.length > 1 ? `Gerar ${files.length} lançamentos (ZIP)` : "Gerar lançamentos (CSV)"}
+            <Baixar />{gerando ? "Gerando…" : files.length > 1 ? `Gerar ${files.length} lançamentos (ZIP)` : `Gerar lançamentos (${formato === "xlsx" ? "Excel" : "CSV"})`}
           </button>
         </div>
       </section>

@@ -15,6 +15,7 @@ from ..leitor_pdf import ler_pdf
 from ..models import CentroCusto
 
 router = APIRouter(prefix="/folha", tags=["folha"])
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def _processar_bytes(db: Session, conteudo: bytes, centro_custo: str | None, ocultar_zerados: bool = False,
@@ -77,10 +78,13 @@ async def processar(arquivo: UploadFile = File(...), centro_custo: str | None = 
 @router.post("/csv")
 async def baixar_csv(arquivo: UploadFile = File(...), centro_custo: str | None = Form(None),
                      separador: str = Form(";"), decimal: str = Form(","), ocultar_zerados: bool = Form(False),
-                     db: Session = Depends(get_db)):
-    """Gera o CSV de lançamentos. Eventos novos não entram: cadastre-os e envie o PDF de novo."""
+                     formato: str = Form("csv"), db: Session = Depends(get_db)):
+    """Gera o CSV (ou o Excel, `formato=xlsx`) de lançamentos. Eventos novos não entram: cadastre-os e envie o PDF de novo."""
     cab, _, centro, _, linhas, _, _, grupo = _processar_bytes(db, await arquivo.read(), centro_custo, ocultar_zerados, arquivo.filename)
     nome = _nome_csv(centro, grupo, cab)
+    if formato == "xlsx":
+        return Response(folha.para_xlsx(linhas), media_type=XLSX,
+                        headers={"Content-Disposition": f'attachment; filename="{nome[:-4]}.xlsx"'})
     return Response(folha.para_csv(linhas, separador, decimal).encode("utf-8-sig"), media_type="text/csv",
                     headers={"Content-Disposition": f'attachment; filename="{nome}"'})
 
@@ -157,8 +161,8 @@ async def trecho(arquivo: UploadFile = File(...), nome: str = Form(...), origem:
 @router.post("/lote/csv")
 async def baixar_zip(arquivos: list[UploadFile] = File(...), centros: list[str] = Form(default=[]),
                      separador: str = Form(";"), decimal: str = Form(","), ocultar_zerados: bool = Form(False),
-                     db: Session = Depends(get_db)):
-    """ZIP com um CSV por PDF enviado. PDFs com erro ficam de fora e são listados em LEIAME-erros.txt."""
+                     formato: str = Form("csv"), db: Session = Depends(get_db)):
+    """ZIP com um CSV (ou Excel, `formato=xlsx`) por PDF enviado. PDFs com erro ficam de fora e são listados em LEIAME-erros.txt."""
     buf, usados, erros = io.BytesIO(), {}, []
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for i, arq in enumerate(arquivos):
@@ -170,10 +174,13 @@ async def baixar_zip(arquivos: list[UploadFile] = File(...), centros: list[str] 
                 erros.append(f"{arq.filename}: {e.detail}")
                 continue
             nome = _nome_csv(centro, grupo, cab)
+            if formato == "xlsx":
+                nome = nome[:-4] + ".xlsx"
             usados[nome] = usados.get(nome, 0) + 1
             if usados[nome] > 1:  # dois PDFs do mesmo centro/mês: não sobrescrever
-                nome = nome.replace(".csv", f"_{usados[nome]}.csv")
-            z.writestr(nome, folha.para_csv(linhas, separador, decimal).encode("utf-8-sig"))
+                nome = nome.replace(".csv", f"_{usados[nome]}.csv").replace(".xlsx", f"_{usados[nome]}.xlsx")
+            z.writestr(nome, folha.para_xlsx(linhas) if formato == "xlsx"
+                       else folha.para_csv(linhas, separador, decimal).encode("utf-8-sig"))
         if erros:
             z.writestr("LEIAME-erros.txt", "Estes arquivos não foram convertidos:\n\n" + "\n".join(erros))
     if not usados:

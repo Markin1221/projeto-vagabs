@@ -59,3 +59,19 @@ class EventoApelido(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"))
     nome: Mapped[str] = mapped_column(String(200), unique=True)
+
+
+class RegraClassificacao(Base):
+    """Regra do classificador de extrato: se a palavra-chave aparece no título/descrição da linha (e, se
+    `nat` estiver preenchido, o tipo bate), a linha recebe centro, item, fonte, forma e título abaixo.
+    Textos no formato do DDATA Sol ("CTPAS - CONTAS DE PASSAGENS", "520 - FORNECEDORES A PAGAR DDA")."""
+    __tablename__ = "regras_classificacao"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kw: Mapped[str] = mapped_column(String(200), index=True)
+    nat: Mapped[str | None] = mapped_column(String(10))  # DEBITO | CREDITO | nulo = qualquer
+    centro: Mapped[str] = mapped_column(String(120), default="")
+    item: Mapped[str] = mapped_column(String(200), default="")
+    fonte: Mapped[str] = mapped_column(String(120), default="")
+    forma: Mapped[str] = mapped_column(String(80), default="")
+    titulo: Mapped[str] = mapped_column(String(200), default="")

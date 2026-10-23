@@ -136,6 +136,12 @@ def eventos_novos(db: Session, df_resumo, grupo: str = "folha") -> list[dict]:
     return novos
 
 
+def codigo_item(codigo: int) -> str:
+    """Código do item no CSV com 3 dígitos: se precisa de zero à esquerda leva '*' (70 -> *070, 75 -> *075);
+    sem zero à esquerda fica como está (501 -> 501)."""
+    return f"*{codigo:03d}" if codigo < 100 else str(codigo)
+
+
 def montar_lancamentos(db: Session, cabecalho: dict, fontes: dict, centro: CentroCusto,
                        ocultar_zerados: bool = False, grupo: str = "folha") -> list[dict]:
     """Uma linha por evento que gera lançamento, na ordem do CSV. Como na aba 'lancamentos CSV' do Excel, evento
@@ -153,7 +159,7 @@ def montar_lancamentos(db: Session, cabecalho: dict, fontes: dict, centro: Centr
         if ocultar_zerados and abs(valor) < 0.005:
             continue
         fixo = ev.centro_custo_fixo
-        item = str(ev.item_despesa.codigo) if fixo else "*0" + str(ev.item_despesa.codigo)
+        item = codigo_item(ev.item_despesa.codigo)
         f = _fonte_do_evento(ev, fontes)
         linhas.append({
             "evento_id": ev.id, "pdf_nome": f[0] if f else None, "pdf_origem": f[1] if f else None,
@@ -282,4 +288,38 @@ def para_csv(linhas: list[dict], separador: str = ";", decimal: str = ",") -> st
     w.writerow(COLUNAS)
     for l in linhas:
         w.writerow([fmt(l[c]) for c in COLUNAS])
+    return buf.getvalue()
+
+
+TEXTO_XLSX = ("codigo_centro_de_custo", "numero_conta", "codigo_item_despesa", "banco_liquidacao", "status_pagamento")
+DATA_XLSX = ("data_inicial", "data_liquidacao")
+
+
+def para_xlsx(linhas: list[dict]) -> bytes:
+    """Mesma tabela do CSV em Excel, com as colunas de código como TEXTO (o Excel não vira '1-1' em 01/jan nem
+    corta o '*070'), datas como data dd/mm/aaaa e valor como número com 2 casas."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "lancamentos"
+    ws.append(COLUNAS)
+    for c in ws[1]:
+        c.font = Font(bold=True)
+    for l in linhas:
+        ws.append([l[c] for c in COLUNAS])
+    for j, nome in enumerate(COLUNAS, start=1):
+        for row in ws.iter_rows(min_row=2, min_col=j, max_col=j):
+            cel = row[0]
+            if nome in TEXTO_XLSX:
+                cel.number_format = "@"
+                cel.value = None if cel.value is None else str(cel.value)
+            elif nome in DATA_XLSX:
+                cel.number_format = "DD/MM/YYYY"
+            elif nome == "valor":
+                cel.number_format = "#,##0.00"
+        ws.column_dimensions[ws.cell(1, j).column_letter].width = max(12, min(40, len(nome) + 2))
+    ws.freeze_panes = "A2"
+    buf = io.BytesIO()
+    wb.save(buf)
     return buf.getvalue()
