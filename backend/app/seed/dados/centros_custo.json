@@ -6,17 +6,17 @@
  },
  {
   "codigo": "ADM02",
-  "nome": "Posto",
+  "nome": "Coleta",
   "tipo": "departamento"
  },
  {
   "codigo": "ADM03",
-  "nome": "Oficina",
+  "nome": "Posto",
   "tipo": "departamento"
  },
  {
   "codigo": "ADM04",
-  "nome": "Coleta",
+  "nome": "Oficina",
   "tipo": "departamento"
  },
  {

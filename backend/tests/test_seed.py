@@ -31,7 +31,7 @@ def test_seed_nao_sobrescreve_edicao_do_usuario(db):
 def test_centros_de_custo_base(db):
     carregar(db)
     centros = {c.codigo: c for c in db.scalars(select(CentroCusto))}
-    assert centros["ADM03"].nome == "Oficina" and centros["ADM03"].tipo == "departamento"
+    assert centros["ADM04"].nome == "Oficina" and centros["ADM04"].tipo == "departamento"
     assert centros["CTPAS"].tipo == "passagem"
 
 
@@ -74,3 +74,11 @@ def test_ordem_segue_o_csv(db):
     carregar(db)
     primeiros = [e.nome_pdf for e in db.scalars(select(Evento).where(Evento.grupo == "folha").order_by(Evento.ordem).limit(3))]
     assert primeiros == ["Salário Base", "Saldo de Salário", "Férias"]
+
+
+def test_seed_corrige_nome_de_centro_ja_existente(db):
+    carregar(db)
+    c = db.scalar(select(CentroCusto).where(CentroCusto.codigo == "ADM02"))
+    c.nome = "Posto"; db.commit()           # banco antigo, com o nome errado
+    carregar(db)
+    assert db.scalar(select(CentroCusto).where(CentroCusto.codigo == "ADM02")).nome == "Coleta"

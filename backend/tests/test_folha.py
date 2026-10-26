@@ -5,7 +5,7 @@ import pytest
 PDF = Path(__file__).parent / "fixtures" / "folha_oficina.pdf"
 
 
-def enviar(client, centro="ADM03", rota="/folha/processar", **extra):
+def enviar(client, centro="ADM04", rota="/folha/processar", **extra):
     dados = {"centro_custo": centro, **extra} if centro else extra
     return client.post(rota, files={"arquivo": ("folha.pdf", PDF.read_bytes(), "application/pdf")}, data=dados)
 
@@ -22,13 +22,13 @@ def por_desc(resp):
 
 
 def test_cabecalho_e_periodo(resp):
-    assert resp["departamento_pdf"] == "OFICINA" and resp["centro_custo"]["codigo"] == "ADM03"
+    assert resp["departamento_pdf"] == "OFICINA" and resp["centro_custo"]["codigo"] == "ADM04"
     assert resp["periodo"] == {"inicio": "2026-05-01", "fim": "2026-05-31"} and resp["avisos"] == []
 
 
 def test_evento_do_departamento_usa_o_centro_escolhido(resp):
     sal = por_desc(resp)["Salário Base"]
-    assert (sal["valor"], sal["codigo_centro_de_custo"], sal["codigo_item_despesa"]) == (54244.65, "ADM03", "*070")
+    assert (sal["valor"], sal["codigo_centro_de_custo"], sal["codigo_item_despesa"]) == (54244.65, "ADM04", "*070")
     assert sal["titulo"] == "Folha Oficina" and sal["observacoes"] == "Folha maio 26 Oficina"
     assert sal["data_inicial"] == sal["data_liquidacao"] == "2026-05-30"
 
@@ -74,7 +74,7 @@ def test_ordem_segue_o_csv_original(resp):
 
 def test_sem_centro_sugere_pelo_departamento_do_pdf(client):
     r = enviar(client, centro=None)
-    assert r.status_code == 200 and r.json()["centro_custo"]["codigo"] == "ADM03"
+    assert r.status_code == 200 and r.json()["centro_custo"]["codigo"] == "ADM04"
 
 
 def test_centro_invalido(client):
@@ -84,7 +84,7 @@ def test_centro_invalido(client):
 
 def test_pdf_invalido(client):
     r = client.post("/folha/processar", files={"arquivo": ("x.pdf", b"nao e pdf", "application/pdf")},
-                    data={"centro_custo": "ADM03"})
+                    data={"centro_custo": "ADM04"})
     assert r.status_code == 422
 
 
@@ -108,7 +108,7 @@ def test_csv_tem_as_17_colunas_na_ordem(client):
     assert linhas[0] == ("titulo;descricao;tipo_lancamento;codigo_centro_de_custo;numero_conta;codigo_item_despesa;"
                          "codigo_fonte_recurso;id_forma_pagamento;num_parcelas;data_inicial;dias_intervalo;valor;"
                          "observacoes;id_lancamento_grupo;status_pagamento;data_liquidacao;banco_liquidacao")
-    assert linhas[1] == ("Folha Oficina;Salário Base;DEBITO;ADM03;1-1;*070;;;;30/05/2026;;54244,65;"
+    assert linhas[1] == ("Folha Oficina;Salário Base;DEBITO;ADM04;1-1;*070;;;;30/05/2026;;54244,65;"
                          "Folha maio 26 Oficina;;PAGO;30/05/2026;1-1")
 
 
@@ -153,9 +153,9 @@ def test_vincular_apelido(client):
 
 
 @pytest.mark.parametrize("arq,centro,liquido_sem_ferias", [
-    ("folha_coleta_08.pdf", "ADM04", 327.20),      # sem 'TOTAL LÍQUIDO (FÉRIAS)' no PDF
-    ("folha_oficina_08.pdf", "ADM03", 30717.48),
-    ("folha_posto_08.pdf", "ADM02", 1936.96),      # 'Periculosidade 30%' com o nome completo
+    ("folha_coleta_08.pdf", "ADM02", 327.20),      # sem 'TOTAL LÍQUIDO (FÉRIAS)' no PDF
+    ("folha_oficina_08.pdf", "ADM04", 30717.48),
+    ("folha_posto_08.pdf", "ADM03", 1936.96),      # 'Periculosidade 30%' com o nome completo
 ])
 def test_outros_departamentos_de_agosto(client, arq, centro, liquido_sem_ferias):
     pdf = Path(__file__).parent / "fixtures" / arq
@@ -221,7 +221,7 @@ def test_lote_resumo(client):
     r = _lote(client, "/folha/lote/processar", NOMES)
     assert r.status_code == 200
     arq = r.json()["arquivos"]
-    assert [a["centro_custo"]["codigo"] for a in arq] == ["ADM01", "ADM04", "ADM03", "ADM02", "ADM01"]
+    assert [a["centro_custo"]["codigo"] for a in arq] == ["ADM01", "ADM02", "ADM04", "ADM03", "ADM01"]
     assert all(a["ok"] and a["conferencias_ok"] and a["eventos_novos"] == [] for a in arq)
     assert arq[4]["perfil"] == "conselho" and arq[4]["nome_csv"] == "lancamentos_Conselho_08-2026.csv"
 
@@ -235,7 +235,7 @@ def test_lote_zip_com_um_csv_por_arquivo(client):
         "lancamentos_Administração_08-2026.csv", "lancamentos_Coleta_08-2026.csv", "lancamentos_Oficina_08-2026.csv",
         "lancamentos_Posto_08-2026.csv", "lancamentos_Conselho_08-2026.csv"])
     linhas = z.read("lancamentos_Coleta_08-2026.csv").decode("utf-8-sig").splitlines()
-    assert len(linhas) == 50 and linhas[1].startswith("Folha Coleta;Salário Base;DEBITO;ADM04;1-1;*070")
+    assert len(linhas) == 50 and linhas[1].startswith("Folha Coleta;Salário Base;DEBITO;ADM02;1-1;*070")
 
 
 def test_lote_arquivo_ruim_nao_derruba_os_outros(client):
@@ -268,15 +268,15 @@ def test_centro_vem_do_nome_do_arquivo_antes_do_cabecalho(client):
     r = client.post("/folha/processar", files={"arquivo": ("Relatório COOPERNORTE Coleta 08-2026.pdf",
                                                            pdf.read_bytes(), "application/pdf")})
     corpo = r.json()
-    assert corpo["centro_custo"]["codigo"] == "ADM04" and corpo["origem_centro"] == "nome do arquivo"
+    assert corpo["centro_custo"]["codigo"] == "ADM02" and corpo["origem_centro"] == "nome do arquivo"
     assert any("Coleta" in a and "OFICINA" in a for a in corpo["avisos"])
-    assert {l["codigo_centro_de_custo"] for l in corpo["linhas"]} == {"ADM04", "CTPAS"}
+    assert {l["codigo_centro_de_custo"] for l in corpo["linhas"]} == {"ADM02", "CTPAS"}
 
 
 def test_nome_do_arquivo_sem_departamento_usa_o_pdf(client):
     pdf = Path(__file__).parent / "fixtures" / "folha_oficina_08.pdf"
     r = client.post("/folha/processar", files={"arquivo": ("relatorio.pdf", pdf.read_bytes(), "application/pdf")})
-    assert r.json()["centro_custo"]["codigo"] == "ADM03" and r.json()["origem_centro"] == "cabeçalho do PDF"
+    assert r.json()["centro_custo"]["codigo"] == "ADM04" and r.json()["origem_centro"] == "cabeçalho do PDF"
 
 
 def test_escolha_manual_vence_o_nome_do_arquivo(client):
@@ -287,8 +287,8 @@ def test_escolha_manual_vence_o_nome_do_arquivo(client):
 
 
 @pytest.mark.parametrize("nome,centro", [
-    ("Relatório COOPERNORTE Administrativo 08-2026.pdf", "ADM01"), ("Relatório_COOPERNORTE_Coleta_08-2026.pdf", "ADM04"),
-    ("Relat#U00f3rio COOPERNORTE Oficina 08-2026.pdf", "ADM03"), ("folha POSTO agosto.pdf", "ADM02"),
+    ("Relatório COOPERNORTE Administrativo 08-2026.pdf", "ADM01"), ("Relatório_COOPERNORTE_Coleta_08-2026.pdf", "ADM02"),
+    ("Relat#U00f3rio COOPERNORTE Oficina 08-2026.pdf", "ADM04"), ("folha POSTO agosto.pdf", "ADM03"),
     ("Folha Administração.pdf", "ADM01"), ("almoxarifado.pdf", "ADM05")])
 def test_centro_pelo_nome_do_arquivo(db, nome, centro):
     from app.folha import sugerir_centro_por_arquivo
@@ -300,7 +300,7 @@ def test_centro_pelo_nome_do_arquivo(db, nome, centro):
 # ---------- pré-checagem, composição dos totais e recorte do PDF ----------
 def lote(client):
     return client.post("/folha/lote/processar", files=[("arquivos", ("folha.pdf", PDF.read_bytes(), "application/pdf"))],
-                       data={"centros": "ADM03"}).json()["arquivos"][0]
+                       data={"centros": "ADM04"}).json()["arquivos"][0]
 
 
 def test_pre_checagem_ok_sem_problemas(client):
@@ -340,3 +340,8 @@ def test_xlsx_mantem_1_1_como_texto(client):
     assert linha["banco_liquidacao"].value == "1-1" and linha["banco_liquidacao"].number_format == "@"
     assert linha["codigo_item_despesa"].value.startswith("*0") and linha["data_inicial"].number_format == "DD/MM/YYYY"
     assert isinstance(linha["valor"].value, float)
+
+
+def test_codigo_do_item_tem_3_digitos():
+    from app.folha import codigo_item
+    assert [codigo_item(c) for c in (70, 75, 9, 501, 520)] == ["*070", "*075", "*009", "501", "520"]

@@ -26,7 +26,9 @@ def carregar(db: Session) -> dict:
     novos = {"centros_custo": 0, "itens_despesa": 0, "eventos": 0}
     centros = {c.codigo: c for c in db.scalars(select(CentroCusto))}
     for d in _ler("centros_custo"):
-        if d["codigo"] not in centros:
+        if d["codigo"] in centros:  # cadastro de referência: nome e tipo acompanham o seed
+            centros[d["codigo"]].nome, centros[d["codigo"]].tipo = d["nome"], d["tipo"]
+        else:
             centros[d["codigo"]] = CentroCusto(**d)
             db.add(centros[d["codigo"]])
             novos["centros_custo"] += 1
