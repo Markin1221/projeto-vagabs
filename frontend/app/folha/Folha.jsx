@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Arquivo from "./Arquivo";
 import Eventos from "./Eventos";
 import Cadastro from "./Cadastro";
+import Centros from "./Centros";
 import Fonte from "../ui/Fonte";
 import Dica from "../ui/Dica";
 import Modal from "../ui/Modal";
@@ -192,6 +193,7 @@ export default function Folha() {
       </section>
 
       <Eventos eventos={eventos} itens={itens} aoTrocarItem={trocarItem} aoEditar={editar} aoExcluir={setExcluir} />
+      <Centros centros={centros} eventos={eventos} />
       <Cadastro form={form} setForm={setForm} editId={editId} aliasEdit={aliasEdit} itens={itens} centros={centros} msg={msg}
         aoSalvar={salvar} aoCancelar={cancelar} aoRemoverApelido={removerApelido} />
 

@@ -108,8 +108,8 @@ def test_csv_tem_as_17_colunas_na_ordem(client):
     assert linhas[0] == ("titulo;descricao;tipo_lancamento;codigo_centro_de_custo;numero_conta;codigo_item_despesa;"
                          "codigo_fonte_recurso;id_forma_pagamento;num_parcelas;data_inicial;dias_intervalo;valor;"
                          "observacoes;id_lancamento_grupo;status_pagamento;data_liquidacao;banco_liquidacao")
-    assert linhas[1] == ("Folha Oficina;Salário Base;DEBITO;ADM04;1-1;*070;;;;30/05/2026;;54244,65;"
-                         "Folha maio 26 Oficina;;PAGO;30/05/2026;1-1")
+    assert linhas[1] == ("Folha Oficina;Salário Base;DEBITO;ADM04; 1-1;*070;;;;30/05/2026;;54244,65;"
+                         "Folha maio 26 Oficina;;PAGO;30/05/2026; 1-1")
 
 
 ADM = Path(__file__).parent / "fixtures" / "folha_administrativo_08.pdf"
@@ -235,7 +235,7 @@ def test_lote_zip_com_um_csv_por_arquivo(client):
         "lancamentos_Administração_08-2026.csv", "lancamentos_Coleta_08-2026.csv", "lancamentos_Oficina_08-2026.csv",
         "lancamentos_Posto_08-2026.csv", "lancamentos_Conselho_08-2026.csv"])
     linhas = z.read("lancamentos_Coleta_08-2026.csv").decode("utf-8-sig").splitlines()
-    assert len(linhas) == 50 and linhas[1].startswith("Folha Coleta;Salário Base;DEBITO;ADM02;1-1;*070")
+    assert len(linhas) == 50 and linhas[1].startswith("Folha Coleta;Salário Base;DEBITO;ADM02; 1-1;*070")
 
 
 def test_lote_arquivo_ruim_nao_derruba_os_outros(client):
@@ -336,8 +336,8 @@ def test_xlsx_mantem_1_1_como_texto(client):
     ws = load_workbook(io.BytesIO(r.content)).active
     cab = [c.value for c in ws[1]]
     linha = {k: ws.cell(2, i + 1) for i, k in enumerate(cab)}
-    assert linha["numero_conta"].value == "1-1" and linha["numero_conta"].number_format == "@"
-    assert linha["banco_liquidacao"].value == "1-1" and linha["banco_liquidacao"].number_format == "@"
+    assert linha["numero_conta"].value == " 1-1" and linha["numero_conta"].number_format == "@"
+    assert linha["banco_liquidacao"].value == " 1-1" and linha["banco_liquidacao"].number_format == "@"
     assert linha["codigo_item_despesa"].value.startswith("*0") and linha["data_inicial"].number_format == "DD/MM/YYYY"
     assert isinstance(linha["valor"].value, float)
 

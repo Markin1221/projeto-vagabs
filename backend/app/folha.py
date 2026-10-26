@@ -20,7 +20,7 @@ COLUNAS = ["titulo", "descricao", "tipo_lancamento", "codigo_centro_de_custo", "
            "codigo_item_despesa", "codigo_fonte_recurso", "id_forma_pagamento", "num_parcelas", "data_inicial",
            "dias_intervalo", "valor", "observacoes", "id_lancamento_grupo", "status_pagamento", "data_liquidacao",
            "banco_liquidacao"]
-CONTA, STATUS, BANCO = "1-1", "PAGO", "1-1"  # fixos em todas as linhas da base
+CONTA, STATUS, BANCO = " 1-1", "PAGO", " 1-1"  # fixos; o espaço antes impede o Excel de transformar "1-1" em 01/jan
 # Perfis de folha: "folha" = departamentos (Ativos/Demitidos/Afastados); "conselho" = Sócios/Autônomos (Matriz).
 PERFIS = {
     "folha": {"titulo": "Folha {centro}", "obs": "{centro}"},
