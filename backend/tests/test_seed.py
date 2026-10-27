@@ -10,7 +10,7 @@ def _ev(db, nome):
 
 def test_seed_conta_tudo(db):
     novos = carregar(db)
-    assert novos == {"centros_custo": 9, "itens_despesa": 98, "eventos": 91, "regras": 52, "quinzena_linhas": 18, "quinzena_regras": 52}
+    assert novos == {"centros_custo": 9, "itens_despesa": 98, "eventos": 91, "regras": 52, "quinzena_linhas": 20, "quinzena_regras": 53}
     assert db.scalar(select(func.count()).select_from(Evento).where(Evento.gera_lancamento, Evento.grupo == "folha")) == 49
 
 

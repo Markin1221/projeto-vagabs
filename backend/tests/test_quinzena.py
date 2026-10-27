@@ -99,3 +99,25 @@ def test_grupo_obrigatorio_quando_nome_nao_diz(client):
                     data=DADOS).json()["arquivos"][0]
     # o nome do arquivo não diz, mas o evento '257 - REMUNERAÇÃO INTERBAIRROS' diz
     assert r["grupo"] == "Interbairros"
+
+
+def test_debito_credito_intermunicipais_por_terminal(client):
+    """2ª quinzena de maio: o evento 2152 vai para Terminal Tiuma (carros 04xx) e Terminal Ponte (11xx)."""
+    a = processar(client, "quinzena_intermunicipal_2q_maio.xlsx", data="2026-06-05")[0]
+    assert a["ok"], a["problemas"]
+    v = valores(a)
+    assert (v["terminal_tiuma"], v["terminal_ponte"]) == (41734.09, 50247.10)
+    por = {l["codigo"]: l for l in a["linhas"]}
+    assert por["terminal_tiuma"]["descricao"] == "Terminal Tiuma - Intermunicipal"
+    assert por["terminal_ponte"]["codigo_item_despesa"] == "528" and por["terminal_ponte"]["codigo_centro_de_custo"] == "CTPAS"
+    assert len(por["terminal_tiuma"]["composicao"][0]["por_carro"]) == 12
+    # crédito publicidade (116,40 por carro) abate a parte do Sindicato
+    assert v["taxa_sind"] == round(3201.12 - 2793.60, 2)
+
+
+def test_carro_fora_dos_terminais_bloqueia(client):
+    client.put("/quinzena/config", json={"taxa_cooperativa": 998.73, "taxa_sindicato": 133.38, "conta_quinzena": "46604-2",
+                                         "terminais": {"terminal_tiuma": ["04"]}})
+    a = processar(client, "quinzena_intermunicipal_2q_maio.xlsx")[0]
+    assert not a["ok"] and any(p["tipo"] == "carro_sem_terminal" for p in a["problemas"])
+    assert client.get("/quinzena/config").json()["terminais"] == {"terminal_tiuma": ["04"]}

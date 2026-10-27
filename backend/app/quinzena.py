@@ -8,6 +8,7 @@ Regras (aba Resumo da planilha):
 - Débitos de acordo saem como DÉBITO e voltam como 'Estorno' (CRÉDITO) 15 dias depois;
 - o valor do lançamento é sempre positivo (a planilha usa o valor absoluto)."""
 import csv
+import json
 import io
 import re
 import unicodedata
@@ -26,7 +27,8 @@ COLUNAS = ["titulo", "descricao", "tipo_lancamento", "codigo_centro_de_custo", "
 TEXTO_XLSX = ("codigo_centro_de_custo", "numero_conta", "codigo_item_despesa", "codigo_fonte_recurso")
 ESPECIAIS = {"_saldo": "Saldo negativo da quinzena anterior (entra no crédito)",
              "_taxa": "Taxa administrativa (dividida em Cooperativa e Sindicato)",
-             "_ignorar": "Não entra no lançamento (compõe o líquido)"}
+             "_ignorar": "Não entra no lançamento (compõe o líquido)",
+             "_terminais": "Débito/crédito das intermunicipais (vai para o terminal do carro, pelo prefixo)"}
 GRUPOS = {"INTERBAIRRO": "Interbairros", "ALIMENTADOR": "Alimentadora", "INTERMUNICIPA": "Intermunicipal",
           "TIUMA": "Intermunicipal"}
 MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro",
@@ -107,7 +109,7 @@ def processar(db: Session, df: pd.DataFrame, grupo: str, data_lanc: date, observ
     liquido = round(float(pd.to_numeric(df["Liquido"], errors="coerce").fillna(0).sum()), 2)
 
     por_linha: dict[str, list] = {}
-    sem_regra, saldo, taxa_eventos = [], [], []
+    sem_regra, saldo, taxa_eventos, terminais_ev = [], [], [], []
     for ev in eventos:
         r = regra_do_evento(regras, ev["nome"])
         ev["linha"] = r.linha if r else None
@@ -120,6 +122,8 @@ def processar(db: Session, df: pd.DataFrame, grupo: str, data_lanc: date, observ
             saldo.append(ev)
         elif r.linha == "_taxa":
             taxa_eventos.append(ev)
+        elif r.linha == "_terminais":
+            terminais_ev.append(ev)
         elif r.linha != "_ignorar":
             por_linha.setdefault(r.linha, []).append(ev)
 
@@ -128,6 +132,21 @@ def processar(db: Session, df: pd.DataFrame, grupo: str, data_lanc: date, observ
 
     composicao: dict[str, list] = {c: [parcela(e["nome"], e["total"], e) for e in evs if e["total"]]
                                    for c, evs in por_linha.items()}
+    # débito/crédito das intermunicipais: cada carro vai para o terminal do seu prefixo
+    terminais = json.loads(cfg.get("terminais") or "{}")
+    sem_terminal = []
+    for ev in terminais_ev:
+        partes: dict[str, list] = {}
+        for c in ev["por_carro"]:
+            linha = next((t for t, pref in terminais.items()
+                          if any(c["prefixo"].lstrip("0").startswith(p.lstrip("0")) or c["prefixo"].startswith(p) for p in pref)), None)
+            if linha is None:
+                sem_terminal.append((ev["nome"], c))
+            else:
+                partes.setdefault(linha, []).append(c)
+        for linha, carros_t in partes.items():
+            composicao.setdefault(linha, []).append(
+                {"nome": ev["nome"], "valor": round(sum(c["valor"] for c in carros_t), 2), "por_carro": carros_t})
     # crédito quinzenal
     soma_saldo = round(sum(e["total"] for e in saldo), 2)
     cred = [parcela("Saldo negativo da quinzena anterior", soma_saldo, saldo[0] if len(saldo) == 1 else None),
@@ -179,6 +198,10 @@ def processar(db: Session, df: pd.DataFrame, grupo: str, data_lanc: date, observ
                              "nenhuma regra diz em qual linha do lançamento ele entra. Escolha a linha abaixo.",
                   "evento": {"nome": e["nome"].strip(), "sugestao": sem_codigo(e["nome"]).upper(), "total": e["total"],
                              "por_carro": e["por_carro"]}} for e in sem_regra]
+    problemas += [{"tipo": "carro_sem_terminal", "titulo": f"Carro {c['prefixo']} sem terminal",
+                   "detalhe": f"O carro {c['prefixo']} tem {c['valor']:.2f} em “{nome.strip()}”, mas o prefixo dele não é de "
+                              "nenhum terminal. Ajuste os prefixos dos terminais em “Linhas do lançamento e taxa”."}
+                  for nome, c in sem_terminal]
     return {"grupo": grupo, "liquido": liquido, "saldo_negativo": soma_saldo, "credito_calculado": credito_calc,
             "taxa": {"total": abs(taxa_total), "carros": carros, "cooperativa": abs(coop),
                      "sindicato": abs(round(taxa_total - coop, 2))},

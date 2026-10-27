@@ -15,7 +15,9 @@ from ..db import Base, engine
 from ..models import CentroCusto, Evento, EventoApelido, ItemDespesa, RegraClassificacao, LinhaQuinzena, RegraQuinzena, Configuracao
 
 DADOS = Path(__file__).parent / "dados"
-CONFIG_PADRAO = {"taxa_cooperativa": "998.73", "taxa_sindicato": "133.38", "conta_quinzena": "46604-2"}
+CONFIG_PADRAO = {"taxa_cooperativa": "998.73", "taxa_sindicato": "133.38", "conta_quinzena": "46604-2",
+                 # débito/crédito das intermunicipais: carro 04xx é do Terminal Tiuma, 11xx do Terminal Ponte
+                 "terminais": '{"terminal_tiuma": ["04"], "terminal_ponte": ["11"]}'}
 
 
 def _ler(nome):

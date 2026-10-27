@@ -36,8 +36,26 @@
   "fonte": "*08"
  },
  {
-  "codigo": "taxa_coop",
+  "codigo": "terminal_tiuma",
   "ordem": 5,
+  "descricao": "Terminal Tiuma",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 528,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "terminal_ponte",
+  "ordem": 6,
+  "descricao": "Terminal Ponte",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 528,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "taxa_coop",
+  "ordem": 7,
   "descricao": "Taxa Cooperativa",
   "tipo_lancamento": "CREDITO",
   "centro": "ADM10",
@@ -46,7 +64,7 @@
  },
  {
   "codigo": "taxa_sind",
-  "ordem": 6,
+  "ordem": 8,
   "descricao": "Taxa Sindicato",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -55,7 +73,7 @@
  },
  {
   "codigo": "fap",
-  "ordem": 7,
+  "ordem": 9,
   "descricao": "FAP",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -64,7 +82,7 @@
  },
  {
   "codigo": "tarifas",
-  "ordem": 8,
+  "ordem": 10,
   "descricao": "Tarifas bancarias",
   "tipo_lancamento": "CREDITO",
   "centro": "ADM01",
@@ -73,7 +91,7 @@
  },
  {
   "codigo": "processos",
-  "ordem": 9,
+  "ordem": 11,
   "descricao": "Processos judiciais",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -82,7 +100,7 @@
  },
  {
   "codigo": "acordo",
-  "ordem": 10,
+  "ordem": 12,
   "descricao": "Debitos de Acordo - Empréstimo ao Permissionários",
   "tipo_lancamento": "DEBITO",
   "centro": "CTPAS",
@@ -91,7 +109,7 @@
  },
  {
   "codigo": "capital_giro",
-  "ordem": 11,
+  "ordem": 13,
   "descricao": "Fundo Capital de giro Diesel",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -100,7 +118,7 @@
  },
  {
   "codigo": "diesel_coopernorte",
-  "ordem": 12,
+  "ordem": 14,
   "descricao": "Diesel na coopernorte",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -109,7 +127,7 @@
  },
  {
   "codigo": "estorno_acordo",
-  "ordem": 13,
+  "ordem": 15,
   "descricao": "Estorno Debitos de Acordo - Empréstimo ao Permissionários",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -118,7 +136,7 @@
  },
  {
   "codigo": "salario",
-  "ordem": 14,
+  "ordem": 16,
   "descricao": "Salario Katia",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -127,7 +145,7 @@
  },
  {
   "codigo": "contador",
-  "ordem": 15,
+  "ordem": 17,
   "descricao": "Contador",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -136,7 +154,7 @@
  },
  {
   "codigo": "plano",
-  "ordem": 16,
+  "ordem": 18,
   "descricao": "Plano de saude/odonto",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -145,7 +163,7 @@
  },
  {
   "codigo": "financiamento",
-  "ordem": 17,
+  "ordem": 19,
   "descricao": "Financiamento do permissionario - Veiculos",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -154,7 +172,7 @@
  },
  {
   "codigo": "pensao",
-  "ordem": 18,
+  "ordem": 20,
   "descricao": "Pensão do permissionario",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",

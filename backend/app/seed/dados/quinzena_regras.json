@@ -1,261 +1,266 @@
 [
  {
   "ordem": 10,
+  "padrao": "DEBITO/CREDITO INTERMUNICIPAIS",
+  "linha": "_terminais"
+ },
+ {
+  "ordem": 20,
   "padrao": "SALDO NEGATIVO - QUINZENA ANTERIOR",
   "linha": "_saldo"
  },
  {
-  "ordem": 20,
+  "ordem": 30,
   "padrao": "REMUNERACAO",
   "linha": "_ignorar"
  },
  {
-  "ordem": 30,
+  "ordem": 40,
   "padrao": "PAGANTES",
   "linha": "_ignorar"
  },
  {
-  "ordem": 40,
+  "ordem": 50,
   "padrao": "ADMINISTRACAO HAPVIDA",
   "linha": "pecas"
  },
  {
-  "ordem": 50,
+  "ordem": 60,
   "padrao": "ADMINISTRATIVA HAPVIDA",
   "linha": "pecas"
  },
  {
-  "ordem": 60,
+  "ordem": 70,
   "padrao": "TAXA ADMINISTRATIVA",
   "linha": "_taxa"
  },
  {
-  "ordem": 70,
+  "ordem": 80,
   "padrao": "ADIANTAMENTO DE QUINZENA",
   "linha": "credito"
  },
  {
-  "ordem": 80,
+  "ordem": 90,
   "padrao": "SALDO NEGATIVO ANTERIOR",
   "linha": "credito"
  },
  {
-  "ordem": 90,
+  "ordem": 100,
   "padrao": "CREDITO TED",
   "linha": "credito"
  },
  {
-  "ordem": 100,
+  "ordem": 110,
   "padrao": "PUBLICIDADE CAP",
   "linha": "credito"
  },
  {
-  "ordem": 110,
+  "ordem": 120,
   "padrao": "PUBLICIDADE",
   "linha": "taxa_sind"
  },
  {
-  "ordem": 120,
+  "ordem": 130,
   "padrao": "CAPITAL DE GIRO",
   "linha": "capital_giro"
  },
  {
-  "ordem": 130,
+  "ordem": 140,
   "padrao": "DIESEL COOPERNORTE",
   "linha": "diesel_coopernorte"
  },
  {
-  "ordem": 140,
+  "ordem": 150,
   "padrao": "DIESEL",
   "linha": "diesel"
  },
  {
-  "ordem": 150,
+  "ordem": 160,
   "padrao": "SINISTRO",
   "linha": "fap"
  },
  {
-  "ordem": 160,
+  "ordem": 170,
   "padrao": "FAP",
   "linha": "fap"
  },
  {
-  "ordem": 170,
+  "ordem": 180,
   "padrao": "TARIFA BANCARIA",
   "linha": "tarifas"
  },
  {
-  "ordem": 180,
+  "ordem": 190,
   "padrao": "TAXA BANCARIA",
   "linha": "tarifas"
  },
  {
-  "ordem": 190,
+  "ordem": 200,
   "padrao": "PROCESSO JUDICIAL",
   "linha": "processos"
  },
  {
-  "ordem": 200,
+  "ordem": 210,
   "padrao": "ACORDO JUDICIAL",
   "linha": "processos"
  },
  {
-  "ordem": 210,
+  "ordem": 220,
   "padrao": "BANDEIRA",
   "linha": "bandeira"
  },
  {
-  "ordem": 220,
+  "ordem": 230,
   "padrao": "CAMARA",
   "linha": "bandeira"
  },
  {
-  "ordem": 230,
+  "ordem": 240,
   "padrao": "LAVADOR",
   "linha": "bandeira"
  },
  {
-  "ordem": 240,
+  "ordem": 250,
   "padrao": "LAVA JATO",
   "linha": "bandeira"
  },
  {
-  "ordem": 250,
+  "ordem": 260,
   "padrao": "APORTE FINANCEIRO",
   "linha": "bandeira"
  },
  {
-  "ordem": 260,
+  "ordem": 270,
   "padrao": "TERMINAL",
   "linha": "bandeira"
  },
  {
-  "ordem": 270,
+  "ordem": 280,
   "padrao": "GARAGEM",
   "linha": "bandeira"
  },
  {
-  "ordem": 280,
+  "ordem": 290,
   "padrao": "RATEIO",
   "linha": "bandeira"
  },
  {
-  "ordem": 290,
+  "ordem": 300,
   "padrao": "SERVICOS DIVERSOS",
   "linha": "bandeira"
  },
  {
-  "ordem": 300,
+  "ordem": 310,
   "padrao": "TAXA EXTRA",
   "linha": "bandeira"
  },
  {
-  "ordem": 310,
+  "ordem": 320,
   "padrao": "CONSERTO",
   "linha": "bandeira"
  },
  {
-  "ordem": 320,
+  "ordem": 330,
   "padrao": "CONECTIVIDADE",
   "linha": "bandeira"
  },
  {
-  "ordem": 330,
+  "ordem": 340,
   "padrao": "COMPRA DIRETA",
   "linha": "pecas"
  },
  {
-  "ordem": 340,
+  "ordem": 350,
   "padrao": "NOTA DE SERVICO",
   "linha": "pecas"
  },
  {
-  "ordem": 350,
+  "ordem": 360,
   "padrao": "PECAS",
   "linha": "pecas"
  },
  {
-  "ordem": 360,
+  "ordem": 370,
   "padrao": "GPS",
   "linha": "pecas"
  },
  {
-  "ordem": 370,
+  "ordem": 380,
   "padrao": "MULTAS",
   "linha": "pecas"
  },
  {
-  "ordem": 380,
+  "ordem": 390,
   "padrao": "VALIDADOR",
   "linha": "pecas"
  },
  {
-  "ordem": 390,
+  "ordem": 400,
   "padrao": "ALMOXARIFADO",
   "linha": "pecas"
  },
  {
-  "ordem": 400,
+  "ordem": 410,
   "padrao": "SALARIO DE",
   "linha": "salario"
  },
  {
-  "ordem": 410,
+  "ordem": 420,
   "padrao": "CONTADOR",
   "linha": "contador"
  },
  {
-  "ordem": 420,
+  "ordem": 430,
   "padrao": "PLANO DE SAUDE",
   "linha": "plano"
  },
  {
-  "ordem": 430,
+  "ordem": 440,
   "padrao": "ODONTOLOGICO",
   "linha": "plano"
  },
  {
-  "ordem": 440,
+  "ordem": 450,
   "padrao": "CARNE",
   "linha": "financiamento"
  },
  {
-  "ordem": 450,
+  "ordem": 460,
   "padrao": "TAXA ADITIVO",
   "linha": "financiamento"
  },
  {
-  "ordem": 460,
+  "ordem": 470,
   "padrao": "FINANCIAMENTO",
   "linha": "financiamento"
  },
  {
-  "ordem": 470,
+  "ordem": 480,
   "padrao": "PENSAO",
   "linha": "pensao"
  },
  {
-  "ordem": 480,
+  "ordem": 490,
   "padrao": "EMPRESTIMO",
   "linha": "acordo"
  },
  {
-  "ordem": 490,
+  "ordem": 500,
   "padrao": "ACORDO",
   "linha": "acordo"
  },
  {
-  "ordem": 500,
+  "ordem": 510,
   "padrao": "DEBITO REF",
   "linha": "acordo"
  },
  {
-  "ordem": 510,
+  "ordem": 520,
   "padrao": "JUSTIFICATIVA",
   "linha": "acordo"
  },
  {
-  "ordem": 520,
+  "ordem": 530,
   "padrao": "TRANSFERENCIA DE DIVIDA",
   "linha": "acordo"
  }

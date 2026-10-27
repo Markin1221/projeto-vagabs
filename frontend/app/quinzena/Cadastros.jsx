@@ -59,12 +59,15 @@ export function Linhas({ linhasCad, cfg, aoSalvarCfg }) {
   const [aberto, setAberto] = useState(false);
   const [form, setForm] = useState(null);
   const [msg, setMsg] = useState(null);
-  const f = form || (cfg && { taxa_cooperativa: String(cfg.taxa_cooperativa), taxa_sindicato: String(cfg.taxa_sindicato), conta_quinzena: cfg.conta_quinzena });
+  const f = form || (cfg && { taxa_cooperativa: String(cfg.taxa_cooperativa), taxa_sindicato: String(cfg.taxa_sindicato), conta_quinzena: cfg.conta_quinzena,
+    tiuma: (cfg.terminais?.terminal_tiuma || []).join(", "), ponte: (cfg.terminais?.terminal_ponte || []).join(", ") });
+  const lista = (t) => t.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
   async function salvar(e) {
     e.preventDefault(); setMsg(null);
     try {
       const n = (v) => Number(String(v).replace(",", "."));
-      await aoSalvarCfg({ taxa_cooperativa: n(f.taxa_cooperativa), taxa_sindicato: n(f.taxa_sindicato), conta_quinzena: f.conta_quinzena });
+      await aoSalvarCfg({ taxa_cooperativa: n(f.taxa_cooperativa), taxa_sindicato: n(f.taxa_sindicato), conta_quinzena: f.conta_quinzena,
+        terminais: { terminal_tiuma: lista(f.tiuma), terminal_ponte: lista(f.ponte) } });
       setForm(null); setMsg({ ok: true, t: "Valores salvos." });
     } catch (x) { setMsg({ ok: false, t: x.message }); }
   }
@@ -79,6 +82,8 @@ export function Linhas({ linhasCad, cfg, aoSalvarCfg }) {
             <label>Taxa da Cooperativa por carro<input inputMode="decimal" value={f.taxa_cooperativa} onChange={(e) => setForm({ ...f, taxa_cooperativa: e.target.value })} /></label>
             <label>Taxa do Sindicato por carro<input inputMode="decimal" value={f.taxa_sindicato} onChange={(e) => setForm({ ...f, taxa_sindicato: e.target.value })} /></label>
             <label>Conta padrão<input value={f.conta_quinzena} onChange={(e) => setForm({ ...f, conta_quinzena: e.target.value })} /></label>
+            <label>Carros do Terminal Tiuma <span className="dica-campo">começo do prefixo, ex.: 04</span><input value={f.tiuma} onChange={(e) => setForm({ ...f, tiuma: e.target.value })} /></label>
+            <label>Carros do Terminal Ponte <span className="dica-campo">ex.: 11</span><input value={f.ponte} onChange={(e) => setForm({ ...f, ponte: e.target.value })} /></label>
             <div className="marcas"><button type="submit" className="btn primario" disabled={!form}>Salvar valores</button>{msg && <span className={"msg " + (msg.ok ? "ok" : "ruim")}>{msg.t}</span>}</div>
           </form>)}
         <div className="tabela-rolo"><table className="tabela">

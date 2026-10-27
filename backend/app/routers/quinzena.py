@@ -1,4 +1,5 @@
 import io
+import json
 import re
 import zipfile
 from datetime import date
@@ -22,20 +23,26 @@ class ConfigIn(BaseModel):
     taxa_cooperativa: float
     taxa_sindicato: float
     conta_quinzena: str
+    terminais: dict[str, list[str]] | None = None
 
 
 @router.get("/config")
 def ler_config(db: Session = Depends(get_db)):
     c = q.config(db)
     return {"taxa_cooperativa": float(c.get("taxa_cooperativa", 0)), "taxa_sindicato": float(c.get("taxa_sindicato", 0)),
-            "conta_quinzena": c.get("conta_quinzena", "")}
+            "conta_quinzena": c.get("conta_quinzena", ""), "terminais": json.loads(c.get("terminais") or "{}")}
 
 
 @router.put("/config")
 def salvar_config(d: ConfigIn, db: Session = Depends(get_db)):
     if d.taxa_cooperativa < 0 or d.taxa_sindicato < 0:
         raise HTTPException(422, "As taxas não podem ser negativas")
-    for chave, valor in d.model_dump().items():
+    dados = d.model_dump()
+    if dados["terminais"] is None:
+        dados.pop("terminais")
+    else:
+        dados["terminais"] = json.dumps({k: [p.strip() for p in v if p.strip()] for k, v in dados["terminais"].items()})
+    for chave, valor in dados.items():
         reg = db.get(Configuracao, chave)
         if reg:
             reg.valor = str(valor)
