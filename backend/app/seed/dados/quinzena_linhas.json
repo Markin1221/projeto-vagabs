@@ -1,0 +1,164 @@
+[
+ {
+  "codigo": "credito",
+  "ordem": 1,
+  "descricao": "Crédito/Pagto quinzenal ao Permissionário",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 522,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "diesel",
+  "ordem": 2,
+  "descricao": "Crédito/Pagto Óleo Diesel",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 581,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "pecas",
+  "ordem": 3,
+  "descricao": "Crédito/Pagto Peças",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 520,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "bandeira",
+  "ordem": 4,
+  "descricao": "Pagto Camara Compensação e Bandeira",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 528,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "taxa_coop",
+  "ordem": 5,
+  "descricao": "Taxa Cooperativa",
+  "tipo_lancamento": "CREDITO",
+  "centro": "ADM10",
+  "item": null,
+  "fonte": "*05"
+ },
+ {
+  "codigo": "taxa_sind",
+  "ordem": 6,
+  "descricao": "Taxa Sindicato",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 524,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "fap",
+  "ordem": 7,
+  "descricao": "FAP",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 533,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "tarifas",
+  "ordem": 8,
+  "descricao": "Tarifas bancarias",
+  "tipo_lancamento": "CREDITO",
+  "centro": "ADM01",
+  "item": 48,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "processos",
+  "ordem": 9,
+  "descricao": "Processos judiciais",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 536,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "acordo",
+  "ordem": 10,
+  "descricao": "Debitos de Acordo - Empréstimo ao Permissionários",
+  "tipo_lancamento": "DEBITO",
+  "centro": "CTPAS",
+  "item": 580,
+  "fonte": null
+ },
+ {
+  "codigo": "capital_giro",
+  "ordem": 11,
+  "descricao": "Fundo Capital de giro Diesel",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 535,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "diesel_coopernorte",
+  "ordem": 12,
+  "descricao": "Diesel na coopernorte",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 581,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "estorno_acordo",
+  "ordem": 13,
+  "descricao": "Estorno Debitos de Acordo - Empréstimo ao Permissionários",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 580,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "salario",
+  "ordem": 14,
+  "descricao": "Salario Katia",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 500,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "contador",
+  "ordem": 15,
+  "descricao": "Contador",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 531,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "plano",
+  "ordem": 16,
+  "descricao": "Plano de saude/odonto",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 527,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "financiamento",
+  "ordem": 17,
+  "descricao": "Financiamento do permissionario - Veiculos",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 529,
+  "fonte": "*08"
+ },
+ {
+  "codigo": "pensao",
+  "ordem": 18,
+  "descricao": "Pensão do permissionario",
+  "tipo_lancamento": "CREDITO",
+  "centro": "CTPAS",
+  "item": 530,
+  "fonte": "*08"
+ }
+]

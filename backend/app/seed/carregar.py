@@ -12,9 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import Base, engine
-from ..models import CentroCusto, Evento, EventoApelido, ItemDespesa, RegraClassificacao
+from ..models import CentroCusto, Evento, EventoApelido, ItemDespesa, RegraClassificacao, LinhaQuinzena, RegraQuinzena, Configuracao
 
 DADOS = Path(__file__).parent / "dados"
+CONFIG_PADRAO = {"taxa_cooperativa": "998.73", "taxa_sindicato": "133.38", "conta_quinzena": "46604-2"}
 
 
 def _ler(nome):
@@ -65,6 +66,20 @@ def carregar(db: Session) -> dict:
             db.add(RegraClassificacao(**d))
             existentes_r.add((d["kw"].upper(), d["nat"]))
             novos["regras"] += 1
+    # quinzena dos permissionários: linhas do lançamento, regras dos eventos e valores da taxa
+    linhas_q = {l.codigo for l in db.scalars(select(LinhaQuinzena))}
+    novos["quinzena_linhas"] = 0
+    for d in _ler("quinzena_linhas"):
+        if d["codigo"] not in linhas_q:
+            db.add(LinhaQuinzena(**d)); novos["quinzena_linhas"] += 1
+    regras_q = {r.padrao.upper() for r in db.scalars(select(RegraQuinzena))}
+    novos["quinzena_regras"] = 0
+    for d in _ler("quinzena_regras"):
+        if d["padrao"].upper() not in regras_q:
+            db.add(RegraQuinzena(**d)); novos["quinzena_regras"] += 1
+    for chave, valor in CONFIG_PADRAO.items():
+        if db.get(Configuracao, chave) is None:
+            db.add(Configuracao(chave=chave, valor=valor))
     db.commit()
     return novos
 

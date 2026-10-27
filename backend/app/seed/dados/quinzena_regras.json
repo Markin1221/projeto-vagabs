@@ -1,0 +1,262 @@
+[
+ {
+  "ordem": 10,
+  "padrao": "SALDO NEGATIVO - QUINZENA ANTERIOR",
+  "linha": "_saldo"
+ },
+ {
+  "ordem": 20,
+  "padrao": "REMUNERACAO",
+  "linha": "_ignorar"
+ },
+ {
+  "ordem": 30,
+  "padrao": "PAGANTES",
+  "linha": "_ignorar"
+ },
+ {
+  "ordem": 40,
+  "padrao": "ADMINISTRACAO HAPVIDA",
+  "linha": "pecas"
+ },
+ {
+  "ordem": 50,
+  "padrao": "ADMINISTRATIVA HAPVIDA",
+  "linha": "pecas"
+ },
+ {
+  "ordem": 60,
+  "padrao": "TAXA ADMINISTRATIVA",
+  "linha": "_taxa"
+ },
+ {
+  "ordem": 70,
+  "padrao": "ADIANTAMENTO DE QUINZENA",
+  "linha": "credito"
+ },
+ {
+  "ordem": 80,
+  "padrao": "SALDO NEGATIVO ANTERIOR",
+  "linha": "credito"
+ },
+ {
+  "ordem": 90,
+  "padrao": "CREDITO TED",
+  "linha": "credito"
+ },
+ {
+  "ordem": 100,
+  "padrao": "PUBLICIDADE CAP",
+  "linha": "credito"
+ },
+ {
+  "ordem": 110,
+  "padrao": "PUBLICIDADE",
+  "linha": "taxa_sind"
+ },
+ {
+  "ordem": 120,
+  "padrao": "CAPITAL DE GIRO",
+  "linha": "capital_giro"
+ },
+ {
+  "ordem": 130,
+  "padrao": "DIESEL COOPERNORTE",
+  "linha": "diesel_coopernorte"
+ },
+ {
+  "ordem": 140,
+  "padrao": "DIESEL",
+  "linha": "diesel"
+ },
+ {
+  "ordem": 150,
+  "padrao": "SINISTRO",
+  "linha": "fap"
+ },
+ {
+  "ordem": 160,
+  "padrao": "FAP",
+  "linha": "fap"
+ },
+ {
+  "ordem": 170,
+  "padrao": "TARIFA BANCARIA",
+  "linha": "tarifas"
+ },
+ {
+  "ordem": 180,
+  "padrao": "TAXA BANCARIA",
+  "linha": "tarifas"
+ },
+ {
+  "ordem": 190,
+  "padrao": "PROCESSO JUDICIAL",
+  "linha": "processos"
+ },
+ {
+  "ordem": 200,
+  "padrao": "ACORDO JUDICIAL",
+  "linha": "processos"
+ },
+ {
+  "ordem": 210,
+  "padrao": "BANDEIRA",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 220,
+  "padrao": "CAMARA",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 230,
+  "padrao": "LAVADOR",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 240,
+  "padrao": "LAVA JATO",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 250,
+  "padrao": "APORTE FINANCEIRO",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 260,
+  "padrao": "TERMINAL",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 270,
+  "padrao": "GARAGEM",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 280,
+  "padrao": "RATEIO",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 290,
+  "padrao": "SERVICOS DIVERSOS",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 300,
+  "padrao": "TAXA EXTRA",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 310,
+  "padrao": "CONSERTO",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 320,
+  "padrao": "CONECTIVIDADE",
+  "linha": "bandeira"
+ },
+ {
+  "ordem": 330,
+  "padrao": "COMPRA DIRETA",
+  "linha": "pecas"
+ },
+ {
+  "ordem": 340,
+  "padrao": "NOTA DE SERVICO",
+  "linha": "pecas"
+ },
+ {
+  "ordem": 350,
+  "padrao": "PECAS",
+  "linha": "pecas"
+ },
+ {
+  "ordem": 360,
+  "padrao": "GPS",
+  "linha": "pecas"
+ },
+ {
+  "ordem": 370,
+  "padrao": "MULTAS",
+  "linha": "pecas"
+ },
+ {
+  "ordem": 380,
+  "padrao": "VALIDADOR",
+  "linha": "pecas"
+ },
+ {
+  "ordem": 390,
+  "padrao": "ALMOXARIFADO",
+  "linha": "pecas"
+ },
+ {
+  "ordem": 400,
+  "padrao": "SALARIO DE",
+  "linha": "salario"
+ },
+ {
+  "ordem": 410,
+  "padrao": "CONTADOR",
+  "linha": "contador"
+ },
+ {
+  "ordem": 420,
+  "padrao": "PLANO DE SAUDE",
+  "linha": "plano"
+ },
+ {
+  "ordem": 430,
+  "padrao": "ODONTOLOGICO",
+  "linha": "plano"
+ },
+ {
+  "ordem": 440,
+  "padrao": "CARNE",
+  "linha": "financiamento"
+ },
+ {
+  "ordem": 450,
+  "padrao": "TAXA ADITIVO",
+  "linha": "financiamento"
+ },
+ {
+  "ordem": 460,
+  "padrao": "FINANCIAMENTO",
+  "linha": "financiamento"
+ },
+ {
+  "ordem": 470,
+  "padrao": "PENSAO",
+  "linha": "pensao"
+ },
+ {
+  "ordem": 480,
+  "padrao": "EMPRESTIMO",
+  "linha": "acordo"
+ },
+ {
+  "ordem": 490,
+  "padrao": "ACORDO",
+  "linha": "acordo"
+ },
+ {
+  "ordem": 500,
+  "padrao": "DEBITO REF",
+  "linha": "acordo"
+ },
+ {
+  "ordem": 510,
+  "padrao": "JUSTIFICATIVA",
+  "linha": "acordo"
+ },
+ {
+  "ordem": 520,
+  "padrao": "TRANSFERENCIA DE DIVIDA",
+  "linha": "acordo"
+ }
+]

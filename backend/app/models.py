@@ -75,3 +75,38 @@ class RegraClassificacao(Base):
     fonte: Mapped[str] = mapped_column(String(120), default="")
     forma: Mapped[str] = mapped_column(String(80), default="")
     titulo: Mapped[str] = mapped_column(String(200), default="")
+
+
+class LinhaQuinzena(Base):
+    """Uma linha do lançamento da quinzena dos permissionários (ex.: 'Crédito/Pagto Óleo Diesel'). No arquivo sai
+    como '<descricao> - <grupo>' (Interbairros, Alimentadora, Intermunicipal)."""
+    __tablename__ = "quinzena_linhas"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    codigo: Mapped[str] = mapped_column(String(40), unique=True)
+    ordem: Mapped[int] = mapped_column(Integer)
+    descricao: Mapped[str] = mapped_column(String(200))
+    tipo_lancamento: Mapped[str] = mapped_column(String(10))  # CREDITO | DEBITO
+    centro: Mapped[str] = mapped_column(String(20))
+    item: Mapped[int | None] = mapped_column(Integer)
+    fonte: Mapped[str | None] = mapped_column(String(10))
+
+
+class RegraQuinzena(Base):
+    """Se o nome do evento do relatório (sem o código) contém `padrao`, o valor vai para a linha `linha`.
+    Linhas especiais: _saldo (saldo negativo da quinzena anterior), _taxa (taxa administrativa, dividida entre
+    Cooperativa e Sindicato) e _ignorar (remuneração e pagantes: compõem o líquido, não viram lançamento)."""
+    __tablename__ = "quinzena_regras"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ordem: Mapped[int] = mapped_column(Integer, default=1000)
+    padrao: Mapped[str] = mapped_column(String(120))
+    linha: Mapped[str] = mapped_column(String(40))
+
+
+class Configuracao(Base):
+    """Valores ajustáveis pelo usuário (ex.: taxa da cooperativa por carro)."""
+    __tablename__ = "configuracoes"
+
+    chave: Mapped[str] = mapped_column(String(60), primary_key=True)
+    valor: Mapped[str] = mapped_column(String(200))

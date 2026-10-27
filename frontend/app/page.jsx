@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Folha from "./folha/Folha";
-import Classificador from "./classificador/Classificador";
+import Quinzena from "./quinzena/Quinzena";
 import Comparador from "./comparador/Comparador";
 import Configuracoes from "./config/Configuracoes";
 import Login from "./Login";
@@ -11,7 +11,7 @@ import { Folha as IconeFolha, Etiqueta, Comparar, Engrenagem, Sol, Lua } from ".
 
 const FERRAMENTAS = [
   { id: "folha", nome: "Folha de pagamento", Icone: IconeFolha, Tela: Folha, titulo: "Lançamentos da folha", desc: "Converta o Resumo Geral dos PDFs em lançamentos prontos para importar." },
-  { id: "classificador", nome: "Classificador do extrato", Icone: Etiqueta, Tela: Classificador, titulo: "Classificador do extrato", desc: "Sugira centro de custo e item de despesa para cada linha do extrato do Sol." },
+  { id: "quinzena", nome: "Quinzena dos permissionários", Icone: Etiqueta, Tela: Quinzena, titulo: "Quinzena dos permissionários", desc: "Transforme o relatório de remuneração da quinzena em lançamentos por item." },
   { id: "comparador", nome: "Extrato × DDATA", Icone: Comparar, Tela: Comparador, titulo: "Extrato × DDATA", desc: "Encontre os pagamentos do banco que ainda não foram lançados no DDATA Sol." },
 ];
 const CONFIG = { id: "config", nome: "Configurações", Icone: Engrenagem, Tela: Configuracoes, titulo: "Configurações", desc: "Ajuste como o sistema se comporta para você." };

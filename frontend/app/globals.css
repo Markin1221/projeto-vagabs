@@ -322,3 +322,13 @@ button.parcela:hover svg, .fita-pdf:hover svg, button.parcela:focus-visible svg,
 .login { min-height: 100vh; display: grid; place-items: center; padding: 20px; max-width: none; }
 .login-caixa { width: min(380px, 100%); display: grid; gap: 18px; }
 .login-caixa .logo-img { max-width: 260px; margin: 0 auto 4px; }
+
+/* ===== Quinzena ===== */
+.conf-cab.q, .conf-linha.q { grid-template-columns: minmax(220px, 2.6fr) 90px 130px 100px 130px; }
+.conf-cab.q span:last-child, .conf-linha.q > span:last-child { text-align: right; }
+.busca-simples { max-width: 260px; }
+.total-bloco > button:disabled { cursor: default; opacity: 1; }
+.total-bloco > button.bate { background: var(--ok-suave); color: var(--ok); border-color: transparent; }
+.total-bloco > button.nao-bate { background: var(--ruim-suave); color: var(--ruim); border-color: transparent; }
+.problema-acoes label { min-width: 200px; }
+@media (max-width: 960px) { .conf-cab.q { display: none; } .conf-linha.q { grid-template-columns: 1fr auto; } .conf-linha.q > span:nth-child(2), .conf-linha.q > span:nth-child(3), .conf-linha.q > span:nth-child(4) { display: none; } }
