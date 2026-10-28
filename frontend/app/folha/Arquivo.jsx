@@ -13,7 +13,7 @@ function Guia({ f, r, aoRemover }) {
         <div className="arq-nome">
           <span className="arq-status" aria-hidden><Pdf /></span>
           <span className="arq-titulo"><b>{f.file.name}</b>
-            <small>{r.nome}{r.competencia ? ` · competência ${r.competencia}` : ""} · {Object.entries(r.valores).filter(([, v]) => v != null).map(([k, v]) => `${k} ${fmt(v)}`).join(" · ")}</small>
+            <small>{r.nome}{r.competencia ? ` · competência ${r.competencia}` : ""}{r.valores?.total != null ? ` · total ${fmt(r.valores.total)}` : ""}</small>
           </span>
         </div>
         <span className="selo neutro">Guia para conferência</span>

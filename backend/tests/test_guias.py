@@ -34,3 +34,23 @@ def test_zip_ignora_a_guia(client):
     import io, zipfile
     z = zipfile.ZipFile(io.BytesIO(client.post("/folha/lote/csv", files=files).content))
     assert z.namelist() == ["lancamentos_Coleta_08-2026.csv"]
+
+
+def test_le_o_darf_do_inss():
+    g = guias.ler_guia((FIX / "guia_inss_07-2026.pdf").read_bytes())
+    assert g["tipo"] == "inss" and g["competencia"] == "07/2026"
+    v = g["valores"]
+    assert (v["empregados"], v["contrib_individual"], v["patronal_empregados"], v["patronal_ci"]) == (8750.81, 713.24, 20552.76, 1945.20)
+    assert (v["rat"], v["terceiros"], v["pis"], v["total"]) == (5212.28, 5960.28, 1027.63, 44162.20)
+
+
+def test_lote_com_as_duas_guias(client):
+    files = [("arquivos", (n, (FIX / n).read_bytes(), "application/pdf"))
+             for n in FOLHAS + ["guia_fgts_07-2026.pdf", "guia_inss_07-2026.pdf"]]
+    r = client.post("/folha/lote/processar", files=files).json()
+    inss = next(g for g in r["guias"] if g["tipo"] == "inss")
+    c = {x["nome"]: x for x in inss["conferencias"]}
+    # contribuintes individuais (só o PDF dos Sócios) não mudam de julho para agosto: batem
+    assert c["INSS dos contribuintes individuais (1099)"]["ok"]
+    assert c["Patronal sobre contribuintes individuais (1138-04)"]["ok"]
+    assert c["RAT / GILRAT (1646)"]["folhas"] == 5135.24 and c["PIS sobre a folha (8301)"]["folhas"] == 1012.45

@@ -154,7 +154,7 @@ export default function Folha() {
     <>
       {erroApi && <div className="faixa-erro" role="alert">{erroApi}</div>}
       <Dica passos={[
-        "Envie o PDF “Resumo Geral” de cada departamento (pode mandar vários de uma vez, mais os dos Sócios). Junto, mande a guia do FGTS Digital: o sistema soma as folhas e confere com a guia.",
+        "Envie o PDF “Resumo Geral” de cada departamento (pode mandar vários de uma vez, mais os dos Sócios). Junto, mande as guias do FGTS Digital e o DARF do INSS: o sistema soma as folhas e confere com cada guia.",
         "Cada PDF é conferido sozinho. Abra o arquivo para ver as conferências e os lançamentos; toque num total para ver a soma que o forma e numa linha para ver o trecho do PDF de onde o valor saiu.",
         "Se aparecer um problema (evento novo ou total que não bate), resolva ali mesmo: cadastre o evento ou diga que é o mesmo que um já existente.",
         "Escolha o formato: Excel (recomendado, mantém “1-1” como texto) ou CSV. Se abrir o CSV direto no Excel, ele troca “1-1” por data.",
