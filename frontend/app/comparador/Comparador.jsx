@@ -3,7 +3,7 @@ import { useState } from "react";
 import Dica from "../ui/Dica";
 import Soltar from "../ui/Soltar";
 import { Baixar, Ok } from "../ui/Icones";
-import { API, fmt, autFetch } from "../lib";
+import { API, fmt, autFetch, mensagemDeErro } from "../lib";
 
 function Tabela({ linhas, colunas }) {
   if (!linhas.length) return <p className="vazio">Nada aqui.</p>;
@@ -37,7 +37,7 @@ export default function Comparador() {
       const c = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(typeof c.detail === "string" ? c.detail : "Erro ao comparar");
       setRes(c); setAba(c.faltando.length ? "faltando" : c.outra_data.length ? "outra" : "so");
-    } catch (x) { setErro(x.message); }
+    } catch (x) { setErro(mensagemDeErro(x)); }
     setLendo(false);
   }
   async function baixar() {

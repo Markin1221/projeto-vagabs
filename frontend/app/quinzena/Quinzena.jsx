@@ -6,7 +6,7 @@ import Modal from "../ui/Modal";
 import QArquivo from "./QArquivo";
 import { Regras, Linhas } from "./Cadastros";
 import { Baixar } from "../ui/Icones";
-import { API, api, autFetch } from "../lib";
+import { API, api, autFetch, mensagemDeErro } from "../lib";
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const GRUPOS = ["Interbairros", "Alimentadora", "Intermunicipal"];
@@ -68,17 +68,21 @@ export default function Quinzena() {
         .then((c) => {
           if (meu !== req.current) return;
           const novo = Object.fromEntries(c.arquivos.map((a, i) => [ids[i], a]));
-          setRes(novo); setChecando(false);
+          setRes(novo); setChecando(false); setErro("");
           setAbertos((s) => { const x = new Set(s); ids.forEach((id) => { if (novo[id] && !jaAbertos.current.has(id)) x.add(id); jaAbertos.current.add(id); }); return x; });
         })
-        .catch((x) => { if (meu === req.current) { setChecando(false); setErro(x.message); } });
+        .catch((x) => { if (meu === req.current) { setChecando(false); setErro(mensagemDeErro(x)); } });
     }, 250);
     return () => clearTimeout(t);
   }, [files, data, observacao, conta, zeradas, versao]);
 
   const reprocessar = () => setVersao((v) => v + 1);
   const atualizar = (id, campo, valor) => setFiles((fs) => fs.map((f) => (f.id === id ? { ...f, [campo]: valor } : f)));
-  const adicionar = (lista) => { setErro(""); setFiles((fs) => [...fs, ...lista.map((file) => ({ id: ++seq, file, grupo: "", credito: "", deposito: "" }))]); };
+  const adicionar = (lista) => {
+    setErro("");
+    const nomes = new Set(lista.map((f) => f.name));  // reenviar o mesmo nome substitui o anterior
+    setFiles((fs) => [...fs.filter((f) => !nomes.has(f.file.name)), ...lista.map((file) => ({ id: ++seq, file, grupo: "", credito: "", deposito: "" }))]);
+  };
 
   async function criarRegra(padrao, linha) {
     await api("/quinzena/regras", { method: "POST", body: JSON.stringify({ padrao, linha }) });
@@ -100,7 +104,7 @@ export default function Quinzena() {
       if (!r.ok) { const c = await r.json().catch(() => ({})); throw new Error(c.detail || "Erro ao gerar os lançamentos"); }
       const nome = (r.headers.get("content-disposition") || "").match(/filename="(.+)"/)?.[1] || `lancamentos_quinzena.${files.length > 1 ? "zip" : formato}`;
       const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = nome; a.click();
-    } catch (x) { setErro(x.message); }
+    } catch (x) { setErro(mensagemDeErro(x)); }
     setGerando(false);
   }
 

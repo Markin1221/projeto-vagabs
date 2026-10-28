@@ -29,3 +29,15 @@ export const ORIGEM = {
   fgts: "Quadro FGTS",
   darf: "Quadro DARF e PIS",
 };
+
+// Guarda uma cópia do arquivo na memória. O navegador lê o arquivo do disco a cada envio; se ele for trocado ou
+// salvo de novo depois de escolhido, o envio falha ("Failed to fetch"). Com a cópia, isso não acontece.
+export async function emMemoria(lista) {
+  return Promise.all(Array.from(lista).map(async (f) => new File([await f.arrayBuffer()], f.name, { type: f.type, lastModified: f.lastModified })));
+}
+
+export function mensagemDeErro(x) {
+  return /failed to fetch|networkerror|load failed/i.test(x?.message || "")
+    ? `Não consegui falar com o servidor (${API}). Ele pode estar reiniciando; tente de novo em alguns segundos.`
+    : x?.message || "Erro inesperado";
+}

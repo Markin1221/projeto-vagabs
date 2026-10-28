@@ -9,7 +9,7 @@ import Dica from "../ui/Dica";
 import Modal from "../ui/Modal";
 import { Alerta, Baixar, Pdf } from "../ui/Icones";
 import Conferencias from "./Conferencias";
-import { API, VAZIO, api, autFetch } from "../lib";
+import { API, VAZIO, api, autFetch, emMemoria, mensagemDeErro } from "../lib";
 
 let seq = 0;
 
@@ -60,21 +60,23 @@ export default function Folha() {
         .then((c) => {
           if (meu !== req.current) return;
           const novo = Object.fromEntries(c.arquivos.map((a, i) => [ids[i], a]));
-          setRes(novo); setGuias(c.guias || []); setChecando(false);
+          setRes(novo); setGuias(c.guias || []); setChecando(false); setErroGerar("");
           setAbertos((s) => { const x = new Set(s); ids.forEach((id) => { if (novo[id] && !novo[id].ok && !jaAbertos.current.has(id)) { x.add(id); } jaAbertos.current.add(id); }); return x; });
         })
-        .catch((x) => { if (meu === req.current) { setChecando(false); setErroGerar(x.message); } });
+        .catch((x) => { if (meu === req.current) { setChecando(false); setErroGerar(mensagemDeErro(x)); } });
     }, 120);
     return () => clearTimeout(t);
   }, [files, ocultarZero, versao]);
 
   const reprocessar = () => setVersao((v) => v + 1);
 
-  function adicionar(lista) {
-    const pdfs = Array.from(lista).filter((f) => /\.pdf$/i.test(f.name));
+  async function adicionar(lista) {
+    const pdfs = await emMemoria(Array.from(lista).filter((f) => /\.pdf$/i.test(f.name)));
     if (!pdfs.length) return;
     setErroGerar("");
-    setFiles((fs) => [...fs, ...pdfs.map((file) => ({ id: ++seq, file, centro: "" }))]);
+    // reenviar um arquivo com o mesmo nome substitui o anterior (ex.: PDF corrigido)
+    const nomes = new Set(pdfs.map((f) => f.name));
+    setFiles((fs) => [...fs.filter((f) => !nomes.has(f.file.name)), ...pdfs.map((file) => ({ id: ++seq, file, centro: "" }))]);
   }
   const remover = (id) => setFiles((fs) => fs.filter((f) => f.id !== id));
   const trocarCentro = (id, centro) => setFiles((fs) => fs.map((f) => (f.id === id ? { ...f, centro } : f)));
@@ -98,7 +100,7 @@ export default function Folha() {
       if (!r.ok) { const c = await r.json().catch(() => ({})); throw new Error(c.detail || "Erro ao gerar os lançamentos"); }
       const nome = (r.headers.get("content-disposition") || "").match(/filename="(.+)"/)?.[1] || (unico ? `lancamentos.${formato}` : "lancamentos.zip");
       const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = nome; a.click();
-    } catch (x) { setErroGerar(x.message); }
+    } catch (x) { setErroGerar(mensagemDeErro(x)); }
     setGerando(false);
   }
 
