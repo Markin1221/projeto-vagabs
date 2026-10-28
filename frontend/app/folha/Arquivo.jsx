@@ -6,7 +6,29 @@ import { fmt, data } from "../lib";
 
 const ROT_ORIGEM = { escolhido: "escolhido por você", "padrão dos Sócios": "padrão dos Sócios", "nome do arquivo": "pelo nome do arquivo", "cabeçalho do PDF": "pelo cabeçalho do PDF" };
 
-export default function Arquivo({ f, r, aberto, aoAlternar, aoRemover, deptos, aoTrocarCentro, eventos, aoCadastrarNovo, aoVincular, aoVerFonte }) {
+function Guia({ f, r, aoRemover }) {
+  return (
+    <section className="arq guia">
+      <div className="arq-topo">
+        <div className="arq-nome">
+          <span className="arq-status" aria-hidden><Pdf /></span>
+          <span className="arq-titulo"><b>{f.file.name}</b>
+            <small>{r.nome}{r.competencia ? ` · competência ${r.competencia}` : ""} · {Object.entries(r.valores).filter(([, v]) => v != null).map(([k, v]) => `${k} ${fmt(v)}`).join(" · ")}</small>
+          </span>
+        </div>
+        <span className="selo neutro">Guia para conferência</span>
+        <button type="button" className="icone" onClick={aoRemover} aria-label={`Remover ${f.file.name}`} title="Remover"><Fechar /></button>
+      </div>
+    </section>
+  );
+}
+
+export default function Arquivo(props) {
+  if (props.r?.tipo === "guia") return <Guia {...props} />;
+  return <ArquivoFolha {...props} />;
+}
+
+function ArquivoFolha({ f, r, aberto, aoAlternar, aoRemover, deptos, aoTrocarCentro, eventos, aoCadastrarNovo, aoVincular, aoVerFonte }) {
   const [alvo, setAlvo] = useState({});
   const [somaAberta, setSomaAberta] = useState(null);
   const lendo = !r;

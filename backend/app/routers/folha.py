@@ -9,7 +9,7 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .. import folha
+from .. import folha, guias
 from ..db import get_db
 from ..leitor_pdf import ler_pdf
 from ..models import CentroCusto
@@ -51,6 +51,7 @@ def _processar_bytes(db: Session, conteudo: bytes, centro_custo: str | None, ocu
             avisos = [*avisos, f"O nome do arquivo indica {do_arquivo.nome}, mas o PDF diz '{cab['departamento']}'. "
                                f"Usei {do_arquivo.nome} (nome do arquivo)."]
     fontes = folha.montar_fontes(df, blocos)
+    cab["fontes"] = fontes
     return (cab, df, centro, avisos, folha.montar_lancamentos(db, cab, fontes, centro, ocultar_zerados, grupo),
             folha.eventos_novos(db, df, grupo), folha.conferencias(db, fontes, grupo), grupo)
 
@@ -115,21 +116,32 @@ def _problemas(novos, conf) -> list[dict]:
 async def processar_lote(arquivos: list[UploadFile] = File(...), centros: list[str] = Form(default=[]),
                          ocultar_zerados: bool = Form(False), db: Session = Depends(get_db)):
     """Pré-checagem de cada PDF: centro, período, linhas, conferências e `problemas` (o que bloqueia a geração).
-    Um PDF com erro não derruba os outros. `centros[i]` (opcional, vazio = detectar) é o centro do i-ésimo arquivo."""
-    saida = []
+    Um PDF com erro não derruba os outros. `centros[i]` (opcional, vazio = detectar) é o centro do i-ésimo arquivo.
+    PDFs de guia (FGTS Digital...) não viram lançamento: entram em `guias`, conferidos contra a soma das folhas."""
+    saida, folhas_lidas, guias_lidas = [], [], []
     for i, arq in enumerate(arquivos):
+        conteudo = await arq.read()
+        guia = guias.ler_guia(conteudo)
+        if guia:
+            guias_lidas.append({"arquivo": arq.filename, **guia})
+            saida.append({"arquivo": arq.filename, "ok": True, "erro": None, "problemas": [], "nome": guia["nome"],
+                          "competencia": guia["competencia"], "valores": guia["valores"], "guia_tipo": guia["tipo"],
+                          "tipo": "guia"})
+            continue
         centro_i = centros[i] if i < len(centros) and centros[i] else None
         try:
             cab, _, centro, avisos, linhas, novos, conf, grupo = _processar_bytes(
-                db, await arq.read(), centro_i, ocultar_zerados, arq.filename)
+                db, conteudo, centro_i, ocultar_zerados, arq.filename)
         except HTTPException as e:
-            saida.append({"arquivo": arq.filename, "ok": False, "erro": e.detail,
+            saida.append({"arquivo": arq.filename, "tipo": "folha", "ok": False, "erro": e.detail,
                           "problemas": [{"tipo": "leitura", "titulo": "Não foi possível ler o arquivo",
                                          "detalhe": e.detail}]})
             continue
+        folhas_lidas.append({"arquivo": arq.filename, "departamento": centro.nome if grupo == "folha" else "Sócios/Conselho",
+                             "competencia": f"{cab['fim']:%m/%Y}", "fontes": cab["fontes"]})
         problemas = _problemas(novos, conf)
         saida.append({
-            "arquivo": arq.filename, "ok": not problemas, "erro": None, "perfil": grupo,
+            "arquivo": arq.filename, "tipo": "folha", "ok": not problemas, "erro": None, "perfil": grupo,
             "departamento_pdf": cab["departamento"],
             "periodo": {"inicio": cab["inicio"].date(), "fim": cab["fim"].date()},
             "centro_custo": {"codigo": centro.codigo, "nome": centro.nome}, "n_linhas": len(linhas),
@@ -138,7 +150,17 @@ async def processar_lote(arquivos: list[UploadFile] = File(...), centros: list[s
             "nome_csv": _nome_csv(centro, grupo, cab),
             "linhas": [{**l, "data_inicial": l["data_inicial"].date(), "data_liquidacao": l["data_liquidacao"].date()}
                        for l in linhas]})
-    return {"arquivos": saida}
+    conferencias_guias = []
+    for g in guias_lidas:
+        comps = {f["competencia"] for f in folhas_lidas}
+        aviso = None
+        if g["competencia"] and comps and comps != {g["competencia"]}:
+            aviso = (f"A guia é da competência {g['competencia']}, mas as folhas enviadas são de "
+                     f"{', '.join(sorted(comps))}.")
+        conferencias_guias.append({"arquivo": g["arquivo"], "tipo": g["tipo"], "nome": g["nome"],
+                                   "competencia": g["competencia"], "aviso": aviso, "n_folhas": len(folhas_lidas),
+                                   "conferencias": guias.conferir(g, folhas_lidas)})
+    return {"arquivos": saida, "guias": conferencias_guias}
 
 
 @router.post("/trecho")
@@ -167,8 +189,11 @@ async def baixar_zip(arquivos: list[UploadFile] = File(...), centros: list[str] 
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for i, arq in enumerate(arquivos):
             centro_i = centros[i] if i < len(centros) and centros[i] else None
+            conteudo = await arq.read()
+            if guias.ler_guia(conteudo):
+                continue  # guia de recolhimento: só serve para conferência
             try:
-                cab, _, centro, _, linhas, _, _, grupo = _processar_bytes(db, await arq.read(), centro_i,
+                cab, _, centro, _, linhas, _, _, grupo = _processar_bytes(db, conteudo, centro_i,
                                                                          ocultar_zerados, arq.filename)
             except HTTPException as e:
                 erros.append(f"{arq.filename}: {e.detail}")

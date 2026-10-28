@@ -333,35 +333,9 @@ button.parcela:hover svg, .fita-pdf:hover svg, button.parcela:focus-visible svg,
 .problema-acoes label { min-width: 200px; }
 @media (max-width: 960px) { .conf-cab.q { display: none; } .conf-linha.q { grid-template-columns: 1fr auto; } .conf-linha.q > span:nth-child(2), .conf-linha.q > span:nth-child(3), .conf-linha.q > span:nth-child(4) { display: none; } }
 
-/* ---------- Raio-X do caixa ---------- */
-.rx-bloqueio { max-width: 460px; }
-.rx-login { display: grid; gap: 12px; }
-.rx-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.rx-previa { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding: 12px 14px; border-radius: var(--raio); background: var(--aviso-suave); }
-.rx-previa span { flex: 1; min-width: 220px; }
-.rx-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
-.rx-kpi { display: grid; gap: 2px; align-content: start; padding: 14px 16px; border: 1px solid var(--linha-2); border-radius: var(--raio); background: var(--painel-2); }
-.rx-kpi-l { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--tinta-3); }
-.rx-kpi-v { font-size: 21px; font-weight: 600; text-align: left; }
-.rx-kpi-v.neg, .rx-neg-cel { color: var(--ruim); }
-.rx-grafico { overflow-x: auto; margin-bottom: 16px; }
-.rx-grafico svg { display: block; min-width: 480px; width: 100%; height: auto; }
-.rx-legenda { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--tinta-2); margin-bottom: 6px; }
-.rx-legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
-.rx-pill { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; white-space: nowrap; height: fit-content; }
-.rx-pill.alta { background: var(--ruim-suave); color: var(--ruim); }
-.rx-pill.media { background: var(--aviso-suave); color: var(--aviso); }
-.rx-pill.info { background: var(--ok-suave); color: var(--ok); }
-.rx-flag { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 11px 14px; border: 1px solid var(--linha-2); border-radius: var(--raio); }
-.rx-flag p { color: var(--tinta-2); font-size: 14px; margin-top: 2px; }
-.rx-bloco { display: grid; gap: 8px; margin-top: 18px; min-width: 0; }
-.rx-bloco h3 { font-size: 15px; font-weight: 600; }
-.rx-duas { align-items: start; }
-.rx-parecer { white-space: pre-wrap; line-height: 1.6; padding: 14px 16px; border: 1px solid var(--linha-2); border-radius: var(--raio); background: var(--painel-2); }
-.rx-risco { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; font-size: 12.5px; }
-.rx-risco > span { width: 46px; height: 6px; border-radius: 3px; background: var(--linha); overflow: hidden; }
-.rx-risco b { display: block; height: 100%; }
-.tabela tr.rx-sel td { background: var(--marca-suave); }
-.rx-det { margin-top: 14px; border: 1px solid var(--linha-2); border-radius: var(--raio); }
-.rx-det summary { cursor: pointer; padding: 11px 14px; font-weight: 500; }
-.rx-det .tabela-rolo { border: 0; border-top: 1px solid var(--linha-2); border-radius: 0; }
+/* Guias de recolhimento */
+.arq.guia { border-left-color: var(--marca); }
+.arq.guia .arq-nome { cursor: default; }
+.arq.guia .arq-nome:hover { background: transparent; }
+.arq.guia .arq-status { background: var(--marca-suave); color: var(--marca); }
+.conf-guia { margin-top: 20px; }

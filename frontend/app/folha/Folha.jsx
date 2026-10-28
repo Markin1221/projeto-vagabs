@@ -7,7 +7,8 @@ import Centros from "./Centros";
 import Fonte from "../ui/Fonte";
 import Dica from "../ui/Dica";
 import Modal from "../ui/Modal";
-import { Baixar, Pdf } from "../ui/Icones";
+import { Alerta, Baixar, Pdf } from "../ui/Icones";
+import Conferencias from "./Conferencias";
 import { API, VAZIO, api, autFetch } from "../lib";
 
 let seq = 0;
@@ -19,6 +20,7 @@ export default function Folha() {
   const [erroApi, setErroApi] = useState("");
   const [files, setFiles] = useState([]);           // [{ id, file, centro }]
   const [res, setRes] = useState({});               // id -> resposta da pré-checagem
+  const [guias, setGuias] = useState([]);           // conferência das guias (FGTS...) com a soma das folhas
   const [checando, setChecando] = useState(false);
   const [abertos, setAbertos] = useState(new Set());
   const [ocultarZero, setOcultarZero] = useState(false);
@@ -46,7 +48,7 @@ export default function Folha() {
 
   // Pré-checagem automática: lê todos os PDFs sempre que algo muda
   useEffect(() => {
-    if (!files.length) { setRes({}); setChecando(false); return; }
+    if (!files.length) { setRes({}); setGuias([]); setChecando(false); return; }
     const meu = ++req.current, ids = files.map((f) => f.id);
     setChecando(true);
     const fd = new FormData();
@@ -58,7 +60,7 @@ export default function Folha() {
         .then((c) => {
           if (meu !== req.current) return;
           const novo = Object.fromEntries(c.arquivos.map((a, i) => [ids[i], a]));
-          setRes(novo); setChecando(false);
+          setRes(novo); setGuias(c.guias || []); setChecando(false);
           setAbertos((s) => { const x = new Set(s); ids.forEach((id) => { if (novo[id] && !novo[id].ok && !jaAbertos.current.has(id)) { x.add(id); } jaAbertos.current.add(id); }); return x; });
         })
         .catch((x) => { if (meu === req.current) { setChecando(false); setErroGerar(x.message); } });
@@ -87,8 +89,9 @@ export default function Folha() {
     setGerando(true); setErroGerar("");
     try {
       const fd = new FormData();
-      const unico = files.length === 1;
-      files.forEach((f) => { fd.append(unico ? "arquivo" : "arquivos", f.file); if (unico) { if (f.centro) fd.append("centro_custo", f.centro); } else fd.append("centros", f.centro || ""); });
+      const paraGerar = files.filter((f) => res[f.id]?.tipo !== "guia");
+      const unico = paraGerar.length === 1;
+      paraGerar.forEach((f) => { fd.append(unico ? "arquivo" : "arquivos", f.file); if (unico) { if (f.centro) fd.append("centro_custo", f.centro); } else fd.append("centros", f.centro || ""); });
       fd.append("ocultar_zerados", ocultarZero ? "true" : "false");
       fd.append("formato", formato);
       const r = await autFetch(API + (unico ? "/folha/csv" : "/folha/lote/csv"), { method: "POST", body: fd });
@@ -151,7 +154,7 @@ export default function Folha() {
     <>
       {erroApi && <div className="faixa-erro" role="alert">{erroApi}</div>}
       <Dica passos={[
-        "Envie o PDF “Resumo Geral” de cada departamento (pode mandar vários de uma vez, mais os dos Sócios).",
+        "Envie o PDF “Resumo Geral” de cada departamento (pode mandar vários de uma vez, mais os dos Sócios). Junto, mande a guia do FGTS Digital: o sistema soma as folhas e confere com a guia.",
         "Cada PDF é conferido sozinho. Abra o arquivo para ver as conferências e os lançamentos; toque num total para ver a soma que o forma e numa linha para ver o trecho do PDF de onde o valor saiu.",
         "Se aparecer um problema (evento novo ou total que não bate), resolva ali mesmo: cadastre o evento ou diga que é o mesmo que um já existente.",
         "Escolha o formato: Excel (recomendado, mantém “1-1” como texto) ou CSV. Se abrir o CSV direto no Excel, ele troca “1-1” por data.",
@@ -175,6 +178,17 @@ export default function Folha() {
                 deptos={deptos} aoTrocarCentro={(c) => trocarCentro(f.id, c)} eventos={eventos}
                 aoCadastrarNovo={cadastrarNovo} aoVincular={vincular} aoVerFonte={(alvo) => setFonte({ alvo, id: f.id })} />))}
           </div>)}
+
+        {guias.map((g) => (
+          <div key={g.arquivo} className="conf-guia">
+            <h3 className="sub-tit">Conferência com a {g.nome}{g.competencia ? ` (${g.competencia})` : ""} <small>Soma das {g.n_folhas} folhas enviadas × valor da guia. Toque para ver cada departamento.</small></h3>
+            {g.aviso && <p className="aviso"><Alerta />{g.aviso}</p>}
+            <Conferencias itens={g.conferencias.map((c) => ({ nome: c.nome, pdf: c.guia, calculado: c.folhas, diferenca: c.diferenca, ok: c.ok,
+              composicao: c.composicao.map((p) => ({ nome: p.nome, valor: p.valor, sinal: "+" })) }))}
+              abertoInicial aoVerFonte={() => {}}
+              rotulos={{ pdf: "Na guia", soma: "Soma das folhas", total: "Valor na guia", vazio: "Nenhuma folha enviada",
+                alerta: "Confira se todas as folhas do mês foram enviadas e se a guia é da mesma competência." }} />
+          </div>))}
 
         <div className="gerar">
           <label className="marca"><input type="checkbox" checked={ocultarZero} onChange={(e) => setOcultarZero(e.target.checked)} />Não incluir linhas com valor zero</label>
