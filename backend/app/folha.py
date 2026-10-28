@@ -29,10 +29,17 @@ PERFIS = {
 CENTRO_CONSELHO = "ADM01"  # centro de custo padrão da folha dos Sócios (o PDF diz "DEPARTAMENTO UNICO")
 
 
-def detectar_grupo(df_resumo) -> str:
-    """'conselho' se o resumo tem colunas Sócios/Autônomos (e não Ativos); senão 'folha'."""
+def detectar_grupo(df_resumo, departamento: str = "", nome_arquivo: str | None = None) -> str:
+    """'conselho' (folha dos Sócios/Conselho) se o resumo tem colunas Sócios/Autônomos e não Ativos, se o
+    departamento é 'DEPARTAMENTO UNICO' ou se o nome do arquivo fala em sócios/conselho/diretoria; senão 'folha'."""
     cols = {c for c in df_resumo.columns}
-    return "conselho" if ("Sócios" in cols and "Ativos" not in cols) else "folha"
+    if "Sócios" in cols and "Ativos" not in cols:
+        return "conselho"
+    if norm(departamento) == "departamento unico":
+        return "conselho"
+    if re.search(r"\b(socios?|conselho|diretoria)\b", norm(nome_arquivo or "")):
+        return "conselho"
+    return "folha"
 _REF = re.compile(r"\{([^{}|]+)(?:\|([^{}]+))?\}")
 _OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv}
 

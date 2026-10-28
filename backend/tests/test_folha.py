@@ -346,3 +346,12 @@ def test_xlsx_mantem_1_1_como_texto(client):
 def test_codigo_do_item_tem_3_digitos():
     from app.folha import codigo_item
     assert [codigo_item(c) for c in (70, 75, 9, 501, 520)] == ["*070", "*075", "*009", "501", "520"]
+
+
+def test_socios_reconhecido_pelo_departamento_ou_nome():
+    import pandas as pd
+    from app.folha import detectar_grupo
+    df = pd.DataFrame(columns=["Tipo", "Código", "Nome", "Ativos", "Total"])  # layout com coluna Ativos
+    assert detectar_grupo(df, "DEPARTAMENTO UNICO") == "conselho"
+    assert detectar_grupo(df, "XYZ", "Relatório Folha COOPERNORTE Sócios.pdf") == "conselho"
+    assert detectar_grupo(df, "OFICINA", "Relatório Oficina.pdf") == "folha"

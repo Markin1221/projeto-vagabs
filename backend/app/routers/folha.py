@@ -29,7 +29,7 @@ def _processar_bytes(db: Session, conteudo: bytes, centro_custo: str | None, ocu
             raise HTTPException(422, str(e))
         except Exception:
             raise HTTPException(422, "Não consegui ler o arquivo. Ele é o PDF 'Resumo Geral' da folha?")
-    grupo = folha.detectar_grupo(df)
+    grupo = folha.detectar_grupo(df, cab["departamento"], nome_arquivo)
     # Centro de custo: o escolhido pelo usuário > o nome do arquivo > o departamento do cabeçalho do PDF
     if centro_custo:
         centro = db.scalar(select(CentroCusto).where(CentroCusto.codigo == centro_custo))
