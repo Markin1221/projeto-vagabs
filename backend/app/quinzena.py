@@ -5,14 +5,14 @@ Regras (aba Resumo da planilha):
 - cada evento vai para uma linha do lançamento pela primeira regra cujo padrão aparece no nome (sem o código);
 - Crédito/Pagto quinzenal = saldo negativo da quinzena anterior (evento 342) − soma dos líquidos + adiantamentos;
 - Taxa administrativa (pode vir em mais de uma coluna) = Cooperativa + Sindicato, divididas pelos valores por carro;
-- Débitos de acordo saem como DÉBITO e voltam como 'Estorno' (CRÉDITO) 15 dias depois;
+- Débitos de acordo saem como DÉBITO;
 - o valor do lançamento é sempre positivo (a planilha usa o valor absoluto)."""
 import csv
 import json
 import io
 import re
 import unicodedata
-from datetime import date, timedelta
+from datetime import date
 
 import pandas as pd
 from sqlalchemy import select
@@ -177,22 +177,21 @@ def processar(db: Session, df: pd.DataFrame, grupo: str, data_lanc: date, observ
 
     linhas = []
     for l in linhas_cad:
-        comp = composicao.get("acordo" if l.codigo == "estorno_acordo" else l.codigo, [])
+        comp = composicao.get(l.codigo, [])
         total = round(sum(p["valor"] for p in comp), 2)
         if l.codigo == "credito" and credito_manual is not None:
             total = round(credito_manual, 2)
         if abs(total) < 0.005 and not incluir_zeradas:
             continue
-        dia = data_lanc + timedelta(days=15) if l.codigo == "estorno_acordo" else data_lanc
         linhas.append({
-            "codigo": l.codigo, "composicao": comp, "total_eventos": total, "dias_depois": 15 if l.codigo == "estorno_acordo" else 0,
+            "codigo": l.codigo, "composicao": comp, "total_eventos": total,
             "titulo": f"Deposito Permissionários {grupo}", "descricao": f"{l.descricao} - {grupo}",
             "tipo_lancamento": l.tipo_lancamento, "codigo_centro_de_custo": l.centro, "numero_conta": conta,
             "codigo_item_despesa": codigo_item(l.item) if l.item is not None else None,
             "codigo_fonte_recurso": l.fonte, "id_forma_pagamento": None, "num_parcelas": None,
-            "data_inicial": dia, "dias_intervalo": None, "valor": round(abs(total), 2), "observacoes": observacao})
-    # o que deve bater com o depósito no banco (como o 'Check-in' da aba Resumo): soma dos valores, sem o estorno
-    total_quinzena = round(sum(l["valor"] for l in linhas if l["codigo"] != "estorno_acordo"), 2)
+            "data_inicial": data_lanc, "dias_intervalo": None, "valor": round(abs(total), 2), "observacoes": observacao})
+    # o que deve bater com o depósito no banco (como o 'Check-in' da aba Resumo)
+    total_quinzena = round(sum(l["valor"] for l in linhas), 2)
     problemas = [{"tipo": "evento_sem_regra", "titulo": f"Evento sem regra: {sem_codigo(e['nome'])}",
                   "detalhe": f"O evento “{e['nome'].strip()}” somou {e['total']:.2f} em {len(e['por_carro'])} carro(s) e "
                              "nenhuma regra diz em qual linha do lançamento ele entra. Escolha a linha abaixo.",

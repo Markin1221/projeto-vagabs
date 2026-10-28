@@ -29,7 +29,7 @@ def test_interbairros_bate_com_a_planilha(client):
     assert valores(a) == {
         "credito": 477542.28, "diesel": 284972.02, "pecas": 121273.25, "bandeira": 85861.89, "taxa_coop": 88886.97,
         "taxa_sind": 1860.42, "fap": 1004.62, "tarifas": 1085.40, "processos": 403.95, "acordo": 2260.23,
-        "estorno_acordo": 2260.23, "financiamento": 4990.92, "pensao": 1621.00}
+"financiamento": 4990.92, "pensao": 1621.00}
 
 
 def test_taxa_conta_os_carros_inclusive_o_que_paga_sozinho(client):
@@ -44,7 +44,7 @@ def test_formato_das_linhas(client):
     assert por["tarifas"]["codigo_item_despesa"] == "*048" and por["tarifas"]["codigo_centro_de_custo"] == "ADM01"
     assert por["taxa_coop"]["codigo_item_despesa"] is None and por["taxa_coop"]["codigo_fonte_recurso"] == "*05"
     assert por["acordo"]["tipo_lancamento"] == "DEBITO" and por["acordo"]["codigo_fonte_recurso"] is None
-    assert por["estorno_acordo"]["data_inicial"] == "2026-03-24" and por["credito"]["data_inicial"] == "2026-03-09"
+    assert "estorno_acordo" not in por and por["acordo"]["data_inicial"] == por["credito"]["data_inicial"] == "2026-03-09"
     assert por["credito"]["titulo"] == "Deposito Permissionários Interbairros"
     assert por["credito"]["numero_conta"] == "46604-2"
     assert sum(p["valor"] for p in por["pecas"]["composicao"]) == pytest.approx(-por["pecas"]["valor"], abs=0.01)
@@ -121,3 +121,13 @@ def test_carro_fora_dos_terminais_bloqueia(client):
     a = processar(client, "quinzena_intermunicipal_2q_maio.xlsx")[0]
     assert not a["ok"] and any(p["tipo"] == "carro_sem_terminal" for p in a["problemas"])
     assert client.get("/quinzena/config").json()["terminais"] == {"terminal_tiuma": ["04"]}
+
+
+def test_seed_remove_linha_de_estorno_antiga(db):
+    from app.models import LinhaQuinzena
+    from app.seed.carregar import carregar
+    carregar(db)
+    db.add(LinhaQuinzena(codigo="estorno_acordo", ordem=99, descricao="Estorno", tipo_lancamento="CREDITO", centro="CTPAS", item=580, fonte="*08"))
+    db.commit()
+    carregar(db)
+    assert db.query(LinhaQuinzena).filter_by(codigo="estorno_acordo").count() == 0

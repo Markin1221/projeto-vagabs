@@ -83,7 +83,7 @@ export default function QArquivo({ f, r, aberto, grupos, opcoesLinha, aoAlternar
                         </button>
                         <div className="gaveta"><div>
                           <div className="fita">
-                            <p className="fita-tit">{l.codigo === "estorno_acordo" ? "Mesmo valor dos débitos de acordo, 15 dias depois" : `De onde vem ${l.descricao.toLowerCase()}`}</p>
+                            <p className="fita-tit">{`De onde vem ${l.descricao.toLowerCase()}`}</p>
                             <ul>{l.composicao.map((p, i) => (
                               <li key={i}><span className="sinal">{i === 0 ? "" : "+"}</span>
                                 <button type="button" className="parcela" onClick={() => aoVerCarros(p)} title="Ver por carro"><span>{p.nome}</span><i /><b>{fmt(p.valor)}</b></button></li>))}</ul>
@@ -94,7 +94,7 @@ export default function QArquivo({ f, r, aberto, grupos, opcoesLinha, aoAlternar
                   })}
                 </div>
                 <div className="totais-lanc">
-                  <div className="total-bloco"><button type="button" disabled><span>Total da quinzena (sem o estorno)</span><b className="num">{fmt(r.total_quinzena)}</b></button></div>
+                  <div className="total-bloco"><button type="button" disabled><span>Total da quinzena</span><b className="num">{fmt(r.total_quinzena)}</b></button></div>
                   {difDep !== null && (
                     <div className="total-bloco"><button type="button" disabled className={Math.abs(difDep) < 0.01 ? "bate" : "nao-bate"}>
                       <span>{Math.abs(difDep) < 0.01 ? "Bate com o depósito" : "Diferença para o depósito"}</span><b className="num">{fmt(difDep)}</b></button></div>)}

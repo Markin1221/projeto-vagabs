@@ -15,6 +15,7 @@ from ..db import Base, engine
 from ..models import CentroCusto, Evento, EventoApelido, ItemDespesa, RegraClassificacao, LinhaQuinzena, RegraQuinzena, Configuracao
 
 DADOS = Path(__file__).parent / "dados"
+LINHAS_REMOVIDAS = ["estorno_acordo"]
 CONFIG_PADRAO = {"taxa_cooperativa": "998.73", "taxa_sindicato": "133.38", "conta_quinzena": "46604-2",
                  # débito/crédito das intermunicipais: carro 04xx é do Terminal Tiuma, 11xx do Terminal Ponte
                  "terminais": '{"terminal_tiuma": ["04"], "terminal_ponte": ["11"]}'}
@@ -69,6 +70,8 @@ def carregar(db: Session) -> dict:
             existentes_r.add((d["kw"].upper(), d["nat"]))
             novos["regras"] += 1
     # quinzena dos permissionários: linhas do lançamento, regras dos eventos e valores da taxa
+    for l in db.scalars(select(LinhaQuinzena).where(LinhaQuinzena.codigo.in_(LINHAS_REMOVIDAS))):
+        db.delete(l)  # linhas que existiam por engano na planilha base
     linhas_q = {l.codigo for l in db.scalars(select(LinhaQuinzena))}
     novos["quinzena_linhas"] = 0
     for d in _ler("quinzena_linhas"):

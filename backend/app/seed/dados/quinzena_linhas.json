@@ -126,17 +126,8 @@
   "fonte": "*08"
  },
  {
-  "codigo": "estorno_acordo",
-  "ordem": 15,
-  "descricao": "Estorno Debitos de Acordo - Empréstimo ao Permissionários",
-  "tipo_lancamento": "CREDITO",
-  "centro": "CTPAS",
-  "item": 580,
-  "fonte": "*08"
- },
- {
   "codigo": "salario",
-  "ordem": 16,
+  "ordem": 15,
   "descricao": "Salario Katia",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -145,7 +136,7 @@
  },
  {
   "codigo": "contador",
-  "ordem": 17,
+  "ordem": 16,
   "descricao": "Contador",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -154,7 +145,7 @@
  },
  {
   "codigo": "plano",
-  "ordem": 18,
+  "ordem": 17,
   "descricao": "Plano de saude/odonto",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -163,7 +154,7 @@
  },
  {
   "codigo": "financiamento",
-  "ordem": 19,
+  "ordem": 18,
   "descricao": "Financiamento do permissionario - Veiculos",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
@@ -172,7 +163,7 @@
  },
  {
   "codigo": "pensao",
-  "ordem": 20,
+  "ordem": 19,
   "descricao": "Pensão do permissionario",
   "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
