@@ -77,3 +77,53 @@ def test_parecer_sem_chave(client, rx, monkeypatch):
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
     client.post("/raiox/salvar", files=_arq(), headers=rx)
     assert client.post("/raiox/meses/2026-06/parecer", headers=rx).status_code == 503
+
+
+# ---------- análise do período inteiro ----------
+def _mes(mid, rot, fin, passagem, rec=None, resultado=0.0):
+    return {"id": mid, "rotulo": rot, "formato": "novo", "receita": 300000, "despesas": -300000, "fixas": 250000,
+            "passagem": sum(p["liq"] for p in passagem), "resultado": resultado, "financiamento": sum(g["in"] + g["out"] for g in fin),
+            "finG": fin, "pass": passagem, "receitaDet": rec or [], "receitaLinhas": {}, "flags": [], "anomalias": []}
+
+
+def test_completa_compensa_emprestimo_entre_meses():
+    jun = _mes("2026-06", "jun/26", [{"g": "Conta do Posto", "in": 0, "out": -100000, "n": 1}],
+               [{"n": "FORNECEDORES A PAGAR DDA", "in": 50000, "out": -90000, "liq": -40000}])
+    jul = _mes("2026-07", "jul/26", [{"g": "Conta do Posto", "in": 100000, "out": 0, "n": 1}],
+               [{"n": "FORNECEDORES A PAGAR DDA", "in": 60000, "out": -20000, "liq": 40000}])
+    c = raiox.analise_completa([jun, jul])
+    posto = next(x for x in c["contas"] if x["g"] == "Conta do Posto")
+    assert posto["aberto"] == 0 and [m["acum"] for m in posto["meses"]] == [-100000, 0]
+    assert "completa:posto" not in {f["key"] for f in c["flags"]}
+    assert c["passagem"][0]["situacao"] == "compensou"
+    assert "completa:compensou" in {f["key"] for f in c["flags"]}
+
+
+def test_completa_divida_que_nao_volta():
+    jun = _mes("2026-06", "jun/26", [{"g": "Conta garantida (crédito do banco)", "in": 300000, "out": 0, "n": 1}],
+               [{"n": "REPASSE AO PERMISSIONARIO", "in": 100, "out": -60000, "liq": -59900}])
+    jul = _mes("2026-07", "jul/26", [], [{"n": "REPASSE AO PERMISSIONARIO", "in": 0, "out": 0, "liq": 0}])
+    c = raiox.analise_completa([jun, jul])
+    chaves = {f["key"] for f in c["flags"]}
+    assert "completa:garantida" in chaves and "completa:passagem:REPASSE AO PERMISSIONARIO" in chaves
+    assert c["dividaEmAberto"] == 300000
+
+
+def test_completa_quinzena_paga_no_mes_seguinte_nao_falta():
+    det = lambda linha, q, lag, v: {"d": "05/07/2026", "linha": linha, "ref": f"{q}ª quinz. x", "lag": lag, "v": v}  # noqa: E731
+    jun = _mes("2026-06", "jun/26", [], [], rec=[det(l, q, 1, 1) for l in raiox.LINHAS for q in "12"])  # todo maio
+    jul = _mes("2026-07", "jul/26", [], [], rec=[det(l, "1", 1, 1) for l in raiox.LINHAS])  # só 1ª de junho
+    c = raiox.analise_completa([jun, jul])
+    esperado = {(l, "2ª quinz. jun/26") for l in raiox.LINHAS} | {(l, "1ª quinz. jul/26") for l in raiox.LINHAS[:2]}
+    assert {(f["linha"], f["ref"]) for f in c["faltando"]} == esperado
+
+
+def test_rota_completa(client, rx, monkeypatch):
+    assert client.get("/raiox/completa", headers=rx).json()["vazio"] is True
+    client.post("/raiox/salvar", files=_arq(), headers=rx)
+    c = client.get("/raiox/completa", headers=rx).json()
+    assert c["periodo"] == "jun/26 a jun/26" and c["finLanc"]
+    assert {"completa:garantida", "completa:posto", "completa:quinzenas"} <= {f["key"] for f in c["flags"]}
+    monkeypatch.setattr(rota, "pedir_parecer", lambda p: "TAMANHO REAL DO ROMBO\nX")
+    assert client.post("/raiox/completa/parecer", headers=rx).json()["parecerMeses"] == "jun/26 a jun/26"
+    assert client.get("/raiox/completa", headers=rx).json()["parecer"].startswith("TAMANHO")

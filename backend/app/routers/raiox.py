@@ -6,6 +6,8 @@ POST /raiox/analisar        prévia de um extrato mensal, comparada com o histó
 POST /raiox/salvar          analisa o extrato e grava o mês (substitui se já existir)
 DELETE /raiox/meses/{id}    apaga um mês
 POST /raiox/meses/{id}/parecer   pede o parecer à IA (Anthropic) e guarda no mês
+GET  /raiox/completa       análise do período inteiro (empréstimos e devoluções entre meses se compensam)
+POST /raiox/completa/parecer     parecer da IA sobre o período inteiro
 """
 import hashlib
 import hmac
@@ -21,7 +23,7 @@ from sqlalchemy.orm import Session
 from .. import config
 from .. import raiox as rx
 from ..db import get_db
-from ..models import RaioxMes
+from ..models import RaioxMes, RaioxParecer
 from ..seed.carregar import carregar_raiox_base
 
 router = APIRouter(prefix="/raiox", tags=["raiox"])
@@ -130,3 +132,25 @@ def parecer(mes_id: str, db: Session = Depends(get_db)):
     m.parecer, m.parecer_em = texto, time.strftime("%Y-%m-%dT%H:%M:%S")
     db.commit()
     return {"parecer": texto, "parecerEm": m.parecer_em}
+
+
+@router.get("/completa", dependencies=[Depends(exigir_raiox)])
+def completa(db: Session = Depends(get_db)):
+    c = rx.analise_completa(_historico(db))
+    p = db.get(RaioxParecer, "completa")
+    c["parecer"], c["parecerEm"], c["parecerMeses"] = (p.texto, p.em, p.meses) if p else (None, None, None)
+    return c
+
+
+@router.post("/completa/parecer", dependencies=[Depends(exigir_raiox)])
+def parecer_completa(db: Session = Depends(get_db)):
+    hist = _historico(db)
+    c = rx.analise_completa(hist)
+    if not c["meses"]:
+        raise HTTPException(422, "Salve pelo menos um mês no formato novo antes de pedir a análise completa.")
+    texto = pedir_parecer(rx.prompt_completa(c, hist))
+    p = db.get(RaioxParecer, "completa") or RaioxParecer(id="completa")
+    p.texto, p.em, p.meses = texto, time.strftime("%Y-%m-%dT%H:%M:%S"), c["periodo"]
+    db.add(p)
+    db.commit()
+    return {"parecer": texto, "parecerEm": p.em, "parecerMeses": p.meses}

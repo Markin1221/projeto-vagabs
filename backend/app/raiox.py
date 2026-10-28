@@ -244,6 +244,7 @@ def analisar(R: list[dict], arquivo: str = "") -> tuple[dict, list[dict]]:
         "resultado": round(receita + despesas + passagem, 2), "financiamento": round(sum(r["v"] for r in fin), 2),
         "finG": [{**o, "in": round(o["in"], 2), "out": round(o["out"], 2)} for o in fg.values()],
         "flags": flags, "itemStats": item_stats, "saldoMin": minimo,
+        "finLanc": [{**_L(r), "g": grupo(r)} for r in fin][:200],
         "lanc": {"dup": [_L(r) for r in dup[:60]], "sus": [_L(r) for r in sus[:60]], "sem": [_L(r) for r in sem[:60]],
                  "big": [_L(r) for r in sorted(own, key=lambda r: r["v"])[:15]], "saldo": [_L(r) for r in ruins[:60]]},
     }
@@ -351,3 +352,145 @@ def prompt_parecer(doc: dict, historico: list[dict]) -> str:
             "ou má gestão, sem acusar ninguém; diga o que é fato e o que é suspeita)\nO QUE CONFERIR PRIMEIRO (lista numerada, "
             "máximo 6, com documentos a pedir)\nUse R$ com valores arredondados. Seja direto e não invente dados que não estão "
             "abaixo.\n\nDADOS DO MÊS E HISTÓRICO (JSON):\n" + json.dumps(ctx, ensure_ascii=False, default=str))
+
+
+# ---------------------------------------------------------------- análise do período inteiro
+def _abs_mes(mid: str) -> int:
+    a, m = mid.split("-")
+    return int(a) * 12 + int(m) - 1
+
+
+def _rot(n: int) -> str:
+    return f"{MESES[n % 12].lower()}/{str(n // 12)[2:]}"
+
+
+def analise_completa(historico: list[dict]) -> dict:
+    """Junta todos os meses enviados (formato novo). O que é empréstimo num mês e devolução no outro se compensa aqui:
+    saldo acumulado com Posto/banco/poupança, contas de passagem somadas no período e quinzenas de taxa que nunca chegaram."""
+    meses = sorted((h for h in historico if h.get("formato") == "novo"), key=lambda h: h["id"])
+    base = [h for h in historico if h.get("formato") == "antigo"]
+    if not meses:
+        return {"meses": [], "flags": [], "vazio": True}
+    flags = []
+
+    def F(chave, sev, t, p):
+        flags.append({"key": chave, "sev": sev, "t": t, "p": p})
+
+    soma = lambda c: round(sum(h.get(c) or 0 for h in meses), 2)  # noqa: E731
+    tot = {c: soma(c) for c in ("receita", "despesas", "fixas", "passagem", "resultado", "financiamento")}
+
+    # 1) dinheiro de fora mês a mês, com saldo acumulado (empréstimo num mês, devolução no outro)
+    grupos = sorted({g["g"] for h in meses for g in h.get("finG") or []})
+    contas = []
+    for g in grupos:
+        acum, linhas = 0.0, []
+        for h in meses:
+            o = next((x for x in h.get("finG") or [] if x["g"] == g), {"in": 0, "out": 0})
+            acum += o["in"] + o["out"]
+            linhas.append({"mes": h["rotulo"], "in": round(o["in"], 2), "out": round(o["out"], 2), "acum": round(acum, 2)})
+        contas.append({"g": g, "meses": linhas, "aberto": round(acum, 2),
+                       "entrou": round(sum(x["in"] for x in linhas), 2), "saiu": round(sum(x["out"] for x in linhas), 2)})
+    for c in contas:
+        if "garantida" in c["g"].lower() and c["aberto"] > 1000:
+            F("completa:garantida", "alta", "Crédito do banco ainda não devolvido",
+              f"No período entraram {brl(c['entrou'])} da conta garantida e voltaram {brl(-c['saiu'])}. Em aberto: {brl(c['aberto'])}, gerando juros.")
+        elif "posto" in c["g"].lower() and abs(c["aberto"]) > 1000:
+            quem = "a Matriz deve ao Posto" if c["aberto"] > 0 else "o Posto deve à Matriz"
+            F("completa:posto", "alta", "Empréstimos entre Matriz e Posto não fecham no período",
+              f"Somando todos os meses, Posto mandou {brl(c['entrou'])} e Matriz mandou {brl(-c['saiu'])}: {quem} {brl(abs(c['aberto']))}. "
+              "Conferir no extrato do Posto se esse dinheiro voltou.")
+
+    # 2) contas de passagem somadas no período
+    itens = {}
+    for h in meses:
+        for p in h.get("pass") or []:
+            it = itens.setdefault(p["n"], {"n": p["n"], "in": 0.0, "out": 0.0, "porMes": {}})
+            it["in"] += p["in"]; it["out"] += p["out"]; it["porMes"][h["rotulo"]] = round(p["liq"], 2)
+    passagem = []
+    for it in itens.values():
+        liq = it["in"] + it["out"]
+        pior = min(it["porMes"].values()) if it["porMes"] else 0
+        situ = "rombo" if liq < -20000 else "compensou" if pior < -20000 else "ok"
+        passagem.append({"n": it["n"], "in": round(it["in"], 2), "out": round(it["out"], 2), "liq": round(liq, 2), "porMes": it["porMes"], "situacao": situ})
+    passagem.sort(key=lambda p: p["liq"])
+    for p in passagem:
+        if p["situacao"] == "rombo" and p["in"] > 0:
+            F("completa:passagem:" + p["n"], "alta", f'"{p["n"]}" fica negativo mesmo somando todos os meses',
+              f"No período entrou {brl(p['in'])} e saiu {brl(-p['out'])}: {brl(p['liq'])} pagos com dinheiro da cooperativa e não recuperados.")
+    compensou = [p for p in passagem if p["situacao"] == "compensou"]
+    if compensou:
+        F("completa:compensou", "info", f"{len(compensou)} conta(s) de passagem negativas num mês e compensadas depois",
+          "Diferença de época (pagou antes, recebeu depois), não perda: " + ", ".join(p["n"] for p in compensou[:5]) + ".")
+
+    # 3) quinzenas de taxa por mês de referência (recebidas em qualquer mês)
+    recebidas = {}
+    for h in meses:
+        pago = _abs_mes(h["id"])
+        for r in h.get("receitaDet") or []:
+            if r.get("lag") is None or r["linha"] not in LINHAS:
+                continue
+            q = r["ref"].split("ª")[0]
+            chave = (r["linha"], pago - r["lag"], q)
+            recebidas.setdefault(chave, []).append({"pagoEm": h["rotulo"], "d": r["d"], "v": r["v"], "atraso": r["lag"]})
+    ini, fim = _abs_mes(meses[0]["id"]), _abs_mes(meses[-1]["id"])
+    faltando = []
+    for l in LINHAS:
+        for m in range(ini - 2, fim + 1):
+            for q in ("1", "2"):
+                # mês em que essa quinzena costuma ser paga: Interbairros/Tiúma pagam a 1ª no próprio mês e a 2ª no seguinte;
+                # Alimentadoras pagam as duas no mês seguinte. Só cobra se esse mês está entre os enviados.
+                prazo = m + (1 if l == LINHAS[2] or q == "2" else 0)
+                if ini <= prazo <= fim and (l, m, q) not in recebidas:
+                    faltando.append({"linha": l, "ref": f"{q}ª quinz. {_rot(m)}"})
+    media_q = {}
+    for l in LINHAS:
+        vals = [(h.get("receitaLinhas") or {}).get(l, 0) / 2 for h in base] or [0]
+        media_q[l] = sum(vals) / len(vals)
+    perda = sum(media_q.get(f["linha"], 0) for f in faltando)
+    if faltando:
+        F("completa:quinzenas", "alta", f"{len(faltando)} quinzena(s) de taxa nunca recebidas no período",
+          "Mesmo olhando os meses seguintes, não entraram: " + ", ".join(f"{f['linha']} {f['ref']}" for f in faltando[:8])
+          + f". Pela média da época boa, isso vale cerca de {brl(perda)} de receita.")
+    atrasadas = [{"linha": k[0], "ref": f"{k[2]}ª quinz. {_rot(k[1])}", **v[0]} for k, v in recebidas.items() if v[0]["atraso"] >= 2]
+
+    # 4) resultado real do período (sem contar empréstimos) e o que ainda é devido para fora
+    divida = round(sum(c["aberto"] for c in contas if c["aberto"] > 0 and "rendimento" not in c["g"].lower()), 2)
+    rec_base = sum(h.get("receita") or 0 for h in base) / len(base) if base else None
+    F("completa:resultado", "alta" if tot["resultado"] < 0 else "info", "Resultado do período sem contar empréstimos",
+      f"{len(meses)} mês(es): receita {brl(tot['receita'])}, despesas {brl(tot['despesas'])}, passagem {brl(tot['passagem'])} = "
+      f"{brl(tot['resultado'])}. Dinheiro de fora usado no período: {brl(tot['financiamento'])}.")
+    if rec_base:
+        dif = tot["receita"] - rec_base * len(meses)
+        if dif < -10000:
+            F("completa:receita", "alta", "Receita do período abaixo da época boa",
+              f"Esperado pela média de nov/25 a fev/26: {brl(rec_base * len(meses))}. Recebido: {brl(tot['receita'])} ({brl(dif)}).")
+    ordem = {"alta": 0, "media": 1, "info": 2}
+    flags.sort(key=lambda f: ordem[f["sev"]])
+    lanc_fin = [{**x, "mes": h["rotulo"]} for h in meses for x in h.get("finLanc") or []]
+    return {"meses": [h["rotulo"] for h in meses], "periodo": f"{meses[0]['rotulo']} a {meses[-1]['rotulo']}", "totais": tot,
+            "dividaEmAberto": divida, "contas": contas, "passagem": passagem, "faltando": faltando, "perdaEstimada": round(perda, 2),
+            "atrasadas": atrasadas, "flags": flags, "finLanc": lanc_fin, "semDetalheFin": [h["rotulo"] for h in meses if "finLanc" not in h],
+            "receitaBaseMes": rec_base}
+
+
+def prompt_completa(c: dict, historico: list[dict]) -> str:
+    import json
+    base = [{"mes": h["rotulo"], "receita": round(h.get("receita") or 0), "fixas": round(h.get("fixas") or 0)}
+            for h in historico if h.get("formato") == "antigo"]
+    meses = [{"mes": h["rotulo"], "receita": round(h.get("receita") or 0), "despesas": round(h.get("despesas") or 0),
+              "passagem": round(h.get("passagem") or 0), "resultado": round(h.get("resultado") or 0),
+              "financiamento": round(h.get("financiamento") or 0), "alertas": [f["t"] for f in h.get("flags") or []],
+              "picos": [f["t"] for f in h.get("anomalias") or []]} for h in historico if h.get("formato") == "novo"]
+    ctx = {k: c.get(k) for k in ("periodo", "totais", "dividaEmAberto", "contas", "faltando", "perdaEstimada", "atrasadas", "flags")}
+    ctx["passagem"] = [p for p in c.get("passagem", []) if p["situacao"] != "ok"]
+    ctx["meses"], ctx["epocaBoa"] = meses, base
+    return ("Você é auditor financeiro de uma cooperativa de transporte (Coopernorte, Recife). A cooperativa recebe repasses das linhas "
+            "Interbairros, Tiúma/Ponte (intermunicipal) e Alimentadoras, fica com uma taxa administrativa e repassa o resto a "
+            "permissionários e fornecedores (contas de passagem). Entre nov/25 e fev/26 o caixa estava saudável; hoje há um rombo. "
+            "Esta é a análise do PERÍODO INTEIRO: empréstimos feitos num mês e devolvidos em outro já estão compensados nos saldos "
+            "acumulados, e contas de passagem que só atrasaram estão marcadas como 'compensou'.\n\n"
+            "Escreva um parecer em português do Brasil, texto simples sem markdown (sem #, sem **), com estas partes, cada uma com título "
+            "em MAIÚSCULAS numa linha própria:\nTAMANHO REAL DO ROMBO (quanto é perda de verdade e quanto é só diferença de época)\n"
+            "DE ONDE VEM (causas em ordem de peso, com números)\nDÍVIDAS EM ABERTO (Posto, banco, poupança)\nSINAIS DE ALERTA (fato x "
+            "suspeita, sem acusar ninguém)\nPLANO PARA TAPAR O BURACO (lista numerada, máximo 7, com o que conferir e o que mudar)\n"
+            "Use R$ com valores arredondados e não invente dados.\n\nDADOS (JSON):\n" + json.dumps(ctx, ensure_ascii=False, default=str))

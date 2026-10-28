@@ -126,3 +126,13 @@ class RaioxMes(Base):
     dados: Mapped[str] = mapped_column(Text)
     parecer: Mapped[str | None] = mapped_column(Text)
     parecer_em: Mapped[str | None] = mapped_column(String(30))
+
+
+class RaioxParecer(Base):
+    """Parecer da IA que não pertence a um mês só (ex.: id 'completa' = análise do período inteiro)."""
+    __tablename__ = "raiox_pareceres"
+
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    texto: Mapped[str] = mapped_column(Text)
+    em: Mapped[str] = mapped_column(String(30))
+    meses: Mapped[str] = mapped_column(String(60))  # período coberto quando foi gerado (ex.: "mai/26 a jun/26")

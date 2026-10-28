@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Dica from "../ui/Dica";
 import Soltar from "../ui/Soltar";
 import { API, autFetch, fmt } from "../lib";
+import Completa from "./Completa";
 
 const CHAVE = "vagabs-raiox";
 const lerT = () => { try { return sessionStorage.getItem(CHAVE) || ""; } catch { return ""; } };
@@ -167,6 +168,7 @@ export default function RaioX() {
   const [previa, setPrevia] = useState(null);
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState("");
+  const [completa, setCompleta] = useState(false);
 
   useEffect(() => { setLiberado(!!lerT()); const f = () => setLiberado(false); window.addEventListener("raiox-403", f); return () => window.removeEventListener("raiox-403", f); }, []);
   async function carregar(escolher) {
@@ -236,7 +238,9 @@ export default function RaioX() {
       </section>
 
       <section className="painel">
-        <div className="painel-cab"><h2>Histórico acumulado</h2><p>{ordenado.length} meses no banco · {antigos.length} de referência e {novos.length} enviados</p></div>
+        <div className="painel-cab rx-cab"><div><h2>Histórico acumulado</h2><p>{ordenado.length} meses no banco · {antigos.length} de referência e {novos.length} enviados</p></div>
+          <button type="button" className={"btn " + (completa ? "" : "primario")} onClick={() => { setCompleta((v) => !v); setTimeout(() => document.getElementById("rx-completa")?.scrollIntoView({ behavior: "smooth" }), 80); }}>
+            {completa ? "Ver mês a mês" : "Análise completa"}</button></div>
         <Kpis itens={[["Buraco acumulado", novos.length ? novos.reduce((a, h) => a + (h.resultado || 0), 0) : null, `Soma dos ${novos.length} meses enviados`],
           ["Crédito bancário usado", novos.length ? -garantida : null, "Conta garantida somada"], ["Alertas registrados", null, "Regras e picos, todos os meses", String(nAlertas)],
           ["Receita média na época boa", media(antigos.map((h) => h.receita || 0)), "Referência nov/25 a fev/26"]]} />
@@ -245,7 +249,7 @@ export default function RaioX() {
           <thead><tr><th>Mês</th><th className="d">Receita</th><th className="d">Despesas fixas</th><th className="d">Passagem</th><th className="d">Resultado</th><th className="d">Coberto por fora</th><th>Alertas</th><th>Risco</th><th /></tr></thead>
           <tbody>{ordenado.map((h) => { const al = [...(h.flags || []), ...(h.anomalias || [])]; const a = al.filter((f) => f.sev === "alta").length, m = al.filter((f) => f.sev === "media").length;
             return (
-              <tr key={h.id} className={"clicavel" + (h.id === sel && !(previa && previa.id === sel) ? " rx-sel" : "")} tabIndex={0} onClick={() => setSel(h.id)} onKeyDown={(e) => e.key === "Enter" && setSel(h.id)}>
+              <tr key={h.id} className={"clicavel" + (h.id === sel && !(previa && previa.id === sel) ? " rx-sel" : "")} tabIndex={0} onClick={() => { setSel(h.id); setCompleta(false); }} onKeyDown={(e) => { if (e.key === "Enter") { setSel(h.id); setCompleta(false); } }}>
                 <td><b>{h.rotulo}</b>{h.formato === "antigo" && <small>referência</small>}</td>
                 <td className="num">{mil(h.receita)}</td><td className="num">{mil(h.fixas != null ? -h.fixas : null)}</td>
                 <td className={"num " + (h.passagem < 0 ? "rx-neg-cel" : "")}>{mil(h.passagem)}</td><td className={"num " + (h.resultado < 0 ? "rx-neg-cel" : "")}>{mil(h.resultado)}</td>
@@ -261,7 +265,8 @@ export default function RaioX() {
               : <tr><td colSpan={4} className="vazio">Nenhum problema registrado.</td></tr>}</tbody></table></div></details>
       </section>
 
-      {atual && <Mes key={atual.id + (previa ? "p" : "")} d={atual} hist={ordenado} previa={!!(previa && previa.id === atual.id)} aoParecer={parecer} />}
+      {completa && <Completa key={ordenado.map((h) => h.id + (h.enviadoEm || "")).join()} rxApi={rxApi} aoFechar={() => setCompleta(false)} />}
+      {!completa && atual && <Mes key={atual.id + (previa ? "p" : "")} d={atual} hist={ordenado} previa={!!(previa && previa.id === atual.id)} aoParecer={parecer} />}
     </>
   );
 }
