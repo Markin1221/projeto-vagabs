@@ -4,6 +4,7 @@ import Dica from "../ui/Dica";
 import Soltar from "../ui/Soltar";
 import { API, autFetch, fmt } from "../lib";
 import Completa from "./Completa";
+import "./raiox.css";
 
 const CHAVE = "vagabs-raiox";
 const lerT = () => { try { return sessionStorage.getItem(CHAVE) || ""; } catch { return ""; } };
@@ -50,11 +51,11 @@ function Bloqueio({ aoEntrar }) {
 }
 
 const Flag = ({ f }) => (
-  <div className="rx-flag"><span className={"rx-pill " + f.sev}>{SEV[f.sev]}</span><div><b>{f.t}</b><p>{f.p}</p></div></div>
+  <div className={"rx-flag " + f.sev}><span className={"rx-pill " + f.sev}>{SEV[f.sev]}</span><div><b>{f.t}</b><p>{f.p}</p></div></div>
 );
 const Kpis = ({ itens }) => (
   <div className="rx-kpis">{itens.map(([l, v, n, cru]) => (
-    <div key={l} className="rx-kpi"><span className="rx-kpi-l">{l}</span><span className={"rx-kpi-v num " + (v < 0 ? "neg" : "")}>{cru ?? mil(v)}</span><span className="mudo">{n}</span></div>))}
+    <div key={l} className={"rx-kpi " + (v < 0 ? "ruim" : v > 0 ? "bom" : "")}><span className="rx-kpi-l">{l}</span><span className={"rx-kpi-v num " + (v < 0 ? "neg" : "")}>{cru ?? mil(v)}</span><span className="mudo">{n}</span></div>))}
   </div>
 );
 function Risco({ v = 0 }) {
@@ -135,9 +136,9 @@ function Mes({ d, hist, previa, aoParecer }) {
         </div>)}
 
       <div className="rx-bloco"><h3>Alertas de regra</h3>
-        {(d.flags || []).length ? d.flags.map((f, i) => <Flag key={i} f={f} />) : <p className="mudo">{novo ? "Nenhum alerta de regra." : "Mês de referência da época boa. Serve de base para a comparação."}</p>}</div>
+        {(d.flags || []).length ? <div className="rx-flags">{d.flags.map((f, i) => <Flag key={i} f={f} />)}</div> : <p className="mudo">{novo ? "Nenhum alerta de regra." : "Mês de referência da época boa. Serve de base para a comparação."}</p>}</div>
       <div className="rx-bloco"><h3>Picos fora do padrão (comparado ao histórico)</h3>
-        {(d.anomalias || []).length ? d.anomalias.map((f, i) => <Flag key={i} f={f} />) : <p className="mudo">Nada fora do padrão em relação ao histórico.</p>}</div>
+        {(d.anomalias || []).length ? <div className="rx-flags">{d.anomalias.map((f, i) => <Flag key={i} f={f} />)}</div> : <p className="mudo">Nada fora do padrão em relação ao histórico.</p>}</div>
 
       <div className="duas-colunas rx-duas">
         <div className="rx-bloco"><h3>Receita da cooperativa</h3>

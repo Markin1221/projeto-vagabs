@@ -33,8 +33,8 @@ def _processar_bytes(db: Session, conteudo: bytes, centro_custo: str | None, ocu
     # Centro de custo: o escolhido pelo usuário > o nome do arquivo > o departamento do cabeçalho do PDF
     if centro_custo:
         centro = db.scalar(select(CentroCusto).where(CentroCusto.codigo == centro_custo))
-        if not centro or centro.tipo != "departamento":
-            raise HTTPException(422, f"'{centro_custo}' não é um centro de custo de departamento")
+        if not centro:
+            raise HTTPException(422, f"Centro de custo '{centro_custo}' não existe")
         cab["origem_centro"] = "escolhido"
     elif grupo == "conselho":
         centro = db.scalar(select(CentroCusto).where(CentroCusto.codigo == folha.CENTRO_CONSELHO))

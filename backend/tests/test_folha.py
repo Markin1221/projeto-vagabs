@@ -78,7 +78,8 @@ def test_sem_centro_sugere_pelo_departamento_do_pdf(client):
 
 
 def test_centro_invalido(client):
-    assert enviar(client, centro="CTPAS").status_code == 422
+    assert enviar(client, centro="CTPAS").status_code == 200  # CTPAS também pode ser escolhido
+    assert enviar(client, centro="XYZ99").status_code == 422
     assert enviar(client, centro="XXX").status_code == 422
 
 

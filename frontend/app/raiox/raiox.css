@@ -1,0 +1,78 @@
+/* Projeto Tapa Buraco — estilos próprios da aba (arquivo separado do globals.css de propósito).
+   Usa os tokens do globals.css (--painel, --linha, --ruim...), então segue o tema claro/escuro. */
+
+.rx-bloqueio { max-width: 460px; }
+.rx-login { display: grid; gap: 12px; }
+.rx-login label { display: grid; gap: 6px; font-weight: 500; }
+
+/* cabeçalho de painel com ação à direita */
+.rx-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
+.rx-cab > div { min-width: 0; flex: 1 1 320px; }
+.rx-cab h3 { font-size: 15px; font-weight: 600; }
+
+.rx-previa { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding: 12px 14px; border-radius: var(--raio); background: var(--aviso-suave); border: 1px solid color-mix(in srgb, var(--aviso) 30%, transparent); }
+.rx-previa span { flex: 1; min-width: 220px; }
+
+/* números de resumo */
+.rx-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.rx-kpi { display: grid; gap: 4px; align-content: start; padding: 14px 16px 15px; border: 1px solid var(--linha-2); border-radius: var(--raio-g); background: var(--painel-2); position: relative; overflow: hidden; }
+.rx-kpi::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: var(--linha); }
+.rx-kpi.ruim::before { background: var(--ruim); }
+.rx-kpi.bom::before { background: var(--ok); }
+.rx-kpi-l { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--tinta-3); }
+.rx-kpi-v { font-size: 24px; font-weight: 600; letter-spacing: -.01em; line-height: 1.2; text-align: left; font-variant-numeric: tabular-nums; }
+.rx-kpi-v.neg, .rx-neg-cel { color: var(--ruim); }
+.rx-kpi .mudo { font-size: 13px; line-height: 1.35; }
+.rx-kpi.destaque { background: var(--ruim-suave); border-color: color-mix(in srgb, var(--ruim) 35%, transparent); }
+.rx-kpi.destaque .rx-kpi-v { font-size: 28px; }
+
+/* gráfico */
+.rx-grafico { overflow-x: auto; margin-bottom: 16px; padding: 12px 14px 6px; border: 1px solid var(--linha-2); border-radius: var(--raio-g); }
+.rx-grafico svg { display: block; min-width: 480px; width: 100%; height: auto; }
+.rx-legenda { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--tinta-2); margin-bottom: 6px; }
+.rx-legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+/* etiquetas de gravidade */
+.rx-pill { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; white-space: nowrap; height: fit-content; line-height: 1.5; }
+.rx-pill.alta { background: var(--ruim-suave); color: var(--ruim); }
+.rx-pill.media { background: var(--aviso-suave); color: var(--aviso); }
+.rx-pill.info { background: var(--ok-suave); color: var(--ok); }
+
+/* alertas: faixa colorida à esquerda pela gravidade */
+.rx-flags { display: grid; gap: 8px; }
+.rx-flag { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: start; padding: 12px 14px 12px 16px; border: 1px solid var(--linha-2); border-left: 4px solid var(--linha); border-radius: var(--raio); background: var(--painel); }
+.rx-flag.alta { border-left-color: var(--ruim); }
+.rx-flag.media { border-left-color: var(--aviso); }
+.rx-flag.info { border-left-color: var(--ok); }
+.rx-flag b { display: block; font-weight: 600; line-height: 1.35; }
+.rx-flag p { color: var(--tinta-2); font-size: 14px; margin-top: 3px; line-height: 1.5; overflow-wrap: anywhere; }
+.rx-grupo-t { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--tinta-3); margin: 6px 0 2px; }
+.rx-grupo-t::after { content: ""; flex: 1; height: 1px; background: var(--linha-2); }
+
+/* blocos dentro do painel */
+.rx-bloco { display: grid; gap: 10px; margin-top: 26px; min-width: 0; }
+.rx-bloco > h3, .rx-bloco .rx-cab h3 { font-size: 15.5px; font-weight: 600; }
+.rx-bloco > .mudo { margin-top: -4px; font-size: 13.5px; }
+.rx-duas { align-items: start; gap: 20px; }
+.rx-duas > * { min-width: 0; }
+
+.rx-parecer { white-space: pre-wrap; line-height: 1.65; padding: 16px 18px; border: 1px solid var(--linha-2); border-left: 4px solid var(--marca); border-radius: var(--raio); background: var(--painel-2); max-height: 560px; overflow: auto; }
+
+.rx-risco { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.rx-risco > span { width: 46px; height: 6px; border-radius: 3px; background: var(--linha); overflow: hidden; }
+.rx-risco b { display: block; height: 100%; }
+
+.tabela tr.rx-sel td { background: var(--marca-suave); }
+.tabela td.num small { text-align: right; }
+
+.rx-det { margin-top: 14px; border: 1px solid var(--linha-2); border-radius: var(--raio); background: var(--painel); }
+.rx-det summary { cursor: pointer; padding: 11px 14px; font-weight: 500; }
+.rx-det summary:hover { background: var(--painel-2); }
+.rx-det[open] summary { border-bottom: 1px solid var(--linha-2); }
+.rx-det .tabela-rolo { border: 0; border-radius: 0; }
+
+@media (max-width: 700px) {
+  .rx-kpi-v { font-size: 21px; }
+  .rx-kpi.destaque .rx-kpi-v { font-size: 24px; }
+  .rx-flag { grid-template-columns: 1fr; }
+}

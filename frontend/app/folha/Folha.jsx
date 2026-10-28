@@ -147,7 +147,7 @@ export default function Folha() {
     catch (x) { setMsg({ ok: false, t: x.message }); }
   }
 
-  const deptos = centros.filter((c) => c.tipo === "departamento");
+  const deptos = centros;  // todos os centros (departamentos, CTPAS e REC01) podem ser escolhidos à mão
   const arqFonte = fonte && files.find((f) => f.id === fonte.id);
 
   return (

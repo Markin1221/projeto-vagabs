@@ -40,8 +40,8 @@ export default function Completa({ rxApi, aoFechar }) {
         {[["Resultado do período", c.totais.resultado, "Receita + despesas + passagem, sem empréstimos"],
           ["Ainda devido para fora", c.dividaEmAberto ? -c.dividaEmAberto : 0, "Posto, banco e poupança em aberto"],
           ["Perda nas contas de passagem", perdaPassagem, "Pago a mais e não recuperado"],
-          ["Quinzenas nunca recebidas", -c.perdaEstimada, `${c.faltando.length} quinzena(s), estimado pela média`]].map(([l, v, n]) => (
-          <div key={l} className="rx-kpi"><span className="rx-kpi-l">{l}</span><span className={"rx-kpi-v num " + (v < 0 ? "neg" : "")}>{mil(v)}</span><span className="mudo">{n}</span></div>))}
+          ["Quinzenas nunca recebidas", -c.perdaEstimada, `${c.faltando.length} quinzena(s), estimado pela média`]].map(([l, v, n], i) => (
+          <div key={l} className={"rx-kpi " + (v < 0 ? "ruim" : "bom") + (i === 0 && v < 0 ? " destaque" : "")}><span className="rx-kpi-l">{l}</span><span className={"rx-kpi-v num " + (v < 0 ? "neg" : "")}>{mil(v)}</span><span className="mudo">{n}</span></div>))}
       </div>
 
       <div className="rx-bloco">
@@ -52,7 +52,13 @@ export default function Completa({ rxApi, aoFechar }) {
       </div>
 
       <div className="rx-bloco"><h3>O que o período mostra</h3>
-        {c.flags.map((f, i) => <div key={i} className="rx-flag"><span className={"rx-pill " + f.sev}>{SEV[f.sev]}</span><div><b>{f.t}</b><p>{f.p}</p></div></div>)}</div>
+        <div className="rx-flags">
+          {[["alta", "Precisa de atenção"], ["media", "Conferir"], ["info", "Para saber"]].map(([s, nome]) => {
+            const fs = c.flags.filter((f) => f.sev === s);
+            return fs.length > 0 && [<p key={s} className="rx-grupo-t">{nome} · {fs.length}</p>,
+              ...fs.map((f, i) => <div key={s + i} className={"rx-flag " + f.sev}><span className={"rx-pill " + f.sev}>{SEV[f.sev]}</span><div><b>{f.t}</b><p>{f.p}</p></div></div>)];
+          })}
+        </div></div>
 
       <div className="rx-bloco"><h3>Empréstimos e devoluções mês a mês</h3>
         <p className="mudo">Saldo acumulado positivo: entrou mais do que voltou (a Matriz deve). Negativo: a Matriz mandou mais do que recebeu (devem à Matriz).</p>
