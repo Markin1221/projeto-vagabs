@@ -130,10 +130,10 @@ def _float(txt: str | None):
         raise HTTPException(422, f"Valor inválido: {txt}")
 
 
-async def _um(db, arq: UploadFile, grupo: str | None, credito: str | None, data_lanc: date, observacao: str,
+def _um(db, arq: UploadFile, grupo: str | None, credito: str | None, data_lanc: date, observacao: str,
               conta: str | None, incluir_zeradas: bool) -> dict:
     try:
-        df = q.ler_relatorio(await arq.read())
+        df = q.ler_relatorio(arq.file.read())
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception:
@@ -155,7 +155,7 @@ def _iso(linha: dict) -> dict:
 
 
 @router.post("/processar")
-async def processar(arquivos: list[UploadFile] = File(...), grupos: list[str] = Form(default=[]),
+def processar(arquivos: list[UploadFile] = File(...), grupos: list[str] = Form(default=[]),
                     creditos: list[str] = Form(default=[]), data: date = Form(...), observacao: str = Form(...),
                     conta: str | None = Form(None), incluir_zeradas: bool = Form(False), db: Session = Depends(get_db)):
     """Pré-checagem de cada relatório: linhas do lançamento com a composição de cada uma e os `problemas`
@@ -165,7 +165,7 @@ async def processar(arquivos: list[UploadFile] = File(...), grupos: list[str] = 
         g = grupos[i] if i < len(grupos) and grupos[i] else None
         c = creditos[i] if i < len(creditos) else None
         try:
-            r = await _um(db, arq, g, c, data, observacao, conta, incluir_zeradas)
+            r = _um(db, arq, g, c, data, observacao, conta, incluir_zeradas)
         except HTTPException as e:
             saida.append({"arquivo": arq.filename, "ok": False, "erro": e.detail,
                           "problemas": [{"tipo": "leitura", "titulo": "Não foi possível usar o arquivo", "detalhe": e.detail}]})
@@ -176,7 +176,7 @@ async def processar(arquivos: list[UploadFile] = File(...), grupos: list[str] = 
 
 
 @router.post("/gerar")
-async def gerar(arquivos: list[UploadFile] = File(...), grupos: list[str] = Form(default=[]),
+def gerar(arquivos: list[UploadFile] = File(...), grupos: list[str] = Form(default=[]),
                 creditos: list[str] = Form(default=[]), data: date = Form(...), observacao: str = Form(...),
                 conta: str | None = Form(None), incluir_zeradas: bool = Form(False), formato: str = Form("xlsx"),
                 db: Session = Depends(get_db)):
@@ -186,7 +186,7 @@ async def gerar(arquivos: list[UploadFile] = File(...), grupos: list[str] = Form
     for i, arq in enumerate(arquivos):
         g = grupos[i] if i < len(grupos) and grupos[i] else None
         c = creditos[i] if i < len(creditos) else None
-        r = await _um(db, arq, g, c, data, observacao, conta, incluir_zeradas)
+        r = _um(db, arq, g, c, data, observacao, conta, incluir_zeradas)
         if r["problemas"]:
             raise HTTPException(422, f"{arq.filename}: {len(r['problemas'])} evento(s) sem regra. Resolva antes de gerar.")
         conteudo = q.para_xlsx(r["linhas"]) if ext == "xlsx" else q.para_csv(r["linhas"]).encode("utf-8-sig")

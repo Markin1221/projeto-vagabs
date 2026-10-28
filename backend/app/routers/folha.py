@@ -57,10 +57,10 @@ def _processar_bytes(db: Session, conteudo: bytes, centro_custo: str | None, ocu
 
 
 @router.post("/processar")
-async def processar(arquivo: UploadFile = File(...), centro_custo: str | None = Form(None),
+def processar(arquivo: UploadFile = File(...), centro_custo: str | None = Form(None),
                     ocultar_zerados: bool = Form(False), db: Session = Depends(get_db)):
     """Lê o PDF e devolve as linhas do CSV, os avisos e os eventos novos (que ainda precisam ser cadastrados)."""
-    cab, _, centro, avisos, linhas, novos, conf, grupo = _processar_bytes(db, await arquivo.read(), centro_custo,
+    cab, _, centro, avisos, linhas, novos, conf, grupo = _processar_bytes(db, arquivo.file.read(), centro_custo,
                                                                           ocultar_zerados, arquivo.filename)
     return {
         "periodo": {"inicio": cab["inicio"].date(), "fim": cab["fim"].date()},
@@ -77,11 +77,11 @@ async def processar(arquivo: UploadFile = File(...), centro_custo: str | None = 
 
 
 @router.post("/csv")
-async def baixar_csv(arquivo: UploadFile = File(...), centro_custo: str | None = Form(None),
+def baixar_csv(arquivo: UploadFile = File(...), centro_custo: str | None = Form(None),
                      separador: str = Form(";"), decimal: str = Form(","), ocultar_zerados: bool = Form(False),
                      formato: str = Form("csv"), db: Session = Depends(get_db)):
     """Gera o CSV (ou o Excel, `formato=xlsx`) de lançamentos. Eventos novos não entram: cadastre-os e envie o PDF de novo."""
-    cab, _, centro, _, linhas, _, _, grupo = _processar_bytes(db, await arquivo.read(), centro_custo, ocultar_zerados, arquivo.filename)
+    cab, _, centro, _, linhas, _, _, grupo = _processar_bytes(db, arquivo.file.read(), centro_custo, ocultar_zerados, arquivo.filename)
     nome = _nome_csv(centro, grupo, cab)
     if formato == "xlsx":
         return Response(folha.para_xlsx(linhas), media_type=XLSX,
@@ -113,14 +113,14 @@ def _problemas(novos, conf) -> list[dict]:
 
 
 @router.post("/lote/processar")
-async def processar_lote(arquivos: list[UploadFile] = File(...), centros: list[str] = Form(default=[]),
+def processar_lote(arquivos: list[UploadFile] = File(...), centros: list[str] = Form(default=[]),
                          ocultar_zerados: bool = Form(False), db: Session = Depends(get_db)):
     """Pré-checagem de cada PDF: centro, período, linhas, conferências e `problemas` (o que bloqueia a geração).
     Um PDF com erro não derruba os outros. `centros[i]` (opcional, vazio = detectar) é o centro do i-ésimo arquivo.
     PDFs de guia (FGTS Digital...) não viram lançamento: entram em `guias`, conferidos contra a soma das folhas."""
     saida, folhas_lidas, guias_lidas = [], [], []
     for i, arq in enumerate(arquivos):
-        conteudo = await arq.read()
+        conteudo = arq.file.read()
         guia = guias.ler_guia(conteudo)
         if guia:
             guias_lidas.append({"arquivo": arq.filename, **guia})
@@ -164,13 +164,13 @@ async def processar_lote(arquivos: list[UploadFile] = File(...), centros: list[s
 
 
 @router.post("/trecho")
-async def trecho(arquivo: UploadFile = File(...), nome: str = Form(...), origem: str = Form("resumo"),
+def trecho(arquivo: UploadFile = File(...), nome: str = Form(...), origem: str = Form("resumo"),
                  valor: float | None = Form(None)):
     """Imagem (PNG) do pedaço do PDF onde o evento aparece, com a linha destacada."""
     from ..leitor_pdf import recorte_png
     with tempfile.TemporaryDirectory() as pasta:
         caminho = Path(pasta) / "folha.pdf"
-        caminho.write_bytes(await arquivo.read())
+        caminho.write_bytes(arquivo.file.read())
         try:
             png = recorte_png(str(caminho), nome, origem, valor)
         except Exception:
@@ -181,7 +181,7 @@ async def trecho(arquivo: UploadFile = File(...), nome: str = Form(...), origem:
 
 
 @router.post("/lote/csv")
-async def baixar_zip(arquivos: list[UploadFile] = File(...), centros: list[str] = Form(default=[]),
+def baixar_zip(arquivos: list[UploadFile] = File(...), centros: list[str] = Form(default=[]),
                      separador: str = Form(";"), decimal: str = Form(","), ocultar_zerados: bool = Form(False),
                      formato: str = Form("csv"), db: Session = Depends(get_db)):
     """ZIP com um CSV (ou Excel, `formato=xlsx`) por PDF enviado. PDFs com erro ficam de fora e são listados em LEIAME-erros.txt."""
@@ -189,7 +189,7 @@ async def baixar_zip(arquivos: list[UploadFile] = File(...), centros: list[str] 
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for i, arq in enumerate(arquivos):
             centro_i = centros[i] if i < len(centros) and centros[i] else None
-            conteudo = await arq.read()
+            conteudo = arq.file.read()
             if guias.ler_guia(conteudo):
                 continue  # guia de recolhimento: só serve para conferência
             try:

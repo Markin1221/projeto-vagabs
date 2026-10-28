@@ -72,9 +72,9 @@ def excluir(rid: int, db: Session = Depends(get_db)):
     db.delete(r); db.commit()
 
 
-async def _classificar(arquivo: UploadFile, db: Session):
+def _classificar(arquivo: UploadFile, db: Session):
     try:
-        df = classificador.ler_extrato_sol(await arquivo.read())
+        df = classificador.ler_extrato_sol(arquivo.file.read())
     except Exception as e:
         raise HTTPException(422, f"Não consegui ler o extrato do Sol: {e}")
     if df.empty:
@@ -84,14 +84,14 @@ async def _classificar(arquivo: UploadFile, db: Session):
 
 
 @router.post("/classificador/processar")
-async def processar(arquivo: UploadFile = File(...), db: Session = Depends(get_db)):
-    linhas = await _classificar(arquivo, db)
+def processar(arquivo: UploadFile = File(...), db: Session = Depends(get_db)):
+    linhas = _classificar(arquivo, db)
     return {"resumo": classificador.resumo(linhas), "linhas": linhas}
 
 
 @router.post("/classificador/xlsx")
-async def baixar(arquivo: UploadFile = File(...), db: Session = Depends(get_db)):
-    linhas = await _classificar(arquivo, db)
+def baixar(arquivo: UploadFile = File(...), db: Session = Depends(get_db)):
+    linhas = _classificar(arquivo, db)
     return Response(classificador.para_xlsx(linhas),
                     media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": 'attachment; filename="extrato_classificado.xlsx"'})
