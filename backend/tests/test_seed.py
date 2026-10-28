@@ -10,13 +10,13 @@ def _ev(db, nome):
 
 def test_seed_conta_tudo(db):
     novos = carregar(db)
-    assert novos == {"centros_custo": 9, "itens_despesa": 98, "eventos": 91, "regras": 52, "quinzena_linhas": 19, "quinzena_regras": 53}
+    assert novos == {"centros_custo": 9, "itens_despesa": 98, "eventos": 91, "regras": 52, "quinzena_linhas": 19, "quinzena_regras": 53, "raiox_base": 4}
     assert db.scalar(select(func.count()).select_from(Evento).where(Evento.gera_lancamento, Evento.grupo == "folha")) == 49
 
 
 def test_seed_e_idempotente(db):
     carregar(db)
-    assert carregar(db) == {"centros_custo": 0, "itens_despesa": 0, "eventos": 0, "regras": 0, "quinzena_linhas": 0, "quinzena_regras": 0}
+    assert carregar(db) == {"centros_custo": 0, "itens_despesa": 0, "eventos": 0, "regras": 0, "quinzena_linhas": 0, "quinzena_regras": 0, "raiox_base": 0}
 
 
 def test_seed_nao_sobrescreve_edicao_do_usuario(db):

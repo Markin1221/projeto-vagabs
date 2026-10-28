@@ -27,3 +27,8 @@ CORS_ORIGENS = [o.strip().rstrip("/") for o in os.getenv("CORS_ORIGENS", "http:/
 
 # Senha de acesso ao sistema. Vazia = sem senha (uso local). No Render, defina SENHA_ACESSO.
 SENHA_ACESSO = os.getenv("SENHA_ACESSO", "").strip()  # copiar/colar costuma trazer espaço ou quebra de linha no fim
+
+# Aba Raio-X do caixa: senha própria (além da senha geral) e IA para o parecer
+RAIOX_SENHA = os.getenv("RAIOX_SENHA", "secreta123").strip()
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()  # sem chave o parecer fica desligado (o resto funciona)
+RAIOX_MODELO = os.getenv("RAIOX_MODELO", "claude-sonnet-5-5").strip()

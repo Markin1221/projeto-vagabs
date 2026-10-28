@@ -28,3 +28,15 @@ Depois disso a planilha não é mais usada em runtime; edite os JSONs ou use a A
 - Evento com valor 0 ou ausente no PDF não vai para o CSV. Evento do PDF que não existe no banco gera alerta e fica fora do CSV até ser cadastrado (`POST /eventos`).
 - Centro: evento com `centro_custo_fixo` usa ele (item de despesa sem prefixo, ex. 501); os demais usam o centro escolhido (item `*0`+código, ex. `*070`).
 - Leitor do PDF: `app/leitor_pdf.py`; regras do CSV: `app/folha.py`. Fixture de teste: `tests/fixtures/folha_oficina.pdf`.
+
+## Raio-X do caixa (aba protegida)
+
+Auditoria mensal do extrato do DDATA Sol (formato novo: Data, Título, Centro de Custo, Item de Despesa, Valor, Saldo).
+A aba tem senha própria (`RAIOX_SENHA`, padrão `secreta123`), pedida além da senha geral do sistema.
+
+- `app/raiox.py`: regras (quinzena de taxa faltando, contas de passagem negativas, conta garantida, vai-e-vem com o Posto,
+  duplicados, saídas sem item ou com descrição sensível, saldo que não fecha) e o modelo de picos: compara cada categoria,
+  a receita e cada pagamento (z-score do log do valor por item) com todos os meses salvos.
+- Tabela `raiox_meses`: um registro por mês (JSON completo). Os meses nov/25 a fev/26 entram pelo seed como base da época boa.
+- Parecer com IA: `POST /raiox/meses/{id}/parecer` usa a API da Anthropic. Defina `ANTHROPIC_API_KEY`
+  (e, se quiser, `RAIOX_MODELO`, padrão `claude-sonnet-5-5`). Sem a chave, o resto da aba funciona normalmente.

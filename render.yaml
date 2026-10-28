@@ -16,3 +16,7 @@ services:
         sync: false
       - key: SENHA_ACESSO      # senha única do sistema (sem ela, qualquer pessoa com o link entra)
         sync: false
+      - key: RAIOX_SENHA       # senha da aba Raio-X do caixa (padrão: secreta123)
+        sync: false
+      - key: ANTHROPIC_API_KEY # chave da API da Anthropic para o parecer da IA no Raio-X (sem ela o parecer fica desligado)
+        sync: false

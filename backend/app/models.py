@@ -110,3 +110,19 @@ class Configuracao(Base):
 
     chave: Mapped[str] = mapped_column(String(60), primary_key=True)
     valor: Mapped[str] = mapped_column(String(200))
+
+
+class RaioxMes(Base):
+    """Um mês analisado pelo Raio-X do caixa. `dados` guarda o resultado inteiro (JSON): receita, despesas,
+    contas de passagem, alertas, picos e estatísticas por item usadas pelo modelo. Meses `antigo` são a base
+    da época boa (nov/25 a fev/26), carregados do seed."""
+    __tablename__ = "raiox_meses"
+
+    id: Mapped[str] = mapped_column(String(7), primary_key=True)  # AAAA-MM
+    rotulo: Mapped[str] = mapped_column(String(10))  # jun/26
+    formato: Mapped[str] = mapped_column(String(10))  # novo | antigo
+    arquivo: Mapped[str] = mapped_column(String(200), default="")
+    enviado_em: Mapped[str] = mapped_column(String(30), default="")
+    dados: Mapped[str] = mapped_column(Text)
+    parecer: Mapped[str | None] = mapped_column(Text)
+    parecer_em: Mapped[str | None] = mapped_column(String(30))

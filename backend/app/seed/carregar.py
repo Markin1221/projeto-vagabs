@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import Base, engine
-from ..models import CentroCusto, Evento, EventoApelido, ItemDespesa, RegraClassificacao, LinhaQuinzena, RegraQuinzena, Configuracao
+from ..models import CentroCusto, Evento, EventoApelido, ItemDespesa, RegraClassificacao, LinhaQuinzena, RegraQuinzena, Configuracao, RaioxMes
 
 DADOS = Path(__file__).parent / "dados"
 LINHAS_REMOVIDAS = ["estorno_acordo"]
@@ -85,8 +85,24 @@ def carregar(db: Session) -> dict:
     for chave, valor in CONFIG_PADRAO.items():
         if db.get(Configuracao, chave) is None:
             db.add(Configuracao(chave=chave, valor=valor))
+    novos["raiox_base"] = carregar_raiox_base(db, commit=False)
     db.commit()
     return novos
+
+
+def carregar_raiox_base(db: Session, commit: bool = True) -> int:
+    """Meses da época boa (nov/25 a fev/26) usados como base do Raio-X. Só entram se não houver nenhum mês antigo."""
+    if db.scalar(select(RaioxMes.id).where(RaioxMes.formato == "antigo").limit(1)):
+        return 0
+    n = 0
+    for d in _ler("raiox_base"):
+        if db.get(RaioxMes, d["id"]) is None:
+            db.add(RaioxMes(id=d["id"], rotulo=d["rotulo"], formato=d["formato"], arquivo=d["arquivo"],
+                            enviado_em=d["enviadoEm"], dados=json.dumps(d, ensure_ascii=False)))
+            n += 1
+    if commit:
+        db.commit()
+    return n
 
 
 def resetar(db_engine=engine) -> None:
