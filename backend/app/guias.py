@@ -48,7 +48,9 @@ TIPOS = [
             "total": r"Valor Total do Documento\s*" + NUM,
         },
         "comparacoes": [
-            {"nome": "INSS descontado dos empregados (1082)", "campo": "empregados", "folha": [("Empregados", "gps")]},
+            # salário-família (Deduções de FPAS) é abatido do INSS dos empregados na DCTFWeb
+            {"nome": "INSS descontado dos empregados (1082)", "campo": "empregados",
+             "folha": [("Empregados", "gps"), ("Deduções de FPAS", "gps", "-")]},
             {"nome": "INSS dos contribuintes individuais (1099)", "campo": "contrib_individual",
              "folha": [("Sócios", "gps"), ("Autônomos", "gps")]},
             {"nome": "Patronal sobre empregados (1138-01)", "campo": "patronal_empregados",
@@ -118,17 +120,18 @@ def conferir(guia: dict, folhas: list[dict]) -> list[dict]:
         composicao = []
         for f in folhas:
             valor = 0.0
-            for nome, origem in c["folha"]:
+            for nome, origem, *sinal in c["folha"]:
+                fator = -1 if sinal and sinal[0] == "-" else 1
                 reg = f["fontes"].get((norm(nome), origem))
                 if reg is None:  # nome que muda com o mês (ex.: 'RAT Emp (RAT x FAP = 5,0721 %)'): pelo começo
                     reg = next((v for k, v in f["fontes"].items()
                                 if isinstance(k, tuple) and k[1] == origem and k[0].startswith(norm(nome))), None)
-                valor += (reg or {}).get("Total") or 0.0
+                valor += fator * ((reg or {}).get("Total") or 0.0)
             composicao.append({"nome": f["departamento"], "arquivo": f["arquivo"], "valor": round(valor, 2)})
         soma = round(sum(p["valor"] for p in composicao), 2)
         na_guia = guia["valores"].get(c["campo"])
         dif = None if na_guia is None else round(soma - na_guia, 2)
         saida.append({"nome": c["nome"], "guia": na_guia, "folhas": soma, "diferenca": dif,
                       "ok": dif is not None and abs(dif) <= 0.01, "composicao": composicao,
-                      "de_onde": " + ".join(n for n, _ in c["folha"])})
+                      "de_onde": " ".join((("− " if len(x) > 2 and x[2] == "-" else "+ ") + x[0]) for x in c["folha"]).lstrip("+ ")})
     return saida

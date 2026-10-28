@@ -355,3 +355,12 @@ def test_socios_reconhecido_pelo_departamento_ou_nome():
     assert detectar_grupo(df, "DEPARTAMENTO UNICO") == "conselho"
     assert detectar_grupo(df, "XYZ", "Relatório Folha COOPERNORTE Sócios.pdf") == "conselho"
     assert detectar_grupo(df, "OFICINA", "Relatório Oficina.pdf") == "folha"
+
+
+def test_socios_com_funcionario_le_as_duas_tabelas(client):
+    r = client.post("/folha/processar", files={"arquivo": ("Relatório Folha COOPERNORTE Sócios.pdf",
+                    (Path(__file__).parent / "fixtures" / "folha_socios_07.pdf").read_bytes(), "application/pdf")}).json()
+    assert r["perfil"] == "conselho" and r["eventos_novos"] == []
+    assert all(c["ok"] for c in r["conferencias"])
+    linhas = {(l["descricao"], l["tipo_lancamento"]): l["valor"] for l in r["linhas"]}
+    assert linhas[("INSS  Conselheiros/Diretoria", "DEBITO")] == 734.77  # 21,53 do funcionário + 178,31 + 534,93

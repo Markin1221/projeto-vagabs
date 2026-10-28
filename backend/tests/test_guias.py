@@ -54,3 +54,13 @@ def test_lote_com_as_duas_guias(client):
     assert c["INSS dos contribuintes individuais (1099)"]["ok"]
     assert c["Patronal sobre contribuintes individuais (1138-04)"]["ok"]
     assert c["RAT / GILRAT (1646)"]["folhas"] == 5135.24 and c["PIS sobre a folha (8301)"]["folhas"] == 1012.45
+
+
+def test_socios_de_julho_fecha_o_fgts_dos_funcionarios(client):
+    """O PDF dos Sócios de julho traz 1 funcionário: o FGTS dele (22,97) é o que faltava para bater a guia."""
+    files = [("arquivos", (n, (FIX / n).read_bytes(), "application/pdf")) for n in ["folha_socios_07.pdf", "guia_fgts_07-2026.pdf"]]
+    r = client.post("/folha/lote/processar", files=files).json()
+    socios = r["arquivos"][0]
+    assert socios["perfil"] == "conselho" and socios["ok"] and "funcionários" in socios["avisos"][0]
+    fgts = r["guias"][0]["conferencias"][0]
+    assert fgts["composicao"][0]["valor"] == 22.97

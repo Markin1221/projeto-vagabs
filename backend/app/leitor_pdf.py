@@ -43,20 +43,11 @@ def y_blocos(words):
 
 
 # ---------- Tabela de adicionais / descontos ----------
-def ler_tabela(page):
-    """Colunas de valores vêm dos títulos (Ativos/Demitidos/... ou Sócios/Autônomos)."""
-    words = page.extract_words()
-    y_fim = y_blocos(words) or page.height
-    linhas_pdf = agrupar_linhas([w for w in words if w["top"] < y_fim])
-
-    pos = next((i for i, l in enumerate(linhas_pdf) if l[0]["text"] == "ADICIONAIS"), None)
-    if pos is None:
-        return None
-    cab = linhas_pdf[pos]
+def _secao_tabela(cab, linhas_pdf):
+    """Lê uma tabela (cabeçalho 'ADICIONAIS / DESCONTOS ...' + linhas) -> DataFrame, ou None."""
     idx = next((i for i, w in enumerate(cab) if w["text"] == "DESCONTOS"), None)
     if idx is None:
         return None
-
     resto, x_col, k = cab[idx + 1:], {}, 0
     while k < len(resto):
         if resto[k]["text"] == "Valores" and k + 1 < len(resto):  # "Valores Sócios"
@@ -67,9 +58,8 @@ def ler_tabela(page):
             k += 1
     if not x_col:
         return None
-
     linhas, tipo = [], "Adicional"
-    for lin in linhas_pdf[pos + 1:]:
+    for lin in linhas_pdf:
         textos = [w["text"] for w in lin]
         if not any(NUM.match(t) for t in textos):
             continue
@@ -89,6 +79,33 @@ def ler_tabela(page):
         if nome.startswith("TOTAL DE ADICIONAIS"):
             tipo = "Desconto"
     return pd.DataFrame(linhas)
+
+
+def ler_tabela(page):
+    """Colunas de valores vêm dos títulos (Ativos/Demitidos/... ou Sócios/Autônomos). O PDF dos Sócios pode trazer
+    duas tabelas (funcionários e sócios/autônomos): as duas entram, com a coluna 'Parte'; os totais da tabela dos
+    funcionários ganham o sufixo ' FUNCIONARIOS' para não se confundirem com os dos sócios."""
+    words = page.extract_words()
+    y_fim = y_blocos(words) or page.height
+    linhas_pdf = agrupar_linhas([w for w in words if w["top"] < y_fim])
+    inicios = [i for i, l in enumerate(linhas_pdf) if l[0]["text"] == "ADICIONAIS"]
+    if not inicios:
+        return None
+    partes = []
+    for n, pos in enumerate(inicios):
+        fim = inicios[n + 1] if n + 1 < len(inicios) else len(linhas_pdf)
+        df = _secao_tabela(linhas_pdf[pos], linhas_pdf[pos + 1:fim])
+        if df is not None and not df.empty:
+            df["Parte"] = "socios" if any(c in df.columns for c in ("Sócios", "Autônomos")) else "funcionarios"
+            partes.append(df)
+    if not partes:
+        return None
+    if len(partes) > 1:
+        for df in partes:
+            if df["Parte"].iloc[0] == "funcionarios":
+                totais = df["Nome"].str.startswith("TOTAL")
+                df.loc[totais, "Nome"] = df.loc[totais, "Nome"] + " FUNCIONARIOS"
+    return pd.concat(partes, ignore_index=True)
 
 
 # ---------- Blocos GPS / FGTS / DARF PIS ----------
@@ -237,7 +254,7 @@ def ler_ferias(page):
 # ---------- Validação ----------
 def validar(df1):
     avisos = []
-    cols = [c for c in df1.columns if c not in ("Tipo", "Código", "Nome")]
+    cols = [c for c in df1.columns if c not in ("Tipo", "Código", "Nome", "Parte")]
     itens = df1[df1["Código"] != ""]
 
     def total(nome):

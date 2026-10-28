@@ -48,8 +48,9 @@ def montar_fontes(df_resumo, blocos) -> dict:
     """Valores do PDF por nome normalizado. Chaves: (nome, origem) com origem resumo/gps/fgts/darf, e só o nome
     (primeiro que aparecer: resumo, GPS, FGTS, DARF) para as referências de cálculo. Separar a origem evita
     confundir, por ex., o 'IRRF Férias' do resumo com o do bloco DARF IR."""
-    cols = [c for c in df_resumo.columns if c not in ("Tipo", "Código", "Nome")]
-    total = df_resumo["Total"] if "Total" in cols else df_resumo[cols].sum(axis=1, min_count=1)
+    cols = [c for c in df_resumo.columns if c not in ("Tipo", "Código", "Nome", "Parte")]
+    soma = df_resumo[[c for c in cols if c != "Total"]].sum(axis=1, min_count=1)
+    total = df_resumo["Total"].fillna(soma) if "Total" in cols else soma
     fontes = {}
 
     def guardar(nome, origem, valores):
@@ -131,12 +132,16 @@ def eventos_novos(db: Session, df_resumo, grupo: str = "folha") -> list[dict]:
     """Eventos do PDF (com código) que não existem no banco e têm valor diferente de zero."""
     conhecidos = {norm(n) for n in db.scalars(select(Evento.nome_pdf).where(Evento.grupo == grupo)) if n}
     conhecidos |= {norm(n) for n in db.scalars(select(EventoApelido.nome).join(Evento).where(Evento.grupo == grupo))}
-    cols = [c for c in df_resumo.columns if c not in ("Tipo", "Código", "Nome")]
+    cols = [c for c in df_resumo.columns if c not in ("Tipo", "Código", "Nome", "Parte")]
+    linhas = df_resumo[df_resumo["Código"] != ""]
+    if grupo == "conselho" and "Parte" in linhas.columns:
+        linhas = linhas[linhas["Parte"] != "funcionarios"]  # funcionários do PDF dos Sócios: ver aviso
     novos = []
-    for _, r in df_resumo[df_resumo["Código"] != ""].iterrows():
+    for _, r in linhas.iterrows():
         valores = {c: (None if r[c] != r[c] else float(r[c])) for c in cols}
-        if "Total" not in valores:  # layouts sem coluna Total (Sócios/Autônomos): total = soma das colunas
-            valores["Total"] = round(sum(v or 0 for v in valores.values()), 2)
+        valores = {c: v for c, v in valores.items() if v is not None or c == "Total"}
+        if valores.get("Total") is None:  # layouts sem coluna Total (Sócios/Autônomos): total = soma das colunas
+            valores["Total"] = round(sum(v or 0 for k, v in valores.items() if k != "Total"), 2)
         if norm(r["Nome"]) not in conhecidos and any(v for v in valores.values()):
             novos.append({"codigo_pdf": r["Código"], "nome_pdf": r["Nome"], "secao": r["Tipo"].lower(),
                           "valores": valores})
@@ -251,7 +256,10 @@ def conferencias(db: Session, fontes: dict, grupo: str = "folha") -> list[dict]:
                 [parcela(n, "resumo") for n in INSS_DESCONTOS if val(n, "resumo") is not None])
     else:
         inss = ("INSS descontado x GPS (Empregados+Sócios+Autônomos)", "INSS", "resumo",
-                [parcela(n, "gps") for n in ("Empregados", "Sócios", "Autônomos")])
+                [parcela(n, "gps") for n in ("Empregados", "Sócios", "Autônomos")]
+                # o PDF dos Sócios pode ter funcionários: o INSS deles está em 'Empregados' do GPS
+                + ([parcela("INSS Folha", "resumo", "-", "Menos o INSS dos funcionários (INSS Folha)")]
+                   if val("INSS Folha", "resumo") else []))
     itens = [
         ("Total de adicionais", "TOTAL DE ADICIONAIS", "resumo", p_adic),
         ("Total de descontos", "TOTAL DE DESCONTOS", "resumo", p_desc),

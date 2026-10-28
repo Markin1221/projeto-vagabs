@@ -50,6 +50,12 @@ def _processar_bytes(db: Session, conteudo: bytes, centro_custo: str | None, ocu
         if do_arquivo and do_pdf and do_arquivo.codigo != do_pdf.codigo:
             avisos = [*avisos, f"O nome do arquivo indica {do_arquivo.nome}, mas o PDF diz '{cab['departamento']}'. "
                                f"Usei {do_arquivo.nome} (nome do arquivo)."]
+    if grupo == "conselho" and "Parte" in df.columns:
+        func = df[(df["Parte"] == "funcionarios") & (df["Código"] != "")]
+        if len(func):
+            itens = ", ".join(f"{r['Nome']} {r['Total']:.2f}".replace(".", ",") for _, r in func.iterrows())
+            avisos = [*avisos, f"Este PDF também tem funcionários ({itens}). O INSS e o PIS deles já entram nas "
+                               "linhas do Conselho pelo GPS; o salário deles não gera lançamento aqui."]
     fontes = folha.montar_fontes(df, blocos)
     cab["fontes"] = fontes
     return (cab, df, centro, avisos, folha.montar_lancamentos(db, cab, fontes, centro, ocultar_zerados, grupo),
