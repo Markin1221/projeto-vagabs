@@ -19,7 +19,7 @@ const MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out
 const rot = (m) => (m ? `${MES[+m.slice(5) - 1]}/${m.slice(2, 4)}` : "");
 const brl = (v) => (v == null ? "—" : (v < 0 ? "− " : "") + "R$ " + fmt(Math.abs(v)));
 const numero = (s) => { const t = String(s).replace(/[R$\s]/g, ""); const n = parseFloat(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t); return Number.isFinite(n) ? n : null; };
-const VAZIO = { motorista1: [], motorista2: [], permissionario: [] };
+const VAZIO = { motorista1: [], motorista2: [], permissionario: [], motoristasIguais: true };
 
 async function rsApi(caminho, opcoes = {}, comoArquivo = false) {
   let token = "";
@@ -118,7 +118,7 @@ function Relatorios({ custosVersao }) {
 }
 
 // ---------------------------------------------------------------- custos fixos
-function Categoria({ cat, faixas, aoMudar }) {
+function Categoria({ cat, titulo, faixas, aoMudar }) {
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
   const [valor, setValor] = useState("");
@@ -132,7 +132,7 @@ function Categoria({ cat, faixas, aoMudar }) {
   }
   return (
     <div className="rs-cat">
-      <h3>{NOME[cat]}</h3>
+      <h3>{titulo || NOME[cat]}</h3>
       {ordem.length ? (
         <ul className="rs-faixas">{ordem.map((f) => (
           <li key={f.i}><span>{rot(f.de)}{f.ate !== f.de && <> → {f.ate ? rot(f.ate) : "em diante"}</>}</span><b className="num">{brl(f.valor)}</b>
@@ -207,7 +207,13 @@ function Custos({ custos, salvar, msg }) {
     <section className="painel">
       <div className="painel-cab"><h2>Custos fixos: motoristas e permissionário</h2>
         <p>Valores por faixa de meses, guardados no sistema. Se duas faixas cobrem o mesmo mês, vale a última adicionada. "Até" vazio quer dizer "daqui em diante".</p></div>
-      <div className="rs-cats">{CATS.map(([c]) => <Categoria key={c} cat={c} faixas={custos[c]} aoMudar={(l) => salvar({ ...custos, [c]: l })} />)}</div>
+      <label className="rs-iguais">
+        <input type="checkbox" checked={!!custos.motoristasIguais} onChange={(e) => salvar({ ...custos, motoristasIguais: e.target.checked })} />
+        <span><b>Mesmo valor para os dois motoristas</b><small>O valor cadastrado em "Motoristas" entra como Motorista 1 e Motorista 2.</small></span>
+      </label>
+      <div className="rs-cats">{CATS.filter(([c]) => !(custos.motoristasIguais && c === "motorista2")).map(([c]) => (
+        <Categoria key={c} cat={c} titulo={custos.motoristasIguais && c === "motorista1" ? "Motoristas (vale para os dois)" : null}
+          faixas={custos[c]} aoMudar={(l) => salvar({ ...custos, [c]: l })} />))}</div>
       <Importar aoAplicar={aplicar} />
       {msg && <p className={"msg " + (msg.ruim ? "ruim" : "ok")} role="status">{msg.t}</p>}
     </section>

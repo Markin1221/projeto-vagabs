@@ -1,13 +1,28 @@
 import io
 import zipfile
-from pathlib import Path
-
 import pytest
 from openpyxl import Workbook, load_workbook
 
 from app import config, resumos as rs
 
-BRUTO = Path(__file__).parent / "fixtures" / "relatorio_bruto_nov_2026.xlsx"
+
+
+def _bruto() -> bytes:
+    """Relatório bruto de mentira, no mesmo layout do que o sistema exporta (nenhuma planilha fica no repositório)."""
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Relatorio geral 06-10-2026 11-17"])
+    ws.append(["Cap", "ID grupo lançamento", "Titulo", "Descrição", "Observação", "Data de Pagamento", "Tipo de Recorrência",
+               "Tipo", "Valor Crédito", "Valor Débito", "Nº Parcelas"])
+    ws.append(["0116", 1, "NFe - 1 Parcela 3/3", "Pagamento", "-", "01/11/2026", "RECORRENTE_POR_PERIODO", "DEBITO", "R$ 0,00", "R$ 109,00", 1])
+    ws.append(["0116", 2, "TAXA ADMINISTRATIVA", "QUINZENAL", "-", "05/11/2026", "RECORRENTE_POR_PERIODO", "DEBITO", "R$ 0,00", "R$ 1.132,11", 24])
+    ws.append(["0116", 3, "Devolução", "Devolução #1", "-", "05/11/2026", "RECORRENTE_POR_PERIODO", "DEBITO", "R$ 0,00", "R$ -109,00", 1])
+    ws.append(["0116", 4, "CRÉDITO PUBLICIDADE", "CREDITO", "-", "20/11/2026", "RECORRENTE_POR_PERIODO", "CREDITO", "R$ 255,88", "R$ 0,00", 12])
+    ws.append(["Total Crédito:", "Total Crédito:", "R$\xa0255,88", "", "Total Débito:", "", "", "", "Saldo:", "-R$\xa0876,23", ""])
+    b = io.BytesIO()
+    wb.save(b)
+    return b.getvalue()
+
 WHATS = """Encaminhada
 Permissionário
 12:58
@@ -33,10 +48,10 @@ def test_valor_br():
 
 
 def test_le_relatorio_bruto():
-    r = rs.ler_relatorio(BRUTO.read_bytes(), "novembro.xlsx")
-    assert r["id"] == "2026-11" and len(r["linhas"]) == 10
+    r = rs.ler_relatorio(_bruto(), "novembro.xlsx")
+    assert r["id"] == "2026-11" and len(r["linhas"]) == 4
     assert all(isinstance(l["debito"], float) for l in r["linhas"])
-    assert (r["credito"], r["debito"]) == (255.88, 4483.08)  # mesmos totais do rodapé do sistema
+    assert (r["credito"], r["debito"]) == (255.88, 1132.11)
 
 
 def test_texto_do_whatsapp():
@@ -74,7 +89,7 @@ def test_api_fluxo_completo(client, rx):
     custos = {"permissionario": lido["faixas"]["permissionario"] + [{"de": "2026-10", "ate": None, "valor": 4100}],
               "motorista1": [{"de": "2025-01", "ate": None, "valor": 3514.73}], "motorista2": [{"de": "2025-01", "ate": None, "valor": 3514.73}]}
     assert client.put("/resumos/custos", json=custos, headers=rx).status_code == 200
-    arqs = [("arquivos", ("novembro.xlsx", BRUTO.read_bytes()))]
+    arqs = [("arquivos", ("novembro.xlsx", _bruto()))]
     p = client.post("/resumos/previa", files=arqs, headers=rx).json()
     m = p["meses"][0]
     assert m["permissionario"] == 4100 and m["motorista1"] == 3514.73 and not m["avisos"]
@@ -88,7 +103,7 @@ def test_api_fluxo_completo(client, rx):
 
 
 def test_gerar_pdf(client, rx):
-    arqs = [("arquivos", ("novembro.xlsx", BRUTO.read_bytes()))]
+    arqs = [("arquivos", ("novembro.xlsx", _bruto()))]
     z = zipfile.ZipFile(io.BytesIO(client.post("/resumos/gerar", files=arqs, data={"formato": "ambos"}, headers=rx).content))
     assert sorted(z.namelist()) == ["novembro_26.pdf", "novembro_26.xlsx", "resumo_nov26.pdf", "resumo_nov26.xlsx"]
     assert z.read("novembro_26.pdf")[:4] == b"%PDF"

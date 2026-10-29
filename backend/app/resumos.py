@@ -446,23 +446,126 @@ def xlsx_resumo(lista: list[dict]) -> bytes:
     return _salvar(wb)
 
 
-def nome_arquivo(mid: str) -> str:
+# ------------------------------------------------------------------ PDF (mesmo conteúdo da planilha, largura numa página só)
+def _br(v: float) -> str:
+    t = f"{abs(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return ("- " if v < 0 else "") + t
+
+
+def _pdf(elementos_fn, titulo: str, paisagem: bool) -> bytes:
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate
+    b = io.BytesIO()
+    tam = landscape(A4) if paisagem else A4
+    doc = SimpleDocTemplate(b, pagesize=tam, leftMargin=10 * mm, rightMargin=10 * mm, topMargin=10 * mm, bottomMargin=12 * mm, title=titulo)
+
+    def rodape(c, d):
+        c.setFont("Helvetica", 7)
+        c.setFillColorRGB(.45, .45, .45)
+        c.drawRightString(tam[0] - 10 * mm, 6 * mm, f"{titulo} · página {d.page}")
+    doc.build(elementos_fn(doc.width), onFirstPage=rodape, onLaterPages=rodape)
+    return b.getvalue()
+
+
+def _estilos():
+    from reportlab.lib.styles import ParagraphStyle
+    return (ParagraphStyle("t", fontName="Helvetica-Bold", fontSize=12, spaceAfter=6),
+            ParagraphStyle("c", fontName="Helvetica", fontSize=7, leading=8.5))
+
+
+def _tabela_contas(r: dict, largura_rot: float, largura_val: float, cred=None, deb=None):
+    """Bloco Sub Saldo / custos / Saldo, com as mesmas cores da planilha."""
+    from reportlab.lib import colors
+    from reportlab.platypus import Table, TableStyle
+    azul, verm = colors.HexColor("#" + AZUL), colors.HexColor("#" + VERMELHO)
+    linhas = [["Sub Saldo:", _br(r["subSaldo"])]] + [[NOME_CAT[c], _br(-(r[c] or 0))] for c in CATEGORIAS] + [["Saldo:", _br(r["saldo"])]]
+    t = Table(linhas, colWidths=[largura_rot, largura_val], hAlign="RIGHT")
+    est = [("FONT", (0, 0), (-1, -1), "Helvetica-Bold", 9), ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+           ("TEXTCOLOR", (0, 0), (0, 0), azul), ("TEXTCOLOR", (0, -1), (0, -1), azul),
+           ("TEXTCOLOR", (1, 0), (1, 0), verm), ("TEXTCOLOR", (1, -1), (1, -1), verm),
+           ("TEXTCOLOR", (1, 1), (1, -2), azul), ("BOTTOMPADDING", (0, 0), (-1, -1), 2), ("TOPPADDING", (0, 0), (-1, -1), 2)]
+    t.setStyle(TableStyle(est))
+    return t
+
+
+def pdf_mes(rel: dict, r: dict) -> bytes:
+    from reportlab.lib import colors
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+    from xml.sax.saxutils import escape
+    titulo_st, cel = _estilos()
+    a, m = map(int, rel["id"].split("-"))
+    fim = date(a + (m == 12), m % 12 + 1, 1) - date.resolution
+    titulo = f"Relatorio geral de 01/{m:02d}/{a % 100:02d} a {fim.day:02d}/{m:02d}/{a % 100:02d}"
+
+    def corpo(W):
+        prop = [0.05, 0.25, 0.355, 0.105, 0.12, 0.12]  # soma 1: a tabela ocupa exatamente a largura da página
+        cw = [W * p for p in prop]
+        txt = lambda v: Paragraph(escape(str(v if v not in (None, "") else "")).replace("\n", "<br/>"), cel)
+        dados = [["Cap", "Titulo", "Descrição", "Data de Pagamento", "Valor Crédito", "Valor Débito"]]
+        for l in rel["linhas"]:
+            dados.append([txt(l["cap"]), txt(l["titulo"]), txt(l["descricao"]), l["data"].strftime("%d/%m/%Y"), _br(l["credito"]), _br(l["debito"])])
+        dados.append(["", "", "", "Total:", _br(rel["credito"]), _br(rel["debito"])])
+        t = Table(dados, colWidths=cw, repeatRows=1)
+        t.setStyle(TableStyle([
+            ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7.5), ("FONT", (0, 1), (-1, -1), "Helvetica", 7),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3864")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -2), 0.3, colors.HexColor("#BFBFBF")), ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (4, 0), (5, -1), "RIGHT"), ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F3F5F9")]),
+            ("FONT", (3, -1), (-1, -1), "Helvetica-Bold", 9), ("TEXTCOLOR", (4, -1), (5, -1), colors.HexColor("#" + VERMELHO)),
+            ("LINEABOVE", (3, -1), (-1, -1), 0.8, colors.black)]))
+        return [Paragraph(titulo, titulo_st), t, Spacer(1, 4), _tabela_contas(r, cw[4], cw[5])]
+    return _pdf(corpo, titulo, paisagem=True)
+
+
+def pdf_resumo(lista: list[dict]) -> bytes:
+    from reportlab.lib import colors
+    from reportlab.platypus import KeepTogether, Paragraph, Spacer, Table, TableStyle
+    lista = sorted(lista, key=lambda r: r["id"])
+    titulo_st, _ = _estilos()
+    titulo = f"Resumo financeiro · {lista[0]['rotulo']} a {lista[-1]['rotulo']}" if len(lista) > 1 else f"Resumo financeiro · {lista[0]['nome']}"
+
+    def corpo(W):
+        verm, azul = colors.HexColor("#" + VERMELHO), colors.HexColor("#" + AZUL)
+        cw = [W * 0.5, W * 0.25, W * 0.25]
+        el = [Paragraph(titulo, titulo_st)]
+        for r in lista:
+            cab = Table([[r["nome"], "", ""], ["Créditos / Débitos", _br(r["credito"]), _br(r["debito"])]], colWidths=cw)
+            cab.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F3864")), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                                     ("FONT", (0, 0), (-1, -1), "Helvetica-Bold", 9), ("ALIGN", (1, 1), (-1, 1), "RIGHT"),
+                                     ("TEXTCOLOR", (1, 1), (-1, 1), verm), ("BOTTOMPADDING", (0, 0), (-1, -1), 2), ("TOPPADDING", (0, 0), (-1, -1), 2)]))
+            contas = _tabela_contas(r, cw[0] + cw[1], cw[2])
+            el.append(KeepTogether([cab, contas, Spacer(1, 10)]))
+        if len(lista) > 1:
+            tot = Table([["Saldo acumulado do período:", _br(round(sum(r["saldo"] for r in lista), 2))]], colWidths=[cw[0] + cw[1], cw[2]])
+            tot.setStyle(TableStyle([("FONT", (0, 0), (-1, -1), "Helvetica-Bold", 11), ("TEXTCOLOR", (0, 0), (0, 0), azul),
+                                     ("TEXTCOLOR", (1, 0), (1, 0), verm), ("ALIGN", (1, 0), (1, 0), "RIGHT"), ("LINEABOVE", (0, 0), (-1, 0), 0.8, colors.black)]))
+            el.append(tot)
+        return el
+    return _pdf(corpo, titulo, paisagem=False)
+
+
+def nome_arquivo(mid: str, ext: str = "xlsx") -> str:
     a, m = mid.split("-")
-    return f"{MESES[int(m) - 1].replace('ç', 'c')}_{a[2:]}.xlsx"
+    return f"{MESES[int(m) - 1].replace('ç', 'c')}_{a[2:]}.{ext}"
 
 
-def gerar_zip(arquivos: list[tuple[str, bytes]], custos: dict) -> tuple[bytes, str]:
+def gerar_zip(arquivos: list[tuple[str, bytes]], custos: dict, formato: str = "xlsx") -> tuple[bytes, str]:
+    """formato: 'xlsx' (planilhas), 'pdf' ou 'ambos'."""
     rels = [ler_relatorio(c, n) for n, c in arquivos]
     res = [calcular(r, custos) for r in rels]
     b, usados = io.BytesIO(), Counter()
     with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
+        exts = ["xlsx", "pdf"] if formato == "ambos" else [formato]
         for rel, r in zip(rels, res):
-            nome = nome_arquivo(rel["id"])
-            usados[nome] += 1
-            if usados[nome] > 1:
-                nome = nome.replace(".xlsx", f"_{usados[nome]}.xlsx")
-            z.writestr(nome, xlsx_mes(rel, r))
+            base = nome_arquivo(rel["id"], "").rstrip(".")
+            usados[base] += 1
+            if usados[base] > 1:
+                base += f"_{usados[base]}"
+            for ext in exts:
+                z.writestr(f"{base}.{ext}", xlsx_mes(rel, r) if ext == "xlsx" else pdf_mes(rel, r))
         ids = sorted(r["id"] for r in res)
         sufixo = rotulo(ids[0]).replace("/", "") + (f"_a_{rotulo(ids[-1]).replace('/', '')}" if ids[-1] != ids[0] else "")
-        z.writestr(f"resumo_{sufixo}.xlsx", xlsx_resumo(res))
+        for ext in exts:
+            z.writestr(f"resumo_{sufixo}.{ext}", xlsx_resumo(res) if ext == "xlsx" else pdf_resumo(res))
     return b.getvalue(), f"relatorios_{sufixo}.zip"
