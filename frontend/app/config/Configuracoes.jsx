@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useConfig } from "../config";
 import Modal from "../ui/Modal";
 import { API, autFetch } from "../lib";
@@ -11,6 +11,7 @@ function LogoOculta() {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const fechar = useCallback(() => setAberto(false), []); // estável: o Modal refaz o foco quando onClose muda
   function clicar() {
     const agora = Date.now();
     cliques.current = [...cliques.current.filter((t) => agora - t < 700), agora];
@@ -37,7 +38,7 @@ function LogoOculta() {
         </button>
       </div>
       {aberto && (
-        <Modal titulo="Identificação" subtitulo="Digite a senha de acesso." onClose={() => setAberto(false)}>
+        <Modal titulo="Identificação" subtitulo="Digite a senha de acesso." onClose={fechar}>
           <form className={"senha-secreta" + (erro ? " erro" : "")} onSubmit={entrar} key={erro}>
             <label>Senha<input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoFocus autoComplete="off" required /></label>
             {erro && <p className="msg ruim" role="alert">{erro}</p>}
