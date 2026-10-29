@@ -9,6 +9,7 @@ import NaoEncontrada from "../ui/NaoEncontrada";
 import { ConfigProvider } from "../config";
 import { Cadeado, Fechar } from "../ui/Icones";
 import { CENTRAL, CHAVE_CHEGADA, CHAVE_TOKEN, OPERACOES } from "./operacoes";
+import AcessoCinematico from "./AcessoCinematico";
 
 const Radar = () => <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden><circle cx="8" cy="8" r="6" /><circle cx="8" cy="8" r="2.6" /><path d="M8 1v3M8 12v3M1 8h3M12 8h3" /></svg>;
 
@@ -32,7 +33,7 @@ export default function CascaSecreta({ children }) {
     let ok = false;
     try { ok = !!sessionStorage.getItem(CHAVE_TOKEN); } catch {}
     setEstado(ok ? "ok" : "negado");
-    try { if (ok && sessionStorage.getItem(CHAVE_CHEGADA)) { sessionStorage.removeItem(CHAVE_CHEGADA); setChegando(true); setTimeout(() => setChegando(false), 2100); } } catch {}
+    try { if (ok && sessionStorage.getItem(CHAVE_CHEGADA)) { sessionStorage.removeItem(CHAVE_CHEGADA); setChegando(true); } } catch {}
     const negado = () => sair();            // senha secreta expirou ou foi trocada no servidor
     const semLogin = () => sair("/folha");  // senha geral do sistema caiu: volta para o login normal
     window.addEventListener("raiox-403", negado); window.addEventListener("vagabs-401", semLogin);
@@ -53,11 +54,7 @@ export default function CascaSecreta({ children }) {
   return (
     <ConfigProvider>
       <MobileTabelas />
-      {chegando && (
-        <div className="sec-acesso" aria-hidden="true"><div>
-          <p>&gt; verificando credencial…</p><p>&gt; canal criptografado estabelecido</p><p>&gt; bureau secreto · terminal 07</p>
-          <b>ACESSO CONCEDIDO</b>
-        </div></div>)}
+      {chegando && <AcessoCinematico aoTerminar={() => setChegando(false)} />}
       <div className="app modo-secreto">
         <nav className="lateral" aria-label="Bureau Secreto">
           <div className="marca-app sec-cracha">

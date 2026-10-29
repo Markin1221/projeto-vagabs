@@ -1,0 +1,41 @@
+
+/* ---- abertura cinematográfica (AcessoCinematico.jsx) ----
+   Fica fora de .modo-secreto, por isso usa cores diretas. */
+.sec-cine { position: fixed; inset: 0; z-index: 90; background: #020402; color: #3ddc8c; font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; overflow: hidden; cursor: pointer; }
+.sec-cine.saindo { animation: sec-cine-some .45s ease-in forwards; }
+@keyframes sec-cine-some { to { opacity: 0; } }
+.sec-cine::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, .22) 2px 3px); }
+.sec-cine-pular { position: absolute; left: 50%; transform: translateX(-50%); bottom: 56px; white-space: nowrap; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: rgba(141, 187, 155, .55); z-index: 3; }
+
+/* ato 1: sistema de governo de filme */
+.sec-gov { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr auto; background: radial-gradient(ellipse at center, #0b1a10 0%, #020402 70%); }
+.sec-gov-topo, .sec-gov-rodape { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 22px; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: #8dbb9b; border-bottom: 1px solid #15281b; }
+.sec-gov-rodape { border-bottom: 0; border-top: 1px solid #15281b; color: #5d8669; }
+.sec-gov-centro { display: grid; justify-items: center; align-content: center; gap: 14px; padding: 20px; text-align: center; }
+.sec-gov-brasao { width: min(320px, 70vw); padding: 12px 14px; background: #dcefe4; clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px)); box-shadow: 0 0 60px rgba(61, 220, 140, .18); animation: sec-cine-pulsa 2.4s ease-in-out infinite; }
+.sec-gov-brasao img { display: block; width: 100%; height: auto; }
+@keyframes sec-cine-pulsa { 50% { filter: brightness(1.12); } }
+.sec-gov h1 { margin-top: 6px; font-family: "Saira Stencil One", Impact, sans-serif; font-weight: 400; font-size: clamp(22px, 4vw, 38px); letter-spacing: .08em; text-transform: uppercase; color: #e6fff0; text-shadow: 0 0 22px rgba(61, 220, 140, .4); }
+.sec-gov-sub { font-size: 12px; letter-spacing: .26em; text-transform: uppercase; color: #f2b234; }
+.sec-gov-barra { display: grid; grid-template-columns: repeat(32, 1fr); gap: 3px; width: min(560px, 86vw); height: 22px; padding: 3px; margin-top: 12px; border: 1px solid #3ddc8c; box-shadow: 0 0 18px rgba(61, 220, 140, .25), inset 0 0 10px rgba(61, 220, 140, .12); }
+.sec-gov-barra i { background: rgba(61, 220, 140, .08); }
+.sec-gov-barra i.on { background: #3ddc8c; box-shadow: 0 0 8px rgba(61, 220, 140, .8); }
+.sec-gov-status { display: flex; justify-content: space-between; gap: 16px; width: min(560px, 86vw); font-size: 12.5px; letter-spacing: .06em; text-align: left; }
+.sec-gov-status span:last-child { font-variant-numeric: tabular-nums; color: #e6fff0; }
+.sec-gov-log { list-style: none; margin: 6px 0 0; padding: 0; width: min(560px, 86vw); min-height: 76px; display: grid; gap: 2px; font-size: 11.5px; color: #5d8669; text-align: left; }
+.sec-gov-log span { color: #3ddc8c; }
+
+/* ato 2: chuva de caracteres */
+.sec-cine-chuva { position: absolute; inset: 0; display: block; }
+.sec-cine-chuva.fundo { opacity: .35; filter: blur(1px); transition: opacity .4s, filter .4s; }
+
+/* ato 3: acesso concedido */
+.sec-cine-concedido { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 12px; text-align: center; background: radial-gradient(ellipse at center, rgba(2, 4, 2, .92) 0%, rgba(2, 4, 2, .55) 60%, transparent 100%); }
+.sec-cine-concedido b { position: relative; padding: 14px 30px; border: 2px solid #3ddc8c; font-family: "Saira Stencil One", Impact, sans-serif; font-weight: 400; font-size: clamp(30px, 7vw, 72px); letter-spacing: .1em; color: #3ddc8c; text-shadow: 0 0 28px rgba(61, 220, 140, .7); box-shadow: 0 0 40px rgba(61, 220, 140, .25), inset 0 0 30px rgba(61, 220, 140, .12); animation: sec-cine-entra .35s steps(3) both; }
+.sec-cine-concedido b::before, .sec-cine-concedido b::after { content: attr(data-texto); position: absolute; inset: 14px 30px; pointer-events: none; }
+.sec-cine-concedido b::before { color: #ff5a4a; mix-blend-mode: screen; animation: sec-cine-glitch 1.2s steps(2) infinite; }
+.sec-cine-concedido b::after { color: #6ad7ff; mix-blend-mode: screen; animation: sec-cine-glitch 1.2s steps(2) .15s infinite reverse; }
+@keyframes sec-cine-entra { 0% { opacity: 0; transform: scale(1.4); filter: blur(6px); } 100% { opacity: 1; transform: none; filter: none; } }
+@keyframes sec-cine-glitch { 0%, 70%, 100% { clip-path: inset(0 0 100% 0); transform: none; } 74% { clip-path: inset(10% 0 55% 0); transform: translate(-4px, 0); } 80% { clip-path: inset(60% 0 8% 0); transform: translate(4px, 0); } 86% { clip-path: inset(35% 0 40% 0); transform: translate(-2px, 0); } }
+.sec-cine-mini { font-size: 13px; letter-spacing: .2em; text-transform: uppercase; color: #8dbb9b; animation: sec-cine-entra .3s .25s steps(2) both; }
+@media (prefers-reduced-motion: reduce) { .sec-cine { display: none; } }
