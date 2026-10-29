@@ -13,7 +13,7 @@ export default function Layout({ children }) {
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Saira+Stencil+One&display=swap" rel="stylesheet" />
         <script dangerouslySetInnerHTML={{ __html: temaInicial }} />
       </head>
       <body>{children}</body>

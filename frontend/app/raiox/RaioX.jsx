@@ -200,7 +200,6 @@ export default function RaioX() {
     const r = await rxApi(`/meses/${id}/parecer`, { method: "POST" });
     setHist((h) => h.map((m) => (m.id === id ? { ...m, parecer: r.parecer, parecerEm: r.parecerEm } : m)));
   }
-  function sair() { guardarT(""); setLiberado(false); setHist([]); setPrevia(null); }
 
   const ordenado = useMemo(() => [...hist].sort((a, b) => a.id.localeCompare(b.id)), [hist]);
   const atual = previa && previa.id === sel ? previa : ordenado.find((h) => h.id === sel);
@@ -226,7 +225,7 @@ export default function RaioX() {
 
       <section className="painel">
         <div className="painel-cab rx-cab"><div><h2>Enviar extrato do mês</h2><p>O mês é comparado com a época boa (nov/25 a fev/26) e com todos os meses já salvos.</p></div>
-          <button type="button" className="btn leve" onClick={sair}>Bloquear aba</button></div>
+</div>
         {erro && <div className="faixa-erro" role="alert" style={{ marginBottom: 14 }}>{erro}</div>}
         <Soltar rotulo="Escolha o extrato do mês" arquivo={arquivo} aoEscolher={enviar} />
         {ocupado && <p className="mudo" style={{ marginTop: 10 }}>{ocupado}</p>}
