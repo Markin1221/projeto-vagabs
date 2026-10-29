@@ -339,3 +339,14 @@ button.parcela:hover svg, .fita-pdf:hover svg, button.parcela:focus-visible svg,
 .arq.guia .arq-nome:hover { background: transparent; }
 .arq.guia .arq-status { background: var(--marca-suave); color: var(--marca); }
 .conf-guia { margin-top: 20px; }
+
+/* ---- logo escondida em Configurações (fica aqui porque secreto.css só carrega dentro de /pagina-secreta) ---- */
+.logo-oculta { display: flex; justify-content: center; margin-top: 36px; padding: 18px 0 8px; }
+.logo-oculta button { border: 0; background: transparent; padding: 6px; width: min(170px, 45%); opacity: .55; transition: opacity .2s; -webkit-tap-highlight-color: transparent; user-select: none; }
+.logo-oculta button:hover { opacity: .8; }
+.logo-oculta button:focus-visible { opacity: 1; }
+.logo-oculta .logo-img { pointer-events: none; }
+.senha-secreta { display: grid; gap: 12px; }
+.senha-secreta label { display: grid; gap: 6px; font-weight: 500; }
+.senha-secreta.erro { animation: sec-treme .35s; }
+@keyframes sec-treme { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
