@@ -33,6 +33,7 @@ class Custos(BaseModel):
     motorista1: list[Faixa] = []
     motorista2: list[Faixa] = []
     permissionario: list[Faixa] = []
+    motoristasIguais: bool = True  # o valor do Motorista 1 vale para os dois
 
 
 class Texto(BaseModel):
@@ -43,7 +44,7 @@ class Texto(BaseModel):
 def ler_custos(db: Session) -> dict:
     c = db.get(ResumoCustos, "custos")
     d = json.loads(c.dados) if c else {}
-    return {k: d.get(k, []) for k in rs.CATEGORIAS}
+    return {**{k: d.get(k, []) for k in rs.CATEGORIAS}, "motoristasIguais": d.get("motoristasIguais", True)}
 
 
 @router.get("/custos")

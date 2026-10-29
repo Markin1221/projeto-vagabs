@@ -228,7 +228,15 @@ export default function Resumos() {
   async function salvar(novo) {
     const antes = custos;
     setCustos(novo); setMsg({ t: "Salvando…" });
-    try { setCustos(await rsApi("/custos", json(novo, "PUT"))); setVersao((v) => v + 1); setMsg({ t: "Custos salvos." }); }
+    try {
+      const r = await rsApi("/custos", json(novo, "PUT"));
+      if (!("motoristasIguais" in r)) { // backend antigo: não conhece a opção e a resposta viria sem ela (a caixa desmarcava)
+        setCustos({ ...r, motoristasIguais: novo.motoristasIguais });
+        setMsg({ t: "O servidor está com a versão antiga e não guardou a opção dos motoristas. Reinicie o backend (ou faça o deploy) e tente de novo.", ruim: true });
+        return;
+      }
+      setCustos(r); setVersao((v) => v + 1); setMsg({ t: "Custos salvos." });
+    }
     catch (x) { setCustos(antes); setMsg({ t: mensagemDeErro(x), ruim: true }); }
   }
   return (

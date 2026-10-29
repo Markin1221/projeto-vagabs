@@ -128,7 +128,8 @@ def custo_do_mes(faixas: list[dict], mid: str) -> float | None:
 
 def calcular(rel: dict, custos: dict) -> dict:
     sub = round(rel["credito"] - rel["debito"], 2)
-    vals = {c: custo_do_mes(custos.get(c, []), rel["id"]) for c in CATEGORIAS}
+    fonte = {**custos, "motorista2": custos.get("motorista1", [])} if custos.get("motoristasIguais") else custos
+    vals = {c: custo_do_mes(fonte.get(c, []), rel["id"]) for c in CATEGORIAS}
     faltando = [NOME_CAT[c] for c, v in vals.items() if v is None]
     saldo = round(sub - sum(v or 0 for v in vals.values()), 2)
     avisos = []

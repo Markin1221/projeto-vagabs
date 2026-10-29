@@ -87,7 +87,8 @@ def test_api_fluxo_completo(client, rx):
     assert client.get("/resumos/custos").status_code == 403
     lido = client.post("/resumos/custos/texto", json={"texto": WHATS}, headers=rx).json()
     custos = {"permissionario": lido["faixas"]["permissionario"] + [{"de": "2026-10", "ate": None, "valor": 4100}],
-              "motorista1": [{"de": "2025-01", "ate": None, "valor": 3514.73}], "motorista2": [{"de": "2025-01", "ate": None, "valor": 3514.73}]}
+              "motorista1": [{"de": "2025-01", "ate": None, "valor": 3514.73}], "motorista2": [{"de": "2025-01", "ate": None, "valor": 3514.73}],
+              "motoristasIguais": False}
     assert client.put("/resumos/custos", json=custos, headers=rx).status_code == 200
     arqs = [("arquivos", ("novembro.xlsx", _bruto()))]
     p = client.post("/resumos/previa", files=arqs, headers=rx).json()
@@ -108,3 +109,13 @@ def test_gerar_pdf(client, rx):
     assert sorted(z.namelist()) == ["novembro_26.pdf", "novembro_26.xlsx", "resumo_nov26.pdf", "resumo_nov26.xlsx"]
     assert z.read("novembro_26.pdf")[:4] == b"%PDF"
     assert client.post("/resumos/gerar", files=arqs, data={"formato": "doc"}, headers=rx).status_code == 422
+
+
+def test_um_valor_para_os_dois_motoristas(client, rx):
+    custos = {"motorista1": [{"de": "2025-01", "ate": None, "valor": 3514.73}], "motorista2": [], "permissionario": [], "motoristasIguais": True}
+    assert client.put("/resumos/custos", json=custos, headers=rx).json()["motoristasIguais"] is True
+    arqs = [("arquivos", ("novembro.xlsx", _bruto()))]
+    m = client.post("/resumos/previa", files=arqs, headers=rx).json()["meses"][0]
+    assert m["motorista1"] == m["motorista2"] == 3514.73
+    client.put("/resumos/custos", json={**custos, "motoristasIguais": False}, headers=rx)
+    assert client.post("/resumos/previa", files=arqs, headers=rx).json()["meses"][0]["motorista2"] is None
