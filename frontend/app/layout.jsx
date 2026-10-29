@@ -1,5 +1,7 @@
 import "./globals.css";
+import "./mobile.css";
 
+export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 export const metadata = { title: "VAGABS · Folha", description: "Ferramentas internas da Coopernorte" };
 
 // Aplica o tema salvo antes de pintar a página (evita piscar claro→escuro)

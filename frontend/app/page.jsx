@@ -6,17 +6,18 @@ import Comparador from "./comparador/Comparador";
 import RaioX from "./raiox/RaioX";
 import Configuracoes from "./config/Configuracoes";
 import Login from "./Login";
+import MobileTabelas from "./ui/MobileTabelas";
 import { API, lerToken } from "./lib";
 import { ConfigProvider } from "./config";
 import { Folha as IconeFolha, Etiqueta, Comparar, Cadeado, Engrenagem, Sol, Lua } from "./ui/Icones";
 
 const FERRAMENTAS = [
-  { id: "folha", nome: "Folha de pagamento", Icone: IconeFolha, Tela: Folha, titulo: "Lançamentos da folha", desc: "Converta o Resumo Geral dos PDFs em lançamentos prontos para importar." },
-  { id: "quinzena", nome: "Quinzena dos permissionários", Icone: Etiqueta, Tela: Quinzena, titulo: "Quinzena dos permissionários", desc: "Transforme o relatório de remuneração da quinzena em lançamentos por item." },
-  { id: "comparador", nome: "Extrato × DDATA", Icone: Comparar, Tela: Comparador, titulo: "Extrato × DDATA", desc: "Encontre os pagamentos do banco que ainda não foram lançados no DDATA Sol." },
+  { id: "folha", curto: "Folha", nome: "Folha de pagamento", Icone: IconeFolha, Tela: Folha, titulo: "Lançamentos da folha", desc: "Converta o Resumo Geral dos PDFs em lançamentos prontos para importar." },
+  { id: "quinzena", curto: "Quinzena", nome: "Quinzena dos permissionários", Icone: Etiqueta, Tela: Quinzena, titulo: "Quinzena dos permissionários", desc: "Transforme o relatório de remuneração da quinzena em lançamentos por item." },
+  { id: "comparador", curto: "Extrato", nome: "Extrato × DDATA", Icone: Comparar, Tela: Comparador, titulo: "Extrato × DDATA", desc: "Encontre os pagamentos do banco que ainda não foram lançados no DDATA Sol." },
 ];
-const TAPA = { id: "raiox", nome: "Projeto Tapa Buraco", Icone: Cadeado, Tela: RaioX, titulo: "Projeto Tapa Buraco", desc: "Auditoria mensal do extrato: alertas, picos fora do padrão e parecer da IA, comparados com o histórico." };
-const CONFIG = { id: "config", nome: "Configurações", Icone: Engrenagem, Tela: Configuracoes, titulo: "Configurações", desc: "Ajuste como o sistema se comporta para você." };
+const TAPA = { id: "raiox", curto: "Tapa Buraco", nome: "Projeto Tapa Buraco", Icone: Cadeado, Tela: RaioX, titulo: "Projeto Tapa Buraco", desc: "Auditoria mensal do extrato: alertas, picos fora do padrão e parecer da IA, comparados com o histórico." };
+const CONFIG = { id: "config", curto: "Ajustes", nome: "Configurações", Icone: Engrenagem, Tela: Configuracoes, titulo: "Configurações", desc: "Ajuste como o sistema se comporta para você." };
 
 export default function Pagina() {
   const [ativa, setAtiva] = useState("folha");
@@ -36,7 +37,7 @@ export default function Pagina() {
   }
   const f = [...FERRAMENTAS, TAPA, CONFIG].find((x) => x.id === ativa);
   const Item = ({ t }) => (
-    <li><button type="button" className={t.id === ativa ? "ativa" : ""} aria-current={t.id === ativa ? "page" : undefined} onClick={() => setAtiva(t.id)}><t.Icone />{t.nome}</button></li>
+    <li><button type="button" className={t.id === ativa ? "ativa" : ""} aria-current={t.id === ativa ? "page" : undefined} onClick={() => setAtiva(t.id)}><t.Icone /><span className="nome">{t.nome}</span><span className="curto">{t.curto}</span></button></li>
   );
   if (acesso !== "ok") {
     return (
@@ -52,6 +53,7 @@ export default function Pagina() {
   }
   return (
     <ConfigProvider>
+      <MobileTabelas />
       <div className="app">
         <nav className="lateral" aria-label="Ferramentas">
           <div className="marca-app">
