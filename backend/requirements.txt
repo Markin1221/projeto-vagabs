@@ -9,3 +9,4 @@ httpx>=0.27        # TestClient do FastAPI
 pdfplumber>=0.11
 pandas>=2.2
 python-multipart>=0.0.9   # upload de arquivos
+reportlab>=4.0      # PDF dos Resumos financeiros

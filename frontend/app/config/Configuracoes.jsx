@@ -1,11 +1,14 @@
 "use client";
 import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useConfig } from "../config";
+import { CHAVE_CHEGADA, CHAVE_TOKEN } from "../pagina-secreta/operacoes";
 import Modal from "../ui/Modal";
 import { API, autFetch } from "../lib";
 
 // Três cliques seguidos na logo abrem a senha do Bureau Secreto (modo escondido do Tapa Buraco).
 function LogoOculta() {
+  const router = useRouter();
   const cliques = useRef([]);
   const [aberto, setAberto] = useState(false);
   const [senha, setSenha] = useState("");
@@ -23,9 +26,9 @@ function LogoOculta() {
       const r = await autFetch(API + "/raiox/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ senha }) });
       const c = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(r.status === 403 ? "Acesso negado." : "Não consegui falar com o servidor.");
-      try { sessionStorage.setItem("vagabs-raiox", c.token); } catch {}
+      try { sessionStorage.setItem(CHAVE_TOKEN, c.token); sessionStorage.setItem(CHAVE_CHEGADA, "1"); } catch {}
       setAberto(false);
-      window.dispatchEvent(new Event("vagabs-secreto"));
+      router.push("/pagina-secreta");
     } catch (x) { setErro(x.message); setSenha(""); }
     setEnviando(false);
   }

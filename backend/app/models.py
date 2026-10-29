@@ -136,3 +136,12 @@ class RaioxParecer(Base):
     texto: Mapped[str] = mapped_column(Text)
     em: Mapped[str] = mapped_column(String(30))
     meses: Mapped[str] = mapped_column(String(60))  # período coberto quando foi gerado (ex.: "mai/26 a jun/26")
+
+
+class ResumoCustos(Base):
+    """Custos fixos dos Resumos financeiros (área secreta). Uma linha só (id 'custos'); `dados` é um JSON
+    {motorista1|motorista2|permissionario: [{de: 'AAAA-MM', ate: 'AAAA-MM' ou null, valor}]}."""
+    __tablename__ = "resumo_custos"
+
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    dados: Mapped[str] = mapped_column(Text)

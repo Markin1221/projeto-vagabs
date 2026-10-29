@@ -1,0 +1,42 @@
+/* Operação Resumos (área secreta). Usa as variáveis e o visual de secreto.css / raiox.css. */
+.rs { display: grid; gap: 18px; }
+.rs .painel { display: grid; gap: 14px; }
+.rs .painel-cab { margin-bottom: 0; }
+.rs-arquivos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rs-kpis { margin: 4px 0 0; }
+.rs-tabela td small.obs { color: var(--aviso); }
+.rs-neg { color: var(--ruim); }
+.rs-pos { color: var(--ok); }
+.rs-saldo { font-weight: 700; }
+.rs-falta { color: var(--ruim); font-style: italic; }
+.rs .form-rodape { margin-top: 0; }
+
+.rs-cats { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
+.rs-cat { display: grid; gap: 10px; align-content: start; padding: 14px 16px; border: 1px solid var(--linha-2); border-radius: var(--raio); background: var(--painel-2); min-width: 0; }
+.rs-cat h3, .rs-importar h3 { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--aviso); font-weight: 600; }
+.rs-faixas { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rs-faixas li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 3px 0 3px 8px; border-left: 2px solid var(--marca); font-family: var(--sec-mono, ui-monospace, monospace); font-size: 13px; }
+.rs-faixas li .btn { padding: 4px 6px; }
+.rs-add { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rs-add label { display: grid; gap: 4px; font-size: 12px; color: var(--tinta-3); min-width: 0; }
+.rs-add input { width: 100%; min-width: 0; }
+.rs-add .btn { align-self: end; }
+
+.rs-importar { display: grid; gap: 10px; padding-top: 14px; border-top: 1px dashed var(--linha); }
+.rs-importar textarea { width: 100%; resize: vertical; font-family: var(--sec-mono, ui-monospace, monospace); font-size: 13px; }
+.rs-de-quem { display: grid; gap: 4px; font-size: 12px; color: var(--tinta-3); flex: 0 1 260px; }
+.rs-linha { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.rs-soltar-mini { flex: 1 1 260px; }
+.rs-soltar-mini .soltar { padding: 12px; }
+.rs-lido { align-items: flex-start; margin-top: 0; }
+.rs-lido-corpo { flex: 1; min-width: 220px; display: grid; gap: 4px; font-size: 13.5px; }
+.rs-lido-corpo p { margin: 0; }
+
+@media (max-width: 600px) {
+  .rs-add { grid-template-columns: 1fr; }
+}
+
+.rs-formato { display: inline-flex; border: 1px solid var(--linha); border-radius: var(--raio); overflow: hidden; }
+.rs-formato button { border: 0; background: transparent; color: var(--tinta-2); padding: 9px 14px; font: inherit; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.rs-formato button + button { border-left: 1px solid var(--linha); }
+.rs-formato button.ativo { background: var(--marca-suave); color: var(--marca); font-weight: 600; }
