@@ -8,6 +8,7 @@ DELETE /raiox/meses/{id}    apaga um mês
 POST /raiox/meses/{id}/parecer   pede o parecer à IA (Anthropic) e guarda no mês
 GET  /raiox/completa       análise do período inteiro (empréstimos e devoluções entre meses se compensam)
 POST /raiox/completa/parecer     parecer da IA sobre o período inteiro
+GET  /raiox/relatorio.xlsx  relatório em Excel (resumo geral + uma aba por mês + época boa)
 """
 import hashlib
 import hmac
@@ -16,6 +17,7 @@ import time
 
 import httpx
 from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -24,6 +26,7 @@ from .. import config
 from .. import raiox as rx
 from ..db import get_db
 from ..models import RaioxMes, RaioxParecer
+from ..raiox_excel import gerar_xlsx
 from ..seed.carregar import carregar_raiox_base
 
 router = APIRouter(prefix="/raiox", tags=["raiox"])
@@ -154,3 +157,15 @@ def parecer_completa(db: Session = Depends(get_db)):
     db.add(p)
     db.commit()
     return {"parecer": texto, "parecerEm": p.em, "parecerMeses": p.meses}
+
+
+@router.get("/relatorio.xlsx", dependencies=[Depends(exigir_raiox)])
+def relatorio_xlsx(db: Session = Depends(get_db)):
+    """Relatório em Excel: resumo geral do período, uma aba por mês enviado e a época boa de referência."""
+    hist = _historico(db)
+    c = rx.analise_completa(hist)
+    p = db.get(RaioxParecer, "completa")
+    c["parecer"] = p.texto if p and p.meses == c.get("periodo") else None
+    nome = "Relatorio_Tapa_Buraco_" + time.strftime("%Y-%m-%d") + ".xlsx"
+    return Response(gerar_xlsx(hist, c), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{nome}"'})

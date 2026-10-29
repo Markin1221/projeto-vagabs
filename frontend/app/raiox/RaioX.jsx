@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Dica from "../ui/Dica";
 import Soltar from "../ui/Soltar";
+import { Baixar } from "../ui/Icones";
 import { API, autFetch, fmt } from "../lib";
 import Completa from "./Completa";
 import "./raiox.css";
@@ -196,6 +197,20 @@ export default function RaioX() {
     setErro("");
     try { await rxApi("/meses/" + id, { method: "DELETE" }); setSel(null); await carregar(); } catch (x) { setErro(x.message); }
   }
+  // Excel para mandar adiante: resumo geral + uma aba por mês enviado + época boa
+  async function baixarExcel() {
+    setErro(""); setOcupado("Gerando o Excel…");
+    try {
+      const r = await autFetch(API + "/raiox/relatorio.xlsx", { headers: { "X-Raiox-Token": lerT() } });
+      if (r.status === 403) { guardarT(""); window.dispatchEvent(new Event("raiox-403")); }
+      if (!r.ok) throw new Error("Não consegui gerar o Excel. Tente de novo.");
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement("a");
+      a.href = url; a.download = `Relatorio_Tapa_Buraco_${new Date().toISOString().slice(0, 10)}.xlsx`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+    } catch (x) { setErro(x.message); }
+    setOcupado("");
+  }
   async function parecer(id) {
     const r = await rxApi(`/meses/${id}/parecer`, { method: "POST" });
     setHist((h) => h.map((m) => (m.id === id ? { ...m, parecer: r.parecer, parecerEm: r.parecerEm } : m)));
@@ -239,8 +254,9 @@ export default function RaioX() {
 
       <section className="painel">
         <div className="painel-cab rx-cab"><div><h2>Histórico acumulado</h2><p>{ordenado.length} meses no banco · {antigos.length} de referência e {novos.length} enviados</p></div>
-          <button type="button" className={"btn " + (completa ? "" : "primario")} onClick={() => { setCompleta((v) => !v); setTimeout(() => document.getElementById("rx-completa")?.scrollIntoView({ behavior: "smooth" }), 80); }}>
-            {completa ? "Ver mês a mês" : "Análise completa"}</button></div>
+          <div className="rx-acoes"><button type="button" className={"btn " + (completa ? "" : "primario")} onClick={() => { setCompleta((v) => !v); setTimeout(() => document.getElementById("rx-completa")?.scrollIntoView({ behavior: "smooth" }), 80); }}>
+            {completa ? "Ver mês a mês" : "Análise completa"}</button>
+          <button type="button" className="btn" disabled={!!ocupado || !novos.length} onClick={baixarExcel}><Baixar />{ocupado === "Gerando o Excel…" ? "Gerando…" : "Exportar Excel"}</button></div></div>
         <Kpis itens={[["Buraco acumulado", novos.length ? novos.reduce((a, h) => a + (h.resultado || 0), 0) : null, `Soma dos ${novos.length} meses enviados`],
           ["Crédito bancário usado", novos.length ? -garantida : null, "Conta garantida somada"], ["Alertas registrados", null, "Regras e picos, todos os meses", String(nAlertas)],
           ["Receita média na época boa", media(antigos.map((h) => h.receita || 0)), "Referência nov/25 a fev/26"]]} />
@@ -265,7 +281,7 @@ export default function RaioX() {
               : <tr><td colSpan={4} className="vazio">Nenhum problema registrado.</td></tr>}</tbody></table></div></details>
       </section>
 
-      {completa && <Completa key={ordenado.map((h) => h.id + (h.enviadoEm || "")).join()} rxApi={rxApi} aoFechar={() => setCompleta(false)} />}
+      {completa && <Completa key={ordenado.map((h) => h.id + (h.enviadoEm || "")).join()} rxApi={rxApi} aoFechar={() => setCompleta(false)} aoExportar={baixarExcel} />}
       {!completa && atual && <Mes key={atual.id + (previa ? "p" : "")} d={atual} hist={ordenado} previa={!!(previa && previa.id === atual.id)} aoParecer={parecer} />}
     </>
   );

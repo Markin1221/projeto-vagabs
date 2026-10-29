@@ -127,3 +127,15 @@ def test_rota_completa(client, rx, monkeypatch):
     monkeypatch.setattr(rota, "pedir_parecer", lambda p: "TAMANHO REAL DO ROMBO\nX")
     assert client.post("/raiox/completa/parecer", headers=rx).json()["parecerMeses"] == "jun/26 a jun/26"
     assert client.get("/raiox/completa", headers=rx).json()["parecer"].startswith("TAMANHO")
+
+
+def test_relatorio_excel(client, rx):
+    import io
+    from openpyxl import load_workbook
+    client.post("/raiox/salvar", files=_arq(), headers=rx)
+    r = client.get("/raiox/relatorio.xlsx", headers=rx)
+    assert r.status_code == 200 and "Relatorio_Tapa_Buraco_" in r.headers["content-disposition"]
+    wb = load_workbook(io.BytesIO(r.content))
+    assert wb.sheetnames == ["Resumo geral", "Jun 2026", "Época boa (ref.)"]
+    assert any("=SUMIF(" in str(c.value) for row in wb["Resumo geral"].iter_rows() for c in row)
+    assert client.get("/raiox/relatorio.xlsx").status_code == 403

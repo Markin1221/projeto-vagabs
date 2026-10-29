@@ -76,3 +76,4 @@
   .rx-kpi.destaque .rx-kpi-v { font-size: 24px; }
   .rx-flag { grid-template-columns: 1fr; }
 }
+.rx-acoes { display: flex; gap: 8px; flex-wrap: wrap; }

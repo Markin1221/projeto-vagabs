@@ -7,7 +7,7 @@ const brl = (v) => (v == null ? "—" : (v < 0 ? "−" : "") + "R$ " + Math.abs(
 const mil = (v) => (v == null ? "—" : (v < 0 ? "−" : "") + "R$ " + Math.round(Math.abs(v) / 1000).toLocaleString("pt-BR") + " mil");
 
 // Análise do período inteiro: empréstimo num mês e devolução no outro se compensam nos saldos acumulados.
-export default function Completa({ rxApi, aoFechar }) {
+export default function Completa({ rxApi, aoFechar, aoExportar }) {
   const [c, setC] = useState(null);
   const [erro, setErro] = useState("");
   const [gerando, setGerando] = useState(false);
@@ -32,7 +32,8 @@ export default function Completa({ rxApi, aoFechar }) {
     <section className="painel rx-mes" id="rx-completa">
       <div className="painel-cab rx-cab">
         <div><h2>Análise completa: {c.periodo}</h2><p>Todos os {c.meses.length} meses enviados juntos. Empréstimos feitos num mês e devolvidos em outro já estão compensados.</p></div>
-        <button type="button" className="btn" onClick={aoFechar}>Voltar para o mês</button>
+        <div className="rx-acoes"><button type="button" className="btn primario" onClick={aoExportar}>Exportar Excel</button>
+          <button type="button" className="btn" onClick={aoFechar}>Voltar para o mês</button></div>
       </div>
       {erro && <div className="faixa-erro" role="alert" style={{ marginBottom: 14 }}>{erro}</div>}
 
