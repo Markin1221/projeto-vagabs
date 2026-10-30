@@ -5,7 +5,13 @@ import io
 from datetime import datetime
 
 from openpyxl import Workbook
+from pathlib import Path
+
 from openpyxl.chart import BarChart, Reference
+from openpyxl.drawing.image import Image
+from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, OneCellAnchor
+from openpyxl.drawing.xdr import XDRPositiveSize2D
+from openpyxl.utils.units import pixels_to_EMU
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
@@ -16,7 +22,12 @@ MARCA, MARCA_SUAVE, TINTA, CINZA, LINHA, ZEBRA = "0D5C4F", "DCEFE9", "1F2A33", "
 SEV = {"alta": ("Alta", "FBE6E4", "B3261E"), "media": ("Média", "FBF0D6", "85500A"), "info": ("Info", "DFF1E8", "14724A")}
 BRL = 'R$ #,##0.00;[Red]-R$ #,##0.00;"–"'
 PCT = '+0%;[Red]-0%;"–"'
+# despesas: gastar mais que a média é ruim (vermelho), gastar menos é bom (verde)
+BRL_DESP = '[Red]+R$ #,##0.00;[Color10]-R$ #,##0.00;"–"'
+PCT_DESP = '[Red]+0%;[Color10]-0%;"–"'
 F = "Arial"
+LOGOS = Path(__file__).parent / "assets"  # logo_coopernorte.png (esquerda) e logo_sinpetracope.png (direita)
+ALT_LOGOS = {"logo_coopernorte.png": 76, "logo_sinpetracope.png": 42}  # altura de cada logo em pixels (equilibra o peso visual)
 fino = Side(style="thin", color=LINHA)
 
 
@@ -56,15 +67,44 @@ class Folha:
         cel.alignment = Alignment(horizontal=al, vertical="center", wrap_text=quebra)
         return cel
 
+    def _logo(self, arquivo, x_px, y_px=6):
+        """Coloca a logo na linha 2, a x_px pixels da borda esquerda da coluna A."""
+        if not (LOGOS / arquivo).is_file():
+            return
+        img = Image(str(LOGOS / arquivo))
+        alt = ALT_LOGOS[arquivo]
+        w = round(img.width * alt / img.height)
+        img.width, img.height = w, alt
+        col, resto, acum = 0, x_px, 0
+        while True:  # acha a coluna onde o x cai, para a âncora não depender da largura total
+            larg = round((self.ws.column_dimensions[get_column_letter(col + 1)].width or 8.43) * 7 + 5)
+            if resto < larg:
+                break
+            resto -= larg; col += 1
+        img.anchor = OneCellAnchor(_from=AnchorMarker(col=col, colOff=pixels_to_EMU(resto), row=1, rowOff=pixels_to_EMU(y_px)),
+                                   ext=XDRPositiveSize2D(pixels_to_EMU(w), pixels_to_EMU(alt)))
+        self.ws.add_image(img)
+        return w
+
     def faixa(self, titulo, subtitulo):
+        """Linha 2: logos (Coopernorte à esquerda, Sinpetracope à direita). Linhas 3-4: faixa verde com título."""
         ws = self.ws
+        ws.row_dimensions[2].height = max(ALT_LOGOS.values()) * 0.75 + 9  # pontos
+        larg = lambda c: round((ws.column_dimensions[get_column_letter(c)].width or 8.43) * 7 + 5)  # noqa: E731
+        x_ini = larg(1)
+        x_fim = sum(larg(c) for c in range(1, self.ult + 1))
+        self._logo("logo_coopernorte.png", x_ini)
+        if (LOGOS / "logo_sinpetracope.png").is_file():
+            w = Image(str(LOGOS / "logo_sinpetracope.png"))
+            alt = ALT_LOGOS["logo_sinpetracope.png"]
+            self._logo("logo_sinpetracope.png", x_fim - round(w.width * alt / w.height), 6 + (max(ALT_LOGOS.values()) - alt) // 2)
         for col in range(2, self.ult + 1):
-            ws.cell(2, col).fill = PatternFill("solid", fgColor=MARCA)
             ws.cell(3, col).fill = PatternFill("solid", fgColor=MARCA)
-        self.c(2, 2, titulo, negrito=True, tam=18, cor="FFFFFF", fundo=MARCA)
-        self.c(3, 2, subtitulo, tam=10, cor="D8EEE7", fundo=MARCA)
-        ws.row_dimensions[2].height, ws.row_dimensions[3].height = 30, 20
-        self.lin = 5
+            ws.cell(4, col).fill = PatternFill("solid", fgColor=MARCA)
+        self.c(3, 2, titulo, negrito=True, tam=18, cor="FFFFFF", fundo=MARCA)
+        self.c(4, 2, subtitulo, tam=10, cor="D8EEE7", fundo=MARCA)
+        ws.row_dimensions[3].height, ws.row_dimensions[4].height = 30, 20
+        self.lin = 6
 
     def secao(self, titulo, nota=None):
         self.lin += 1
@@ -254,7 +294,7 @@ def _resumo(wb, hist, c, gerado):
                   [None, None, None, None, BRL])
     fo.secao("Parecer da IA sobre o período")
     fo.texto(c.get("parecer"), "Parecer do período ainda não gerado. Gere no sistema (Análise completa → Gerar parecer) e exporte de novo.")
-    ws.freeze_panes = "A5"
+    ws.freeze_panes = "A6"
 
 
 def _mes(wb, h, hist):
@@ -278,7 +318,7 @@ def _mes(wb, h, hist):
               [None, BRL, BRL, BRL], total=["Total", "soma", "soma", "soma"])
     if h.get("receitaDet"):
         fo.tabela(["Taxa recebida (data · linha)", "Referência", "Atraso (meses)", "Valor"],
-                  [[f"{r['d']} · {r['linha']}", r["ref"], r.get("lag"), r["v"]] for r in h["receitaDet"]], [None, None, "0", BRL])
+                  [[f"{r['d']} · {r['linha']}", r["ref"], r.get("lag"), r["v"]] for r in h["receitaDet"]], [None, None, "0", BRL], larg_texto={0})
 
     fo.secao("Despesas fixas × média do histórico")
     lin = []
@@ -286,7 +326,7 @@ def _mes(wb, h, hist):
         v, m = _cats(h).get(cat, 0), media(lambda x, cat=cat: _cats(x).get(cat, 0))
         if v or m:
             lin.append([cat, v, m, "=C{l}-D{l}", "=IF(D{l}=0,0,(C{l}-D{l})/D{l})"])
-    fo.tabela(["Categoria", "Este mês", "Média do histórico", "Diferença", "Variação"], lin, [None, BRL, BRL, BRL, PCT],
+    fo.tabela(["Categoria", "Este mês", "Média do histórico", "Diferença", "Variação"], lin, [None, BRL, BRL, BRL_DESP, PCT_DESP],
               total=["Total", "soma", "soma", "soma", "=IF(D{l}=0,0,(C{l}-D{l})/D{l})"])
 
     if h.get("pass"):
@@ -312,7 +352,7 @@ def _mes(wb, h, hist):
                   [None, None, None, BRL, "0"] + ([BRL] if tip else []), larg_texto={0, 2})
     fo.secao("Parecer da IA do mês")
     fo.texto(h.get("parecer"), "Parecer deste mês ainda não gerado no sistema.")
-    ws.freeze_panes = "A5"
+    ws.freeze_panes = "A6"
 
 
 def _referencia(wb, base):

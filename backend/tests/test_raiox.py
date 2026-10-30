@@ -138,4 +138,5 @@ def test_relatorio_excel(client, rx):
     wb = load_workbook(io.BytesIO(r.content))
     assert wb.sheetnames == ["Resumo geral", "Jun 2026", "Época boa (ref.)"]
     assert any("=SUMIF(" in str(c.value) for row in wb["Resumo geral"].iter_rows() for c in row)
+    assert all(len(wb[n]._images) == 2 for n in wb.sheetnames)  # logos Coopernorte e Sinpetracope em cada aba
     assert client.get("/raiox/relatorio.xlsx").status_code == 403
