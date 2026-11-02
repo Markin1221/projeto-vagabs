@@ -290,9 +290,82 @@ def _texto_celula(v) -> str:
     return str(v)
 
 
+def _avaliar(wb_f, ws_nome: str, ref: str, cache: dict, pilha=()) -> float:
+    """Calcula uma célula pela fórmula (SUM, referências, + - * /), para planilhas salvas sem o resultado gravado."""
+    from openpyxl.utils import range_boundaries
+    chave = (ws_nome, ref)
+    if chave in cache:
+        return cache[chave]
+    if chave in pilha:
+        raise ValueError(f"fórmula circular em {ref}")
+    v = wb_f[ws_nome][ref].value
+    if isinstance(v, str) and v.startswith("="):
+        cel = lambda r: _avaliar(wb_f, ws_nome, r, cache, pilha + (chave,))
+
+        def soma(m):
+            c1, l1, c2, l2 = range_boundaries(m.group(1))
+            return repr(sum(cel(f"{get_column_letter(c)}{l}") for c in range(c1, c2 + 1) for l in range(l1, l2 + 1)))
+        expr = re.sub(r"SUM\(([A-Z]+\d+:[A-Z]+\d+)\)", soma, v[1:].upper())
+        expr = re.sub(r"\$?\b([A-Z]{1,3})\$?(\d+)\b", lambda m: repr(cel(m.group(1) + m.group(2))), expr)
+        if not re.fullmatch(r"[\d.eE+\-*/() ]+", expr):
+            raise ValueError(f"fórmula que não sei calcular em {ref}: {v}")
+        n = float(eval(expr))  # só números e + - * / ( ), conferido acima
+    else:
+        try:
+            n = valor_br(v)
+        except ValueError:
+            n = 0.0
+    cache[chave] = n
+    return n
+
+
+def _planilha_custo_motorista(conteudo: bytes) -> list[tuple[str, float]] | None:
+    """Planilha de cálculo do motorista: uma aba por período ('Jan a set 25', 'out 25 a set 26'), com o valor ao lado
+    de 'Custo Motorista:'. Devolve [(período, valor)] ou None se a planilha não tiver esse formato."""
+    wb_v = load_workbook(io.BytesIO(conteudo), data_only=True)
+    wb_f = load_workbook(io.BytesIO(conteudo))
+    achados, cache = [], {}
+    for ws in wb_v.worksheets:
+        alvo = None
+        for linha in ws.iter_rows():
+            for c in linha:
+                if isinstance(c.value, str) and _sem_acento(c.value).rstrip(": ").startswith("custo motorista"):
+                    alvo = c
+                    break
+            if alvo:
+                break
+        if not alvo:
+            continue
+        valor = None
+        for col in range(alvo.column + 1, alvo.column + 8):  # primeiro número à direita do rótulo
+            cv = ws.cell(alvo.row, col).value
+            cf = wb_f[ws.title].cell(alvo.row, col).value
+            if isinstance(cv, (int, float)):
+                valor = float(cv)
+            elif isinstance(cf, str) and cf.startswith("="):
+                valor = _avaliar(wb_f, ws.title, f"{get_column_letter(col)}{alvo.row}", cache)
+            if valor is not None:
+                break
+        if valor is None:
+            continue
+        periodo = next((t for t in [ws.title] + [str(c.value) for l in ws.iter_rows(max_row=3) for c in l if isinstance(c.value, str)]
+                        if ler_linha(f"{t} 1,00")), None)
+        if periodo is None:
+            raise ValueError(f"aba '{ws.title}': achei o Custo Motorista mas não o período (ex.: nome da aba 'out 25 a set 26').")
+        achados.append((periodo, round(valor, 2)))
+    return achados or None
+
+
 def ler_planilha_custos(conteudo: bytes, categoria: str = "auto") -> dict:
-    """Planilha com os valores mês a mês ('3350,00 - 01/25' numa célula, ou valor e mês em células vizinhas).
+    """Planilha de cálculo do motorista (uma aba por período, valor ao lado de 'Custo Motorista:') ou planilha com os
+    valores mês a mês ('3350,00 - 01/25' numa célula, ou valor e mês em células vizinhas).
     A categoria sai do nome da aba ou do cabeçalho da coluna (Permissionário, Motorista 1...), ou da escolha na tela."""
+    motorista = _planilha_custo_motorista(conteudo)
+    if motorista:  # planilha de cálculo do motorista: vale para os motoristas (ou o que foi escolhido na tela)
+        cat = categoria if categoria in ("motorista1", "motorista2", "motoristas") else "motoristas"
+        def br(v):
+            return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return ler_texto("\n".join(f"{p} {br(v)}" for p, v in motorista), cat)
     wb = load_workbook(io.BytesIO(conteudo), data_only=True)
     linhas = []
     for ws in wb.worksheets:
@@ -335,11 +408,47 @@ FMT = '#,##0.00;"- "#,##0.00;"-"'
 CAB_FILL = PatternFill("solid", fgColor="1F3864")
 
 
+def _calcular_formulas(ws) -> dict[str, float]:
+    """Calcula as fórmulas simples que este módulo escreve (SUM de intervalo, + e -), para gravar o resultado junto.
+    Sem isso o Excel em "Modo de Exibição Protegido" (arquivo baixado) mostra as células de total vazias."""
+    from openpyxl.utils import range_boundaries
+    vals, formulas = {}, {}
+    for linha in ws.iter_rows():
+        for c in linha:
+            if isinstance(c.value, str) and c.value.startswith("="):
+                formulas[c.coordinate] = c.value[1:]
+            elif isinstance(c.value, (int, float)):
+                vals[c.coordinate] = float(c.value)
+
+    def soma(m):
+        c1, l1, c2, l2 = range_boundaries(m.group(1))
+        return repr(sum(vals.get(f"{get_column_letter(cc)}{ll}", 0.0) for cc in range(c1, c2 + 1) for ll in range(l1, l2 + 1)))
+    for _ in range(3):  # poucas passadas bastam: as dependências aqui são rasas
+        for ref, f in formulas.items():
+            expr = re.sub(r"SUM\(([A-Z]+\d+:[A-Z]+\d+)\)", soma, f)
+            expr = re.sub(r"\b([A-Z]+\d+)\b", lambda m: repr(vals.get(m.group(1), 0.0)), expr)
+            if re.fullmatch(r"[\d.eE+\-() ]+", expr):
+                vals[ref] = round(eval(expr), 2)  # só números e + - ( ), conferido acima
+    return {r: vals[r] for r in formulas if r in vals}
+
+
 def _salvar(wb: Workbook) -> bytes:
-    wb.calculation.fullCalcOnLoad = True  # o Excel recalcula as fórmulas ao abrir
+    calculados = [_calcular_formulas(ws) for ws in wb.worksheets]
+    wb.calculation.fullCalcOnLoad = True  # o Excel recalcula as fórmulas ao abrir (quando a edição está habilitada)
     b = io.BytesIO()
     wb.save(b)
-    return b.getvalue()
+    entrada, saida = zipfile.ZipFile(io.BytesIO(b.getvalue())), io.BytesIO()
+    with zipfile.ZipFile(saida, "w", zipfile.ZIP_DEFLATED) as z:
+        for item in entrada.infolist():
+            dados = entrada.read(item.filename)
+            m = re.fullmatch(r"xl/worksheets/sheet(\d+)\.xml", item.filename)
+            if m and int(m.group(1)) <= len(calculados):
+                vals = calculados[int(m.group(1)) - 1]
+                dados = re.sub(rb'<c r="([A-Z]+\d+)"([^>]*)><f>([^<]*)</f><v\s*/?>(?:</v>)?</c>',
+                               lambda x: (b'<c r="%s"%s><f>%s</f><v>%s</v></c>' % (x.group(1), x.group(2), x.group(3),
+                                          repr(vals.get(x.group(1).decode(), 0.0)).encode())), dados)
+            z.writestr(item, dados)
+    return saida.getvalue()
 
 
 def _bloco_contas(ws, linha: int, col_rot: int, col_val: int, cred_ref: str, deb_ref: str, r: dict) -> int:

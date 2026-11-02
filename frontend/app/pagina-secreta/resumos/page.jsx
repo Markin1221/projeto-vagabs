@@ -163,7 +163,7 @@ function Importar({ aoAplicar }) {
   return (
     <div className="rs-importar">
       <div className="rx-cab"><div><h3>Importar de uma vez</h3>
-        <p className="mudo">Cole as mensagens do WhatsApp (ex.: "Abril 2025 a março 2026 3.350,00") ou envie uma planilha com linhas como "3350,00 - 01/25". Linhas com "Permissionário" ou "Motorista 1" mudam de quem são os valores seguintes.</p></div>
+        <p className="mudo">Cole as mensagens do WhatsApp (ex.: "Abril 2025 a março 2026 3.350,00") ou envie uma planilha: a de cálculo do motorista (uma aba por período, usa o valor ao lado de "Custo Motorista") ou uma com linhas como "3350,00 - 01/25". Linhas com "Permissionário" ou "Motorista 1" mudam de quem são os valores seguintes.</p></div>
         <label className="rs-de-quem">De quem são os valores?
           <select value={cat} onChange={(e) => setCat(e.target.value)}>
             <option value="auto">Descobrir pelo texto / cabeçalho</option>
@@ -207,8 +207,9 @@ function Custos({ custos, salvar, msg }) {
     <section className="painel">
       <div className="painel-cab"><h2>Custos fixos: motoristas e permissionário</h2>
         <p>Valores por faixa de meses, guardados no sistema. Se duas faixas cobrem o mesmo mês, vale a última adicionada. "Até" vazio quer dizer "daqui em diante".</p></div>
-      <label className="rs-iguais">
-        <input type="checkbox" checked={!!custos.motoristasIguais} onChange={(e) => salvar({ ...custos, motoristasIguais: e.target.checked })} />
+      <label className="interruptor">
+        <input type="checkbox" role="switch" checked={!!custos.motoristasIguais} onChange={(e) => salvar({ ...custos, motoristasIguais: e.target.checked })} />
+        <span className="trilho" aria-hidden />
         <span><b>Mesmo valor para os dois motoristas</b><small>O valor cadastrado em "Motoristas" entra como Motorista 1 e Motorista 2.</small></span>
       </label>
       <div className="rs-cats">{CATS.filter(([c]) => !(custos.motoristasIguais && c === "motorista2")).map(([c]) => (

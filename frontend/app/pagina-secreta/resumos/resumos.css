@@ -41,6 +41,3 @@
 .rs-formato button + button { border-left: 1px solid var(--linha); }
 .rs-formato button.ativo { background: var(--marca-suave); color: var(--marca); font-weight: 600; }
 
-.rs-iguais { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
-.rs-iguais input { margin-top: 3px; accent-color: var(--marca); }
-.rs-iguais small { display: block; color: var(--tinta-3); font-size: 12.5px; }

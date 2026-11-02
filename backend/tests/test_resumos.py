@@ -119,3 +119,37 @@ def test_um_valor_para_os_dois_motoristas(client, rx):
     assert m["motorista1"] == m["motorista2"] == 3514.73
     client.put("/resumos/custos", json={**custos, "motoristasIguais": False}, headers=rx)
     assert client.post("/resumos/previa", files=arqs, headers=rx).json()["meses"][0]["motorista2"] is None
+
+
+def test_planilha_ja_vem_com_os_totais_calculados():
+    rel = rs.ler_relatorio(_bruto())
+    custos = {"motorista1": [{"de": "2026-01", "ate": None, "valor": 3000}], "motoristasIguais": True,
+              "permissionario": [{"de": "2026-01", "ate": None, "valor": 3350}]}
+    r = rs.calcular(rel, custos)
+    ws = load_workbook(io.BytesIO(rs.xlsx_mes(rel, r)), data_only=True).active  # data_only = o que aparece sem recalcular
+    valores = [c.value for c in ws["F"] if isinstance(c.value, (int, float))]
+    assert valores[-1] == r["saldo"] and r["subSaldo"] in valores
+    resumo = load_workbook(io.BytesIO(rs.xlsx_resumo([r])), data_only=True)
+    assert r["saldo"] in [c.value for c in resumo["Resumo"]["C"]]
+    assert resumo["Tabela"]["H2"].value == r["saldo"]
+
+
+def _planilha_motorista(com_resultado: bool) -> bytes:
+    wb = Workbook()
+    for i, (aba, base) in enumerate([("Jan a set 25", 2372.86), ("out 25 a set 26", 2432.18)]):
+        ws = wb.active if i == 0 else wb.create_sheet()
+        ws.title = aba
+        ws["A1"], ws["C1"] = f"Base {aba}", base
+        ws["A3"], ws["C3"] = "Custo Motorista:", "=SUM(C4:C6)"
+        ws["G3"], ws["I3"] = "Pró-Labore:", "=SUM(I4:I5)"
+        ws["A4"], ws["C4"], ws["A5"], ws["C5"], ws["A6"], ws["C6"] = ". Salário", "=C1", ". INSS", "=C4*0.23", ". Alimentação", 100
+    b = io.BytesIO(); wb.save(b)
+    return b.getvalue()
+
+
+def test_planilha_de_calculo_do_motorista():
+    f = rs.ler_planilha_custos(_planilha_motorista(False))["faixas"]
+    esperado = [("2025-01", "2025-09", round(2372.86 * 1.23 + 100, 2)), ("2025-10", "2026-09", round(2432.18 * 1.23 + 100, 2))]
+    assert [(x["de"], x["ate"], x["valor"]) for x in f["motorista1"]] == esperado
+    assert f["motorista1"] == f["motorista2"] and f["permissionario"] == []
+    assert rs.ler_planilha_custos(_planilha_motorista(False), "motorista1")["faixas"]["motorista2"] == []
