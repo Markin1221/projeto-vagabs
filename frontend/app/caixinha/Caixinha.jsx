@@ -116,13 +116,9 @@ export default function Caixinha() {
         <Soltar rotulo="Escolha a planilha da caixinha" arquivo={arquivo} aoEscolher={(f) => { setArquivo(f); setRes(null); }} />
         <div className="cx-config">
           <label className="cx-data">Data dos lançamentos
-            <input type="date" value={dataLanc} onChange={(e) => setDataLanc(e.target.value)} />
-            <span className="dica-campo">Vale para todas as linhas sem data própria</span></label>
-          <label className={"cx-opcao" + (daLinha ? " ligada" : "")}>
-            <input type="checkbox" checked={daLinha} onChange={(e) => setDaLinha(e.target.checked)} />
-            <span className="cx-chave" aria-hidden />
-            <span><b>Usar a data de cada linha</b><small>Quando a planilha tiver data na linha, ela vale no lugar da data acima.</small></span>
-          </label>
+            <input type="date" value={dataLanc} onChange={(e) => setDataLanc(e.target.value)} /></label>
+          <label className="marca cx-marca"><input type="checkbox" checked={daLinha} onChange={(e) => setDaLinha(e.target.checked)} />
+            Usar a data de cada linha quando a planilha tiver</label>
         </div>
         <div className="gerar">
           {!arquivo && <p className="gerar-msg">Envie a planilha para gerar.</p>}
@@ -161,7 +157,7 @@ export default function Caixinha() {
                 <button key={m.numero} type="button" role="tab" aria-selected={i === mesAtivo} className={(i === mesAtivo ? "ativa " : "") + (m.pendentes?.length ? "pend" : "")} onClick={() => setMesAtivo(i)}>
                   <b>#{m.numero}</b><span>{m.fim ? data(m.fim).slice(3) : "sem data"}</span>{m.pendentes?.length > 0 && <Alerta />}</button>))}
             </div>)}
-          <div className="tabela-rolo alto"><table className="tabela">
+          <div className="tabela-rolo alto cx-tabela"><table className="tabela">
             <thead><tr><th>Na planilha</th><th>Título no CSV</th><th>Tipo</th><th>Centro</th><th>Item</th><th className="d">Valor</th><th /></tr></thead>
             <tbody>{mes.linhas.map((l, i) => (
               <tr key={i} className={l.revisar ? "cx-revisar" : ""}>
