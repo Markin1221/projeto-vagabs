@@ -2,45 +2,11 @@
 import { useEffect, useState } from "react";
 import Dica from "../ui/Dica";
 import Soltar from "../ui/Soltar";
-import { Baixar, Alerta, Ok } from "../ui/Icones";
+import { Baixar, Alerta, Ok, Lapis } from "../ui/Icones";
+import { RegrasCaixinha, ModalRegra } from "./Regras";
 import { API, api, fmt, autFetch, mensagemDeErro } from "../lib";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
-
-// Formulário de uma descrição que nenhuma regra reconheceu. Ao salvar, a regra fica no banco e vale nos próximos meses.
-function Classificar({ desc, centros, itens, aoSalvar }) {
-  const [f, setF] = useState({ kw: desc, titulo: desc, centro: "ADM01", item: "", tipo: "" });
-  const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const muda = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  async function salvar() {
-    setSalvando(true); setErro("");
-    try {
-      await api("/caixinha/regras", { method: "POST", body: JSON.stringify({ ...f, item: Number(f.item), tipo: f.tipo || null }) });
-      aoSalvar();
-    } catch (x) { setErro(mensagemDeErro(x)); setSalvando(false); }
-  }
-  if (!desc) return <p className="aviso"><Alerta />Há linha com valor e sem descrição. Preencha a descrição na planilha e envie de novo.</p>;
-  return (
-    <div className="painel" style={{ marginBottom: 10 }}>
-      <p><b>“{desc}”</b></p>
-      {erro && <div className="faixa-erro" role="alert">{erro}</div>}
-      <div className="opcoes" style={{ flexWrap: "wrap" }}>
-        <label className="marca">Palavra-chave <input value={f.kw} onChange={muda("kw")} /></label>
-        <label className="marca">Título <input value={f.titulo} onChange={muda("titulo")} /></label>
-        <label className="marca">Centro <select value={f.centro} onChange={muda("centro")}>
-          {centros.map((c) => <option key={c.codigo} value={c.codigo}>{c.codigo} · {c.nome}</option>)}</select></label>
-        <label className="marca">Item <select value={f.item} onChange={muda("item")}>
-          <option value="">Escolha…</option>
-          {itens.map((i) => <option key={i.codigo} value={i.codigo}>{i.codigo} · {i.nome}</option>)}</select></label>
-        <label className="marca">Tipo <select value={f.tipo} onChange={muda("tipo")}>
-          <option value="">O da planilha</option><option value="DEBITO">DEBITO</option><option value="CREDITO">CREDITO</option></select></label>
-        <button type="button" className="btn primario" disabled={salvando || !f.kw.trim() || !f.titulo.trim() || !f.item} onClick={salvar}>
-          {salvando ? "Salvando…" : "Salvar regra"}</button>
-      </div>
-    </div>
-  );
-}
 
 export default function Caixinha() {
   const [arquivo, setArquivo] = useState(null);
@@ -51,11 +17,19 @@ export default function Caixinha() {
   const [lendo, setLendo] = useState(false);
   const [centros, setCentros] = useState([]);
   const [itens, setItens] = useState([]);
+  const [regras, setRegras] = useState([]);
+  const [fixas, setFixas] = useState([]);
+  const [edit, setEdit] = useState(null);
 
+  const carregarRegras = () => api("/caixinha/regras").then(setRegras).catch(() => {});
   useEffect(() => {
     api("/centros-custo").then(setCentros).catch(() => {});
     api("/itens-despesa").then(setItens).catch(() => {});
+    api("/caixinha/regras-fixas").then(setFixas).catch(() => {});
+    carregarRegras();
   }, []);
+  // depois de salvar/editar/excluir regra: recarrega a lista e, se já tem planilha lida, processa de novo
+  const aoMudarRegras = async () => { await carregarRegras(); if (res) await gerar(); };
 
   const dados = () => { const fd = new FormData(); fd.append("arquivo", arquivo); fd.append("data_lancamento", dataLanc); fd.append("data_da_linha", String(daLinha)); return fd; };
 
@@ -82,7 +56,8 @@ export default function Caixinha() {
         "Envie a planilha da caixinha (.xlsx) com um mês só (Data, Saldo, Crédito, Débito, Descrição).",
         "Escolha a data dos lançamentos. Marque a opção se quiser usar a data de cada linha quando ela existir.",
         "Clique em Gerar. Títulos repetidos ganham 01, 02… para o sistema aceitar.",
-        "Se alguma descrição não for reconhecida, classifique e salve a regra: nos próximos meses ela entra sozinha.",
+        "Se alguma descrição não for reconhecida, clique em Classificar e salve a regra: nos próximos meses ela entra sozinha.",
+        "Em Regras da caixinha você vê, edita e exclui as regras salvas.",
         "Com tudo classificado, clique em Baixar CSV."]} />
       <section className="painel">
         <div className="painel-cab"><h2>Caixinha do mês</h2><p>Transforme a planilha da caixinha no CSV de importação.</p></div>
@@ -100,9 +75,19 @@ export default function Caixinha() {
 
       {res && pend.length > 0 && (
         <section className="painel">
+          <div className="painel-cab"><h2>Não reconhecidas</h2><p>Classifique cada descrição. A regra fica salva e vale nos próximos meses.</p></div>
           <div className="faixa-erro" role="alert" style={{ marginBottom: 14 }}>
-            {pend.length} descrição(ões) não reconhecida(s). Classifique cada uma e salve a regra para liberar o CSV.</div>
-          {pend.map((d) => <Classificar key={d || "(vazia)"} desc={d} centros={centros} itens={itens} aoSalvar={gerar} />)}
+            {pend.length} descrição(ões) sem regra. O CSV só é liberado quando todas forem classificadas.</div>
+          <div className="tabela-rolo"><table className="tabela">
+            <thead><tr><th>Descrição na planilha</th><th className="d">Linhas</th><th className="d">Valor</th><th /></tr></thead>
+            <tbody>{pend.map((d) => {
+              const ls = res.linhas.filter((l) => l.revisar && l.origem === d);
+              return (
+                <tr key={d || "(vazia)"}><td>{d || <span className="mudo">(sem descrição: preencha na planilha e envie de novo)</span>}</td>
+                  <td className="d num">{ls.length}</td><td className="d num">{fmt(ls.reduce((t, l) => t + l.valor, 0))}</td>
+                  <td className="acoes">{d && <button type="button" className="btn" onClick={() => setEdit({ kw: d, titulo: d, centro: "ADM01", item: "", tipo: "" })}><Lapis />Classificar</button>}</td></tr>);
+            })}</tbody>
+          </table></div>
         </section>)}
 
       {res && (
@@ -121,6 +106,9 @@ export default function Caixinha() {
                 <td>{l.codigo_centro_de_custo || "—"}</td><td>{l.codigo_item_despesa || "—"}</td><td className="d num">{fmt(l.valor)}</td></tr>))}</tbody>
           </table></div>
         </section>)}
+
+      <RegrasCaixinha regras={regras} fixas={fixas} centros={centros} itens={itens} aoMudar={aoMudarRegras} />
+      {edit && <ModalRegra edit={edit} setEdit={setEdit} centros={centros} itens={itens} aoSalvar={aoMudarRegras} />}
     </>
   );
 }

@@ -1,4 +1,4 @@
-"""Caixinha: planilha de um mês do caixa pequeno (Data | Saldo | Crédito | Débito | Descrição) -> CSV de lançamentos.
+"""Caixinha: planilha de um ou mais meses do caixa pequeno (Data | Saldo | Crédito | Débito | Descrição) -> CSV de lançamentos.
 
 A classificação fica aqui no código (REGRAS): a primeira regra cujas palavras aparecem na descrição decide título,
 centro de custo e item. Título repetido ganha sufixo " 01", " 02"... porque o sistema não aceita título igual."""
@@ -84,31 +84,51 @@ def _num(v):
     return None
 
 
-def ler_planilha(conteudo: bytes) -> tuple[list[dict], list[str]]:
-    """Acha o bloco do mês pelo cabeçalho 'Data' (colunas Data, Saldo, Crédito, Débito, Descrição, lado a lado) e
-    devolve as linhas com valor. Se vier mais de um mês, usa o último bloco e avisa."""
+MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+
+
+def _data(v):
+    return v.date() if isinstance(v, datetime) else v if isinstance(v, date) else None
+
+
+def ler_blocos(conteudo: bytes) -> list[dict]:
+    """Acha cada mês pelo cabeçalho 'Data' (colunas Data, Saldo, Crédito, Débito, Descrição; os meses ficam lado a
+    lado) e devolve, da esquerda para a direita: {numero, cheque, inicio, fim, rotulo, nome, linhas}."""
     ws = load_workbook(io.BytesIO(conteudo), data_only=True).active
-    blocos = [(c.row, c.column) for row in ws.iter_rows(max_row=30) for c in row
-              if isinstance(c.value, str) and norm(c.value) == "data"
-              and norm(ws.cell(c.row, c.column + 4).value).startswith("descri")]
-    if not blocos:
+    cabs = sorted({(c.column, c.row) for row in ws.iter_rows(max_row=30) for c in row
+                   if isinstance(c.value, str) and norm(c.value) == "data"
+                   and norm(ws.cell(c.row, c.column + 4).value).startswith("descri")})
+    if not cabs:
         raise ValueError("Não achei o cabeçalho 'Data | Saldo | Crédito | Débito | Descrição'.")
-    avisos = []
-    if len(blocos) > 1:
-        avisos.append(f"A planilha tem {len(blocos)} meses lado a lado; usei só o último (mais à direita).")
-    r0, c0 = blocos[-1]
-    linhas = []
-    for r in range(r0 + 1, ws.max_row + 1):
-        if ws.cell(r, c0 + 1).value is None:  # acabou a coluna de saldo = acabou o mês (o total vem depois)
-            break
-        cred, deb = _num(ws.cell(r, c0 + 2).value), _num(ws.cell(r, c0 + 3).value)
-        if not (cred or deb):
+    blocos = []
+    for n, (c0, r0) in enumerate(cabs, start=1):
+        linhas = []
+        for r in range(r0 + 1, ws.max_row + 1):
+            if ws.cell(r, c0 + 1).value is None:  # acabou a coluna de saldo = acabou o mês (o total vem depois)
+                break
+            cred, deb = _num(ws.cell(r, c0 + 2).value), _num(ws.cell(r, c0 + 3).value)
+            if not (cred or deb):
+                continue
+            linhas.append({"linha": r, "data": _data(ws.cell(r, c0).value),
+                           "descricao": str(ws.cell(r, c0 + 4).value or "").strip(),
+                           "tipo": "CREDITO" if cred and not deb else "DEBITO", "valor": round(cred or deb, 2)})
+        if not linhas:
             continue
-        dt = ws.cell(r, c0).value
-        linhas.append({"linha": r, "data": dt.date() if isinstance(dt, datetime) else dt if isinstance(dt, date) else None,
-                       "descricao": str(ws.cell(r, c0 + 4).value or "").strip(),
-                       "tipo": "CREDITO" if cred and not deb else "DEBITO", "valor": round(cred or deb, 2)})
-    return linhas, avisos
+        # número do cheque: logo acima do cabeçalho, na coluna da Data (ex.: 'Cheque' / 859962)
+        cheque = None
+        for k in range(1, min(6, r0)):
+            v = ws.cell(r0 - k, c0).value
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 1000:
+                cheque = int(v)
+                break
+        datas = sorted(l["data"] for l in linhas if l["data"])
+        ini, fim = (datas[0], datas[-1]) if datas else (None, None)
+        partes = [f"Caixinha {len(blocos) + 1}"] + ([f"cheque {cheque}"] if cheque else []) + \
+                 ([f"{MESES[fim.month - 1]}/{fim.year}"] if fim else ["sem datas"])
+        nome = f"caixinha_{len(blocos) + 1:02d}" + (f"_cheque-{cheque}" if cheque else "") + (f"_{fim:%m-%Y}" if fim else "")
+        blocos.append({"numero": len(blocos) + 1, "cheque": cheque, "inicio": ini, "fim": fim,
+                       "rotulo": " · ".join(partes), "nome": nome + ".csv", "linhas": linhas})
+    return blocos
 
 
 def montar(linhas: list[dict], data_padrao: date, usar_data_da_linha: bool = False, salvas=()) -> list[dict]:

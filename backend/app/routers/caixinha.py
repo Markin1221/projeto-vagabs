@@ -1,3 +1,5 @@
+import io
+import zipfile
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -13,38 +15,57 @@ from ..models import CentroCusto, ItemDespesa, RegraCaixinha
 router = APIRouter(prefix="/caixinha", tags=["caixinha"])
 
 
-def _gerar(arquivo: UploadFile, data_lancamento: date | None, data_da_linha: bool, db: Session):
+def _gerar(arquivo: UploadFile, data_lancamento: date | None, data_da_linha: bool, db: Session) -> list[dict]:
+    """Um item por mês da planilha. Data dos lançamentos: com um mês só, a escolhida na tela; com vários, a última
+    data de cada mês (ou a escolhida, se o mês não tiver datas). `data_da_linha` usa a data de cada linha."""
     try:
-        linhas, avisos = caixinha.ler_planilha(arquivo.file.read())
+        blocos = caixinha.ler_blocos(arquivo.file.read())
     except ValueError as e:
         raise HTTPException(422, str(e))
     except Exception:
-        raise HTTPException(422, "Não consegui ler a planilha. Ela é o .xlsx da caixinha de um mês?")
-    if not linhas:
+        raise HTTPException(422, "Não consegui ler a planilha. Ela é o .xlsx da caixinha?")
+    if not blocos:
         raise HTTPException(422, "Não encontrei lançamentos com valor na planilha.")
     salvas = db.scalars(select(RegraCaixinha)).all()
-    return caixinha.montar(linhas, data_lancamento or date.today(), data_da_linha, salvas), avisos
+    padrao = data_lancamento or date.today()
+    meses = []
+    for b in blocos:
+        dt = padrao if len(blocos) == 1 else (b["fim"] or padrao)
+        linhas = caixinha.montar(b["linhas"], dt, data_da_linha, salvas)
+        meses.append({"numero": b["numero"], "rotulo": b["rotulo"], "nome": b["nome"], "cheque": b["cheque"],
+                      "inicio": b["inicio"], "fim": b["fim"], "data_lancamento": dt, "linhas": linhas,
+                      "pendentes": caixinha.pendentes(linhas),
+                      "total_debitos": round(sum(l["valor"] for l in linhas if l["tipo_lancamento"] == "DEBITO"), 2),
+                      "total_creditos": round(sum(l["valor"] for l in linhas if l["tipo_lancamento"] == "CREDITO"), 2)})
+    return meses
 
 
 @router.post("/processar")
 def processar(arquivo: UploadFile = File(...), data_lancamento: date | None = Form(None),
               data_da_linha: bool = Form(False), db: Session = Depends(get_db)):
-    linhas, avisos = _gerar(arquivo, data_lancamento, data_da_linha, db)
-    return {"avisos": avisos, "linhas": linhas, "pendentes": caixinha.pendentes(linhas),
-            "total_debitos": round(sum(l["valor"] for l in linhas if l["tipo_lancamento"] == "DEBITO"), 2),
-            "total_creditos": round(sum(l["valor"] for l in linhas if l["tipo_lancamento"] == "CREDITO"), 2)}
+    meses = _gerar(arquivo, data_lancamento, data_da_linha, db)
+    pend = list(dict.fromkeys(p for m in meses for p in m["pendentes"]))
+    return {"meses": meses, "pendentes": pend}
 
 
 @router.post("/csv")
 def baixar(arquivo: UploadFile = File(...), data_lancamento: date | None = Form(None),
            data_da_linha: bool = Form(False), db: Session = Depends(get_db)):
-    linhas, _ = _gerar(arquivo, data_lancamento, data_da_linha, db)
-    pend = caixinha.pendentes(linhas)
+    """Um mês: o CSV. Vários meses: um .zip com um CSV por mês."""
+    meses = _gerar(arquivo, data_lancamento, data_da_linha, db)
+    pend = list(dict.fromkeys(p for m in meses for p in m["pendentes"]))
     if pend:
         raise HTTPException(422, f"{len(pend)} descrição(ões) sem classificação: {', '.join(p or '(vazia)' for p in pend)}")
-    d = data_lancamento or date.today()
-    return Response(caixinha.para_csv(linhas).encode("utf-8-sig"), media_type="text/csv",
-                    headers={"Content-Disposition": f'attachment; filename="caixinha_{d:%m-%Y}.csv"'})
+    if len(meses) == 1:
+        d = meses[0]["data_lancamento"]
+        return Response(caixinha.para_csv(meses[0]["linhas"]).encode("utf-8-sig"), media_type="text/csv",
+                        headers={"Content-Disposition": f'attachment; filename="caixinha_{d:%m-%Y}.csv"'})
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for m in meses:
+            z.writestr(m["nome"], caixinha.para_csv(m["linhas"]).encode("utf-8-sig"))
+    return Response(buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="caixinhas_{len(meses)}_meses.zip"'})
 
 
 # ---------- regras salvas pela tela ----------

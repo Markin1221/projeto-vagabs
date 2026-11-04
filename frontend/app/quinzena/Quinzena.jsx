@@ -50,8 +50,14 @@ export default function Quinzena() {
     try {
       const [c, l, r] = await Promise.all([api("/quinzena/config"), api("/quinzena/linhas"), api("/quinzena/regras")]);
       setCfg(c); setLinhasCad(l); setRegras(r); setConta((x) => x || c.conta_quinzena); setErro("");
-    } catch (x) { setErro(`Não consegui falar com a API: ${x.message}`); }
+    } catch (x) {
+      // API reiniciando (ex.: logo depois de uma atualização): tenta de novo sozinho em vez de deixar as listas vazias
+      setErro(`Não consegui falar com a API: ${x.message}. Tentando de novo…`);
+      setTimeout(() => carregarRef.current?.(), 3000);
+    }
   }, []);
+  const carregarRef = useRef(carregar);
+  carregarRef.current = carregar;
   useEffect(() => { carregar(); }, [carregar]);
 
   useEffect(() => {
