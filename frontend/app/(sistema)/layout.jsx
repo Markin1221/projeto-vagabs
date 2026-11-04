@@ -7,12 +7,13 @@ import Login from "../Login";
 import MobileTabelas from "../ui/MobileTabelas";
 import { API, lerToken } from "../lib";
 import { ConfigProvider } from "../config";
-import { Folha as IconeFolha, Etiqueta, Comparar, Engrenagem, Sol, Lua } from "../ui/Icones";
+import { Folha as IconeFolha, Etiqueta, Comparar, Cofre, Engrenagem, Sol, Lua } from "../ui/Icones";
 
 const FERRAMENTAS = [
   { href: "/folha", curto: "Folha", nome: "Folha de pagamento", Icone: IconeFolha, titulo: "Lançamentos da folha", desc: "Converta o Resumo Geral dos PDFs em lançamentos prontos para importar." },
   { href: "/quinzena", curto: "Quinzena", nome: "Quinzena dos permissionários", Icone: Etiqueta, titulo: "Quinzena dos permissionários", desc: "Transforme o relatório de remuneração da quinzena em lançamentos por item." },
   { href: "/extrato", curto: "Extrato", nome: "Extrato × DDATA", Icone: Comparar, titulo: "Extrato × DDATA", desc: "Encontre os pagamentos do banco que ainda não foram lançados no DDATA Sol." },
+  { href: "/caixinha", curto: "Caixinha", nome: "Caixinha", Icone: Cofre, titulo: "Caixinha", desc: "Transforme a planilha da caixinha do mês no CSV de importação." },
 ];
 const CONFIG = { href: "/config", curto: "Ajustes", nome: "Configurações", Icone: Engrenagem, titulo: "Configurações", desc: "Ajuste como o sistema se comporta para você." };
 

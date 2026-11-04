@@ -145,3 +145,16 @@ class ResumoCustos(Base):
 
     id: Mapped[str] = mapped_column(String(20), primary_key=True)
     dados: Mapped[str] = mapped_column(Text)
+
+
+class RegraCaixinha(Base):
+    """Regra da caixinha salva pela tela: se a palavra-chave (sem acento, minúscula) aparece na descrição da linha,
+    ela vira este título/centro/item. Vale antes das regras fixas do código (caixinha.REGRAS)."""
+    __tablename__ = "regras_caixinha"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kw: Mapped[str] = mapped_column(String(200), unique=True)
+    titulo: Mapped[str] = mapped_column(String(200))
+    centro: Mapped[str] = mapped_column(String(20))
+    item: Mapped[int] = mapped_column(Integer)
+    tipo: Mapped[str | None] = mapped_column(String(10))  # DEBITO | CREDITO | nulo = o da planilha

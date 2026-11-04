@@ -7,7 +7,7 @@ from . import models  # noqa: F401  (registra as tabelas)
 from . import acesso, config
 from .config import CORS_ORIGENS
 from .db import Base, engine
-from .routers import centros_custo, classificador, comparador, eventos, folha, quinzena, raiox, resumos
+from .routers import caixinha, centros_custo, classificador, comparador, eventos, folha, quinzena, raiox, resumos
 
 @asynccontextmanager
 async def ciclo_de_vida(_):
@@ -31,6 +31,7 @@ app.include_router(comparador.router)
 app.include_router(quinzena.router)
 app.include_router(raiox.router)
 app.include_router(resumos.router)
+app.include_router(caixinha.router)
 
 
 @app.get("/saude")
