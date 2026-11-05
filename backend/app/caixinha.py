@@ -84,6 +84,7 @@ def _num(v):
     return None
 
 
+FIM_VAZIAS = 20  # linhas vazias seguidas que encerram o mês (a linha de total também encerra)
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
 
@@ -102,13 +103,24 @@ def ler_blocos(conteudo: bytes) -> list[dict]:
         raise ValueError("Não achei o cabeçalho 'Data | Saldo | Crédito | Débito | Descrição'.")
     blocos = []
     for n, (c0, r0) in enumerate(cabs, start=1):
-        linhas = []
+        linhas, vazias = [], 0
         for r in range(r0 + 1, ws.max_row + 1):
-            if ws.cell(r, c0 + 1).value is None:  # acabou a coluna de saldo = acabou o mês (o total vem depois)
-                break
+            # o fim do mês é um trecho de linhas vazias (o total vem depois dele). Não dá para usar a coluna de
+            # saldo: em planilha copiada só com valores ela vem vazia.
             cred, deb = _num(ws.cell(r, c0 + 2).value), _num(ws.cell(r, c0 + 3).value)
+            if not (cred or deb or str(ws.cell(r, c0 + 4).value or "").strip()):
+                vazias += 1
+                if vazias >= FIM_VAZIAS:
+                    break
+                continue
+            vazias = 0
             if not (cred or deb):
                 continue
+            # linha de total (sem descrição, valor = soma do que veio antes): acabou o mês
+            if not str(ws.cell(r, c0 + 4).value or "").strip() and linhas:
+                soma_d = sum(l["valor"] for l in linhas if l["tipo"] == "DEBITO")
+                if deb and abs(deb - soma_d) < 0.01:
+                    break
             linhas.append({"linha": r, "data": _data(ws.cell(r, c0).value),
                            "descricao": str(ws.cell(r, c0 + 4).value or "").strip(),
                            "tipo": "CREDITO" if cred and not deb else "DEBITO", "valor": round(cred or deb, 2)})

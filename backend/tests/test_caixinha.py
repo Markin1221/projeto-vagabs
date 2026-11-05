@@ -13,7 +13,7 @@ def _planilha(linhas):
     for dt, cred, deb, desc in linhas:
         saldo += (cred or 0) - (deb or 0)
         ws.append([None, dt, saldo, cred, deb, desc])
-    ws.append([None, None, None, None, 999, None])  # total no rodapé: fica fora
+    ws.append([None, None, None, None, round(sum(d or 0 for _, _, d, _ in linhas), 2), None])  # total no rodapé: fica fora
     b = io.BytesIO(); wb.save(b)
     return b.getvalue()
 
@@ -77,3 +77,16 @@ def test_varios_meses_viram_zip(client):
     z = zipfile.ZipFile(io.BytesIO(r.content))
     assert z.namelist() == ["caixinha_01_cheque-859962_08-2025.csv", "caixinha_02_cheque-859967.csv"]
     assert "Águas minerais" in z.read(z.namelist()[0]).decode("utf-8-sig")
+
+
+def test_planilha_sem_coluna_de_saldo_e_com_linha_vazia():
+    """Planilha copiada só com valores: saldo vazio e linhas em branco no meio; o total depois do fim fica fora."""
+    wb = Workbook(); ws = wb.active
+    for k, v in enumerate(["Data", None, "Crédito", "Débito", "Descrição"]):
+        ws.cell(10, 3 + k, v)
+    ws.cell(11, 6, 3.6); ws.cell(11, 7, "PARAFUSOS OFICINA")
+    ws.cell(13, 6, 180); ws.cell(13, 7, "Almoços")
+    ws.cell(40, 6, 183.6)  # total no rodapé
+    b = io.BytesIO(); wb.save(b)
+    (bloco,) = caixinha.ler_blocos(b.getvalue())
+    assert [(l["descricao"], l["valor"]) for l in bloco["linhas"]] == [("PARAFUSOS OFICINA", 3.6), ("Almoços", 180.0)]
