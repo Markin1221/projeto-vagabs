@@ -7,13 +7,14 @@ import { api } from "../lib";
 const item3 = (c) => (c < 100 ? `*${String(c).padStart(3, "0")}` : String(c));
 
 // Modal de criar/editar regra. `edit` = { id?, kw, titulo, centro, item, tipo }.
-export function ModalRegra({ edit, setEdit, centros, itens, aoSalvar }) {
+// `aoSoAgora` (opcional): mostra o botão "Só desta vez", que usa a classificação sem gravar regra.
+export function ModalRegra({ edit, setEdit, centros, itens, aoSalvar, aoSoAgora }) {
   const [erro, setErro] = useState("");
   const muda = (k) => (e) => setEdit({ ...edit, [k]: e.target.value });
   async function salvar(ev) {
     ev.preventDefault(); setErro("");
     try {
-      const { id, ...corpo } = edit;
+      const { id, desc, ...corpo } = edit;
       await api(id ? `/caixinha/regras/${id}` : "/caixinha/regras", { method: id ? "PUT" : "POST",
         body: JSON.stringify({ ...corpo, item: Number(corpo.item), tipo: corpo.tipo || null }) });
       setEdit(null); await aoSalvar();
@@ -22,7 +23,9 @@ export function ModalRegra({ edit, setEdit, centros, itens, aoSalvar }) {
   return (
     <Modal titulo={edit.id ? "Editar regra" : "Nova regra"} subtitulo="Linhas da caixinha cuja descrição contém a palavra-chave viram este lançamento."
       onClose={() => setEdit(null)}
-      rodape={<><button type="button" className="btn" onClick={() => setEdit(null)}>Cancelar</button><button type="submit" form="form-regra-cx" className="btn primario">Salvar regra</button></>}>
+      rodape={<><button type="button" className="btn" onClick={() => setEdit(null)}>Cancelar</button>
+        {aoSoAgora && <button type="button" className="btn" disabled={!edit.titulo?.trim() || !edit.item} title="Usa só nesta planilha, sem criar regra" onClick={() => aoSoAgora(edit)}>Só desta vez</button>}
+        <button type="submit" form="form-regra-cx" className="btn primario">Salvar regra</button></>}>
       <form id="form-regra-cx" className="form-modal" onSubmit={salvar}>
         <label>Quando a descrição contiver <span className="dica-campo">sem acento e sem diferença de maiúscula</span>
           <input value={edit.kw} onChange={muda("kw")} required autoFocus /></label>

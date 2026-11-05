@@ -104,3 +104,15 @@ def test_modelo_preenchido_e_lido(client):
     (bloco,) = caixinha.ler_blocos(b.getvalue())
     assert bloco["cheque"] == 860100
     assert [(l["descricao"], l["tipo"], l["valor"]) for l in bloco["linhas"]] == [("Aguas", "DEBITO", 100.0), ("Venda de oleo", "CREDITO", 350.0)]
+
+
+def test_classificacao_manual_sem_regra(client):
+    import json
+    arq = _planilha([(None, None, 80, "Kit socorros"), (None, None, 30, "recarga celular")])
+    manuais = json.dumps([{"descricao": "kit socorros", "titulo": "Kit primeiros socorros", "centro": "ADM01", "item": 51}])
+    dados = {"data_lancamento": "2026-07-21", "manuais": manuais}
+    r = client.post("/caixinha/processar", files={"arquivo": ("c.xlsx", arq)}, data=dados).json()
+    assert r["pendentes"] == [] and r["meses"][0]["linhas"][0]["manual"] is True
+    r = client.post("/caixinha/csv", files={"arquivo": ("c.xlsx", arq)}, data=dados)
+    assert r.status_code == 200 and "Kit primeiros socorros;Caixinha;DEBITO;ADM01;46604-2;*051" in r.content.decode("utf-8-sig")
+    assert client.get("/caixinha/regras").json() == []  # não virou regra

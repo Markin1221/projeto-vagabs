@@ -65,10 +65,15 @@ REGRAS = [
 _REGRAS = [(re.compile(p), t, c, i, tp) for p, t, c, i, tp in REGRAS]
 
 
-def classificar(desc: str, salvas=()):
+def classificar(desc: str, salvas=(), manuais=None):
     """-> (titulo, centro, item, tipo|None, reconhecido). titulo None com reconhecido=True = linha descartada.
-    `salvas` (RegraCaixinha da tela) valem antes das REGRAS fixas; a palavra-chave mais longa vence."""
+    `manuais` ({descrição normalizada: dict}) = classificação feita na tela só para esta planilha, sem regra; vale
+    primeiro e só para a descrição exata. Depois `salvas` (RegraCaixinha), onde a palavra-chave mais longa vence,
+    e por fim as REGRAS fixas."""
     d = norm(desc)
+    m = (manuais or {}).get(d)
+    if m:
+        return m["titulo"], m["centro"], int(m["item"]), m.get("tipo") or None, True
     for r in sorted(salvas, key=lambda r: -len(r.kw)):
         if norm(r.kw) and norm(r.kw) in d:
             return r.titulo, r.centro, r.item, r.tipo, True
@@ -143,11 +148,11 @@ def ler_blocos(conteudo: bytes) -> list[dict]:
     return blocos
 
 
-def montar(linhas: list[dict], data_padrao: date, usar_data_da_linha: bool = False, salvas=()) -> list[dict]:
+def montar(linhas: list[dict], data_padrao: date, usar_data_da_linha: bool = False, salvas=(), manuais=None) -> list[dict]:
     """Linhas não reconhecidas voltam com revisar=True e sem códigos: a tela pede a classificação manual."""
     saida, vistos = [], {}
     for l in linhas:
-        titulo, centro, item, tipo, ok = classificar(l["descricao"], salvas)
+        titulo, centro, item, tipo, ok = classificar(l["descricao"], salvas, manuais)
         if ok and titulo is None:
             continue
         if not ok:
@@ -166,7 +171,26 @@ def montar(linhas: list[dict], data_padrao: date, usar_data_da_linha: bool = Fal
             "num_parcelas": None, "data_inicial": dt, "dias_intervalo": None, "valor": l["valor"], "observacoes": OBS,
             "id_lancamento_grupo": None, "status_pagamento": STATUS, "data_liquidacao": dt, "banco_liquidacao": CONTA,
             # extras para a tela (não vão para o CSV)
-            "origem": l["descricao"], "linha": l["linha"], "revisar": not ok})
+            "origem": l["descricao"], "linha": l["linha"], "revisar": not ok,
+            "manual": norm(l["descricao"]) in (manuais or {})})
+    return saida
+
+
+def ler_manuais(texto: str | None) -> dict:
+    """JSON da tela: [{descricao, titulo, centro, item, tipo?}] -> {descrição normalizada: dict}."""
+    import json
+    if not texto:
+        return {}
+    try:
+        lista = json.loads(texto)
+    except ValueError:
+        raise ValueError("Classificação manual inválida")
+    saida = {}
+    for m in lista or []:
+        if not (str(m.get("descricao") or "").strip() and str(m.get("titulo") or "").strip() and m.get("centro") and m.get("item")):
+            raise ValueError("Classificação manual incompleta: informe título, centro e item")
+        saida[norm(m["descricao"])] = {"titulo": str(m["titulo"]).strip(), "centro": m["centro"], "item": int(m["item"]),
+                                       "tipo": m.get("tipo") or None}
     return saida
 
 

@@ -15,9 +15,14 @@ from ..models import CentroCusto, ItemDespesa, RegraCaixinha
 router = APIRouter(prefix="/caixinha", tags=["caixinha"])
 
 
-def _gerar(arquivo: UploadFile, data_lancamento: date | None, data_da_linha: bool, db: Session) -> list[dict]:
+def _gerar(arquivo: UploadFile, data_lancamento: date | None, data_da_linha: bool, db: Session,
+           manuais: str | None = None) -> list[dict]:
     """Um item por mês da planilha. Data dos lançamentos: com um mês só, a escolhida na tela; com vários, a última
     data de cada mês (ou a escolhida, se o mês não tiver datas). `data_da_linha` usa a data de cada linha."""
+    try:
+        manuais_d = caixinha.ler_manuais(manuais)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
     try:
         blocos = caixinha.ler_blocos(arquivo.file.read())
     except ValueError as e:
@@ -31,7 +36,7 @@ def _gerar(arquivo: UploadFile, data_lancamento: date | None, data_da_linha: boo
     meses = []
     for b in blocos:
         dt = padrao if len(blocos) == 1 else (b["fim"] or padrao)
-        linhas = caixinha.montar(b["linhas"], dt, data_da_linha, salvas)
+        linhas = caixinha.montar(b["linhas"], dt, data_da_linha, salvas, manuais_d)
         meses.append({"numero": b["numero"], "rotulo": b["rotulo"], "nome": b["nome"], "cheque": b["cheque"],
                       "inicio": b["inicio"], "fim": b["fim"], "data_lancamento": dt, "linhas": linhas,
                       "pendentes": caixinha.pendentes(linhas),
@@ -42,17 +47,18 @@ def _gerar(arquivo: UploadFile, data_lancamento: date | None, data_da_linha: boo
 
 @router.post("/processar")
 def processar(arquivo: UploadFile = File(...), data_lancamento: date | None = Form(None),
-              data_da_linha: bool = Form(False), db: Session = Depends(get_db)):
-    meses = _gerar(arquivo, data_lancamento, data_da_linha, db)
+              data_da_linha: bool = Form(False), manuais: str | None = Form(None), db: Session = Depends(get_db)):
+    """`manuais` (JSON): classificações feitas na tela só para esta planilha, sem criar regra."""
+    meses = _gerar(arquivo, data_lancamento, data_da_linha, db, manuais)
     pend = list(dict.fromkeys(p for m in meses for p in m["pendentes"]))
     return {"meses": meses, "pendentes": pend}
 
 
 @router.post("/csv")
 def baixar(arquivo: UploadFile = File(...), data_lancamento: date | None = Form(None),
-           data_da_linha: bool = Form(False), db: Session = Depends(get_db)):
+           data_da_linha: bool = Form(False), manuais: str | None = Form(None), db: Session = Depends(get_db)):
     """Um mês: o CSV. Vários meses: um .zip com um CSV por mês."""
-    meses = _gerar(arquivo, data_lancamento, data_da_linha, db)
+    meses = _gerar(arquivo, data_lancamento, data_da_linha, db, manuais)
     pend = list(dict.fromkeys(p for m in meses for p in m["pendentes"]))
     if pend:
         raise HTTPException(422, f"{len(pend)} descrição(ões) sem classificação: {', '.join(p or '(vazia)' for p in pend)}")
