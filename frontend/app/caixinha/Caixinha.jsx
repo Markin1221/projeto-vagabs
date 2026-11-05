@@ -82,6 +82,14 @@ export default function Caixinha() {
     } catch (x) { setErro(mensagemDeErro(x)); setRes(null); }
     setLendo(false);
   }
+  async function baixarModelo() {
+    setErro("");
+    try {
+      const r = await autFetch(API + "/caixinha/modelo");
+      if (!r.ok) throw new Error("Não consegui baixar o modelo");
+      const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob()); a.download = "modelo_caixinha.xlsx"; a.click();
+    } catch (x) { setErro(mensagemDeErro(x)); }
+  }
   async function baixar() {
     setErro("");
     const r = await autFetch(API + "/caixinha/csv", { method: "POST", body: dados() });
@@ -111,7 +119,10 @@ export default function Caixinha() {
         "Com tudo classificado, baixe: um mês sai em CSV, vários saem num .zip com um CSV por mês."]} />
 
       <section className="painel">
-        <div className="painel-cab"><h2>Caixinha</h2><p>Transforme a planilha da caixinha no CSV de importação.</p></div>
+        <div className="cx-cab">
+          <div><h2>Caixinha</h2><p>Transforme a planilha da caixinha no CSV de importação.</p></div>
+          <button type="button" className="btn" onClick={baixarModelo} title="Planilha em branco no formato que o sistema lê"><Baixar />Baixar modelo</button>
+        </div>
         {erro && <div className="faixa-erro" role="alert" style={{ marginBottom: 14 }}>{erro}</div>}
         <Soltar rotulo="Escolha a planilha da caixinha" arquivo={arquivo} aoEscolher={(f) => { setArquivo(f); setRes(null); }} />
         <div className="cx-config">

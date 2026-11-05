@@ -68,6 +68,14 @@ def baixar(arquivo: UploadFile = File(...), data_lancamento: date | None = Form(
                     headers={"Content-Disposition": f'attachment; filename="caixinhas_{len(meses)}_meses.zip"'})
 
 
+@router.get("/modelo")
+def modelo():
+    """Planilha em branco no formato que a caixinha lê."""
+    return Response(caixinha.modelo_xlsx(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="modelo_caixinha.xlsx"'})
+
+
 # ---------- regras salvas pela tela ----------
 class RegraIn(BaseModel):
     kw: str

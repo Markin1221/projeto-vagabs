@@ -175,6 +175,62 @@ def pendentes(linhas: list[dict]) -> list[str]:
     return list(dict.fromkeys(l["origem"] for l in linhas if l["revisar"]))
 
 
+def modelo_xlsx(linhas_mes: int = 50) -> bytes:
+    """Planilha em branco no formato que o sistema lê: cheque, saldo inicial e as colunas
+    Data | Saldo | Crédito | Débito | Descrição, com o saldo e os totais já em fórmula."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.worksheet.datavalidation import DataValidation
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Caixinha"
+    verde, cinza = PatternFill("solid", fgColor="0D5C4F"), PatternFill("solid", fgColor="F1F4F7")
+    fina = Side(style="thin", color="D3DBE3")
+    borda = Border(left=fina, right=fina, top=fina, bottom=fina)
+    moeda, b = '#,##0.00;[Red]-#,##0.00', Font(bold=True)
+    for col, larg in zip("ABCDEF", (2, 13, 14, 13, 13, 46)):
+        ws.column_dimensions[col].width = larg
+    ini, fim = 9, 9 + linhas_mes - 1  # linhas de lançamento
+    ws["B2"] = "Caixinha"; ws["B2"].font = Font(bold=True, size=14, color="0D5C4F")
+    ws["B3"] = "Cheque"; ws["B3"].font = b
+    ws["B4"].number_format = "0"; ws["B4"].fill = cinza; ws["B4"].border = borda
+    ws["D4"] = "Total débitos"; ws["F4"] = f"=SUM(E{ini}:E{fim})"
+    ws["D5"] = "Total créditos"; ws["F5"] = f"=SUM(D{ini}:D{fim})"
+    ws["D6"] = "Saldo atual"; ws["F6"] = f"=C{fim}"
+    for c in ("D4", "D5", "D6"):
+        ws[c].font = b
+    for c in ("F4", "F5", "F6"):
+        ws[c].number_format = moeda; ws[c].alignment = Alignment(horizontal="left")
+    ws["C7"] = "Saldo inicial ↓"; ws["C7"].font = Font(italic=True, color="6F8092")
+    for col, txt in zip("BCDEF", ("Data", 0, "Crédito", "Débito", "Descrição")):
+        cel = ws[f"{col}8"]
+        cel.value = txt; cel.border = borda
+        cel.font = Font(bold=True, color="FFFFFF") if col != "C" else b
+        cel.fill = verde if col != "C" else cinza
+    ws["C8"].number_format = moeda
+    for r in range(ini, fim + 1):
+        ws[f"C{r}"] = f"=C{r - 1}+N(D{r})-N(E{r})"
+        for col in "BCDEF":
+            ws[f"{col}{r}"].border = borda
+        ws[f"B{r}"].number_format = "DD/MM/YYYY"
+        for col in "CDE":
+            ws[f"{col}{r}"].number_format = moeda
+        ws[f"C{r}"].font = Font(color="6F8092")
+    dv = DataValidation(type="decimal", operator="greaterThanOrEqual", formula1="0", allow_blank=True,
+                        error="Digite só o valor (número positivo).", errorTitle="Valor inválido")
+    ws.add_data_validation(dv); dv.add(f"D{ini}:E{fim}")
+    ws[f"E{fim + 1}"] = f"=SUM(E{ini}:E{fim})"; ws[f"E{fim + 1}"].font = b; ws[f"E{fim + 1}"].number_format = moeda
+    ws[f"F{fim + 1}"].value = None
+    ws[f"B{fim + 3}"] = ("Como preencher: número do cheque em B4, saldo inicial em C8 e uma linha por gasto (Data, Crédito "
+                         "OU Débito, Descrição). Para vários meses, copie as colunas B:F para a direita, deixando uma "
+                         "coluna vazia entre os meses.")
+    ws[f"B{fim + 3}"].font = Font(italic=True, color="6F8092")
+    ws.freeze_panes = "B9"
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 def para_csv(linhas: list[dict]) -> str:
     def fmt(v):
         if v is None:

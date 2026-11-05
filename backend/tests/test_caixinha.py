@@ -90,3 +90,17 @@ def test_planilha_sem_coluna_de_saldo_e_com_linha_vazia():
     b = io.BytesIO(); wb.save(b)
     (bloco,) = caixinha.ler_blocos(b.getvalue())
     assert [(l["descricao"], l["valor"]) for l in bloco["linhas"]] == [("PARAFUSOS OFICINA", 3.6), ("Almoços", 180.0)]
+
+
+def test_modelo_preenchido_e_lido(client):
+    from openpyxl import load_workbook
+    r = client.get("/caixinha/modelo")
+    assert r.status_code == 200
+    wb = load_workbook(io.BytesIO(r.content)); ws = wb.active
+    ws["B4"] = 860100; ws["C8"] = 1000
+    ws["B9"] = datetime(2026, 10, 1); ws["E9"] = 100; ws["F9"] = "Aguas"
+    ws["D10"] = 350; ws["F10"] = "Venda de oleo"
+    b = io.BytesIO(); wb.save(b)
+    (bloco,) = caixinha.ler_blocos(b.getvalue())
+    assert bloco["cheque"] == 860100
+    assert [(l["descricao"], l["tipo"], l["valor"]) for l in bloco["linhas"]] == [("Aguas", "DEBITO", 100.0), ("Venda de oleo", "CREDITO", 350.0)]
