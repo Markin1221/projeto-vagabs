@@ -3,6 +3,7 @@
 GET  /resumos/custos                custos fixos guardados (faixas de meses por categoria)
 PUT  /resumos/custos                substitui os custos fixos
 POST /resumos/custos/texto          lê faixas de um texto colado (ex.: mensagens do WhatsApp); não salva
+POST /resumos/custos/extras-texto   lê outros custos avulsos de um texto ("CIM fevereiro 2026 535,54"); não salva
 POST /resumos/custos/planilha       lê faixas de uma planilha ("3350,00 - 01/25"); não salva
 POST /resumos/previa                confere os relatórios enviados e mostra as contas de cada mês
 POST /resumos/gerar                 devolve um .zip com cada mês tratado + o resumo de todos (formato: xlsx, pdf ou ambos)
@@ -29,11 +30,18 @@ class Faixa(BaseModel):
     valor: float
 
 
+class Extra(BaseModel):
+    nome: str = Field(min_length=1, max_length=80)
+    mes: str = Field(pattern=MES)
+    valor: float
+
+
 class Custos(BaseModel):
     motorista1: list[Faixa] = []
     motorista2: list[Faixa] = []
     permissionario: list[Faixa] = []
     motoristasIguais: bool = True  # o valor do Motorista 1 vale para os dois
+    extras: list[Extra] = []  # outros custos avulsos de um mês (ex.: parcela do CIM)
 
 
 class Texto(BaseModel):
@@ -44,7 +52,8 @@ class Texto(BaseModel):
 def ler_custos(db: Session) -> dict:
     c = db.get(ResumoCustos, "custos")
     d = json.loads(c.dados) if c else {}
-    return {**{k: d.get(k, []) for k in rs.CATEGORIAS}, "motoristasIguais": d.get("motoristasIguais", True)}
+    return {**{k: d.get(k, []) for k in rs.CATEGORIAS}, "motoristasIguais": d.get("motoristasIguais", True),
+            "extras": d.get("extras", [])}
 
 
 @router.get("/custos")
@@ -74,6 +83,11 @@ def _checar_cat(categoria: str):
 def custos_texto(d: Texto):
     _checar_cat(d.categoria)
     return rs.ler_texto(d.texto, d.categoria)
+
+
+@router.post("/custos/extras-texto")
+def extras_texto(d: Texto):
+    return rs.ler_extras(d.texto)
 
 
 @router.post("/custos/planilha")

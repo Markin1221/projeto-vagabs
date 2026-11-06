@@ -131,7 +131,7 @@ def test_planilha_ja_vem_com_os_totais_calculados():
     assert valores[-1] == r["saldo"] and r["subSaldo"] in valores
     resumo = load_workbook(io.BytesIO(rs.xlsx_resumo([r])), data_only=True)
     assert r["saldo"] in [c.value for c in resumo["Resumo"]["C"]]
-    assert resumo["Tabela"]["H2"].value == r["saldo"]
+    assert resumo["Tabela"]["I2"].value == r["saldo"]
 
 
 def _planilha_motorista(com_resultado: bool) -> bytes:
@@ -153,3 +153,26 @@ def test_planilha_de_calculo_do_motorista():
     assert [(x["de"], x["ate"], x["valor"]) for x in f["motorista1"]] == esperado
     assert f["motorista1"] == f["motorista2"] and f["permissionario"] == []
     assert rs.ler_planilha_custos(_planilha_motorista(False), "motorista1")["faixas"]["motorista2"] == []
+
+
+def test_outros_custos_texto():
+    e = rs.ler_extras("CIM 1ª parcela - fevereiro 2026 - 535,54\nCIM 2ª parcela - 10/08/2026 535,54\nTLF fevereiro e agosto 2025 R$ 511,60")["extras"]
+    assert [(x["nome"], x["mes"], x["valor"]) for x in e] == [
+        ("CIM 1ª parcela", "2026-02", 535.54), ("CIM 2ª parcela", "2026-08", 535.54),
+        ("TLF", "2025-02", 511.6), ("TLF", "2025-08", 511.6)]
+
+
+def test_outros_custos_entram_no_saldo(client, rx):
+    custos = {"motorista1": [{"de": "2026-01", "ate": None, "valor": 3000}], "permissionario": [{"de": "2026-01", "ate": None, "valor": 3350}],
+              "motoristasIguais": True, "extras": [{"nome": "CIM 2ª parcela", "mes": "2026-11", "valor": 535.54},
+                                                    {"nome": "Outro mês", "mes": "2026-10", "valor": 99}]}
+    assert client.put("/resumos/custos", json=custos, headers=rx).json()["extras"][0]["nome"] == "CIM 2ª parcela"
+    arqs = [("arquivos", ("novembro.xlsx", _bruto()))]
+    m = client.post("/resumos/previa", files=arqs, headers=rx).json()["meses"][0]
+    assert m["outros"] == 535.54 and m["saldo"] == round(m["subSaldo"] - 6000 - 3350 - 535.54, 2)
+    rel = rs.ler_relatorio(_bruto())
+    r = rs.calcular(rel, custos)
+    ws = load_workbook(io.BytesIO(rs.xlsx_mes(rel, r)), data_only=True).active
+    assert "CIM 2ª parcela" in [c.value for c in ws["E"]] and [c.value for c in ws["F"] if c.value is not None][-1] == r["saldo"]
+    assert load_workbook(io.BytesIO(rs.xlsx_resumo([r])), data_only=True)["Tabela"]["I2"].value == r["saldo"]
+    assert rs.pdf_mes(rel, r)[:4] == b"%PDF"

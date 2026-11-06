@@ -41,3 +41,6 @@
 .rs-formato button + button { border-left: 1px solid var(--linha); }
 .rs-formato button.ativo { background: var(--marca-suave); color: var(--marca); font-weight: 600; }
 
+
+.rs-add-extra { grid-template-columns: 2fr 1fr 1fr auto; }
+@media (max-width: 760px) { .rs-add-extra { grid-template-columns: 1fr 1fr; } }

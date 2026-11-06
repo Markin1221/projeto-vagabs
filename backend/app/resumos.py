@@ -131,14 +131,16 @@ def calcular(rel: dict, custos: dict) -> dict:
     fonte = {**custos, "motorista2": custos.get("motorista1", [])} if custos.get("motoristasIguais") else custos
     vals = {c: custo_do_mes(fonte.get(c, []), rel["id"]) for c in CATEGORIAS}
     faltando = [NOME_CAT[c] for c, v in vals.items() if v is None]
-    saldo = round(sub - sum(v or 0 for v in vals.values()), 2)
+    extras = [{"nome": e["nome"], "valor": round(float(e["valor"]), 2)} for e in custos.get("extras", []) if e["mes"] == rel["id"]]
+    saldo = round(sub - sum(v or 0 for v in vals.values()) - sum(e["valor"] for e in extras), 2)
     avisos = []
     if faltando:
         avisos.append(f"Sem valor cadastrado para {', '.join(faltando)} em {rel['rotulo']} (contado como 0).")
     if rel.get("foraDoMes"):
         avisos.append(f"{rel['foraDoMes']} lançamento(s) com data fora de {rel['rotulo']}.")
     return {"id": rel["id"], "rotulo": rel["rotulo"], "nome": rel["nome"], "arquivo": rel["arquivo"], "lancamentos": len(rel["linhas"]),
-            "credito": rel["credito"], "debito": rel["debito"], "subSaldo": sub, **vals, "saldo": saldo, "avisos": avisos}
+            "credito": rel["credito"], "debito": rel["debito"], "subSaldo": sub, **vals, "extras": extras,
+            "outros": round(sum(e["valor"] for e in extras), 2), "saldo": saldo, "avisos": avisos}
 
 
 # ------------------------------------------------------------------ leitura de custos em texto livre / planilha
@@ -148,7 +150,7 @@ for _i, (_n, _c) in enumerate(zip(MESES, CURTO), 1):
     _NOMES_MES[_c] = _i
 _RE_MES = "|".join(sorted(_NOMES_MES, key=len, reverse=True))
 _RE_VALOR = re.compile(r"(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+,\d{1,2}|\d{3,}(?:\.\d{1,2})?)(?![\d/])")
-_RE_TOKEN = re.compile(rf"(?P<mm>\b\d{{1,2}})/(?P<aa>\d{{4}}|\d{{2}})\b|\b(?P<nome>{_RE_MES})\b(?:\s*(?:de|/)?\s*(?P<ano>\d{{4}}|\d{{2}})\b)?")
+_RE_TOKEN = re.compile(rf"\b\d{{1,2}}/(?P<mm3>\d{{1,2}})/(?P<aa3>\d{{4}}|\d{{2}})\b|(?P<mm>\b\d{{1,2}})/(?P<aa>\d{{4}}|\d{{2}})\b|\b(?P<nome>{_RE_MES})\b(?:\s*(?:de|/)?\s*(?P<ano>\d{{4}}|\d{{2}})\b)?")
 
 
 def categorias_da_linha(s: str) -> list[str] | None:
@@ -178,7 +180,11 @@ def ler_linha(s: str) -> dict | None:
     t = re.sub(r"\b\d{1,2}:\d{2}\b", " ", t).replace("encaminhada", " ")  # hora e marcação do WhatsApp
     datas, modo, resto = [], "faixa", t
     for m in _RE_TOKEN.finditer(t):
-        if m.group("mm"):
+        if m.group("mm3"):  # data completa (10/08/2026): vale o mês
+            mes, ano = int(m.group("mm3")), _ano(m.group("aa3"))
+            if not 1 <= mes <= 12:
+                continue
+        elif m.group("mm"):
             mes, ano = int(m.group("mm")), _ano(m.group("aa"))
             if not 1 <= mes <= 12:
                 continue
@@ -278,6 +284,50 @@ def ler_texto(texto: str, categoria: str = "auto") -> dict:
         for c in it["cats"]:
             faixas[c].extend(_para_faixas(it))
     return {"faixas": faixas, "ignoradas": ignoradas, "semCategoria": sem_cat}
+
+
+def _meses_entre(de: str, ate: str) -> list[str]:
+    a, m = map(int, de.split("-"))
+    out = []
+    while f"{a:04d}-{m:02d}" <= ate and len(out) < 120:
+        out.append(f"{a:04d}-{m:02d}")
+        a, m = (a + 1, 1) if m == 12 else (a, m + 1)
+    return out
+
+
+def ler_extras(texto: str) -> dict:
+    """Outros custos avulsos, um por linha: 'CIM 1ª parcela - fevereiro 2026 - 535,54'. O nome é o que sobra da linha
+    sem a data e o valor. 'CIM fevereiro e agosto 2026 535,54' vira dois lançamentos; 'jan a mar 2026' vira um por mês."""
+    itens, ignoradas = [], []
+    for linha in (texto or "").splitlines():
+        if not linha.strip() or _sem_acento(linha) == "encaminhada" or re.fullmatch(r"\s*\d{1,2}:\d{2}\s*", linha):
+            continue
+        lido = ler_linha(linha)
+        if lido is None or lido.get("modo") == "aberto":
+            ignoradas.append(linha.strip())
+            continue
+        norm = "".join((_sem_acento(ch) or ch)[:1] for ch in linha)  # mesmo tamanho da linha original
+        apagar = [m.span() for m in _RE_TOKEN.finditer(norm)]
+        sem_datas = list(norm)
+        for a, b in apagar:
+            sem_datas[a:b] = " " * (b - a)
+        ult = list(_RE_VALOR.finditer("".join(sem_datas)))
+        if ult:
+            apagar.append(ult[-1].span())
+        nome = list(linha)
+        for a, b in apagar:
+            nome[a:b] = " " * (b - a)
+        nome = re.sub(r"\b(\d{1,2}:\d{2}|r\$|a|e|ate|até|de|em|vencimento|venc\.?)\b", " ", "".join(nome), flags=re.I)
+        nome = re.sub(r"\s+", " ", nome).strip(" -:–|,.") or "Outro custo"
+        lido["nome"] = nome
+        itens.append(lido)
+    _completar_anos(itens)
+    extras = []
+    for it in itens:
+        for f in _para_faixas(it):
+            for mes in _meses_entre(f["de"], f["ate"]):
+                extras.append({"nome": it["nome"], "mes": mes, "valor": it["valor"]})
+    return {"extras": extras, "ignoradas": ignoradas}
 
 
 def _texto_celula(v) -> str:
@@ -463,6 +513,7 @@ def _bloco_contas(ws, linha: int, col_rot: int, col_val: int, cred_ref: str, deb
         return b.coordinate
     sub = put("Sub Saldo:", f"={cred_ref}-{deb_ref}", AZUL, VERMELHO)
     refs = [put(NOME_CAT[c], -(r[c] or 0), "000000", AZUL) for c in CATEGORIAS]
+    refs += [put(e["nome"], -e["valor"], "000000", AZUL) for e in r.get("extras", [])]  # outros custos do mês (ex.: CIM)
     put("Saldo:", f"=SUM({sub}:{refs[-1]})", AZUL, VERMELHO)
     return linha
 
@@ -533,13 +584,13 @@ def xlsx_resumo(lista: list[dict]) -> bytes:
     ws.column_dimensions["A"].width, ws.column_dimensions["B"].width, ws.column_dimensions["C"].width = 30, 16, 16
 
     t = wb.create_sheet("Tabela")  # um mês por linha, bom para filtrar ou fazer gráfico
-    cab = ["Mês", "Créditos", "Débitos", "Sub Saldo", "Custo Motorista 1", "Custo Motorista 2", "Permissionário", "Saldo"]
+    cab = ["Mês", "Créditos", "Débitos", "Sub Saldo", "Custo Motorista 1", "Custo Motorista 2", "Permissionário", "Outros custos", "Saldo"]
     for j, x in enumerate(cab, 1):
         c = t.cell(1, j, x)
         c.font, c.fill, c.border = Font(bold=True, color="FFFFFF"), CAB_FILL, BORDA
     for i, r in enumerate(lista, 2):
         vals = [r["rotulo"], r["credito"], r["debito"], f"=B{i}-C{i}", -(r["motorista1"] or 0), -(r["motorista2"] or 0),
-                -(r["permissionario"] or 0), f"=SUM(D{i}:G{i})"]
+                -(r["permissionario"] or 0), -(r.get("outros") or 0), f"=SUM(D{i}:H{i})"]
         for j, v in enumerate(vals, 1):
             c = t.cell(i, j, v)
             c.border = BORDA
@@ -547,11 +598,11 @@ def xlsx_resumo(lista: list[dict]) -> bytes:
                 c.number_format = FMT
     n = len(lista) + 2
     t.cell(n, 1, "Total").font = Font(bold=True)
-    for j in range(2, 9):
+    for j in range(2, 10):
         col = get_column_letter(j)
         c = t.cell(n, j, f"=SUM({col}2:{col}{n - 1})")
-        c.font, c.number_format, c.border = Font(bold=True, color=VERMELHO if j == 8 else "000000"), FMT, BORDA
-    for j, w in enumerate((10, 15, 15, 15, 18, 18, 16, 15), 1):
+        c.font, c.number_format, c.border = Font(bold=True, color=VERMELHO if j == 9 else "000000"), FMT, BORDA
+    for j, w in enumerate((10, 15, 15, 15, 18, 18, 16, 15, 15), 1):
         t.column_dimensions[get_column_letter(j)].width = w
     return _salvar(wb)
 
@@ -589,7 +640,8 @@ def _tabela_contas(r: dict, largura_rot: float, largura_val: float, cred=None, d
     from reportlab.lib import colors
     from reportlab.platypus import Table, TableStyle
     azul, verm = colors.HexColor("#" + AZUL), colors.HexColor("#" + VERMELHO)
-    linhas = [["Sub Saldo:", _br(r["subSaldo"])]] + [[NOME_CAT[c], _br(-(r[c] or 0))] for c in CATEGORIAS] + [["Saldo:", _br(r["saldo"])]]
+    linhas = ([["Sub Saldo:", _br(r["subSaldo"])]] + [[NOME_CAT[c], _br(-(r[c] or 0))] for c in CATEGORIAS]
+              + [[e["nome"], _br(-e["valor"])] for e in r.get("extras", [])] + [["Saldo:", _br(r["saldo"])]])
     t = Table(linhas, colWidths=[largura_rot, largura_val], hAlign="RIGHT")
     est = [("FONT", (0, 0), (-1, -1), "Helvetica-Bold", 9), ("ALIGN", (1, 0), (1, -1), "RIGHT"),
            ("TEXTCOLOR", (0, 0), (0, 0), azul), ("TEXTCOLOR", (0, -1), (0, -1), azul),

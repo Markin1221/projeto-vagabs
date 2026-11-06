@@ -19,7 +19,7 @@ const MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out
 const rot = (m) => (m ? `${MES[+m.slice(5) - 1]}/${m.slice(2, 4)}` : "");
 const brl = (v) => (v == null ? "—" : (v < 0 ? "− " : "") + "R$ " + fmt(Math.abs(v)));
 const numero = (s) => { const t = String(s).replace(/[R$\s]/g, ""); const n = parseFloat(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t); return Number.isFinite(n) ? n : null; };
-const VAZIO = { motorista1: [], motorista2: [], permissionario: [], motoristasIguais: true };
+const VAZIO = { motorista1: [], motorista2: [], permissionario: [], motoristasIguais: true, extras: [] };
 
 async function rsApi(caminho, opcoes = {}, comoArquivo = false) {
   let token = "";
@@ -94,13 +94,14 @@ function Relatorios({ custosVersao }) {
         </div>
         <div className="tabela-rolo"><table className="tabela rs-tabela">
           <thead><tr><th>Mês</th><th className="d">Créditos</th><th className="d">Débitos</th><th className="d">Sub saldo</th>
-            {CATS.map(([c, n]) => <th key={c} className="d">{n}</th>)}<th className="d">Saldo</th></tr></thead>
+            {CATS.map(([c, n]) => <th key={c} className="d">{n}</th>)}<th className="d">Outros</th><th className="d">Saldo</th></tr></thead>
           <tbody>{meses.map((m, i) => (
             <tr key={i}>
               <td><b>{m.rotulo}</b><small>{m.arquivo} · {m.lancamentos} lanç.</small>{m.avisos.map((a) => <small key={a} className="obs">{a}</small>)}</td>
               <td className="num">{brl(m.credito)}</td><td className="num">{brl(m.debito)}</td>
               <td className={"num " + (m.subSaldo < 0 ? "rs-neg" : "")}>{brl(m.subSaldo)}</td>
               {CATS.map(([c]) => <td key={c} className={"num " + (m[c] == null ? "rs-falta" : "")}>{m[c] == null ? "faltando" : brl(-m[c])}</td>)}
+              <td className="num">{m.extras?.length ? <>{brl(-m.outros)}{m.extras.map((e, k) => <small key={k}>{e.nome}</small>)}</> : "—"}</td>
               <td className={"num rs-saldo " + (m.saldo < 0 ? "rs-neg" : "rs-pos")}>{brl(m.saldo)}</td>
             </tr>))}</tbody>
         </table></div>
@@ -197,6 +198,58 @@ function Importar({ aoAplicar }) {
   );
 }
 
+// Outros custos avulsos de um mês (ex.: parcela do CIM/TLF): entram como linha própria antes do Saldo.
+function Extras({ extras, aoMudar }) {
+  const [nome, setNome] = useState("");
+  const [mes, setMes] = useState("");
+  const [valor, setValor] = useState("");
+  const [texto, setTexto] = useState("");
+  const [lido, setLido] = useState(null);
+  const [erro, setErro] = useState("");
+  const v = numero(valor);
+  const ordem = extras.map((e, i) => ({ ...e, i })).sort((a, b) => a.mes.localeCompare(b.mes) || a.nome.localeCompare(b.nome));
+  function add(e) {
+    e.preventDefault();
+    if (!nome.trim() || !mes || v == null) return;
+    aoMudar([...extras, { nome: nome.trim(), mes, valor: v }]);
+    setMes(""); setValor("");
+  }
+  async function ler() {
+    setErro(""); setLido(null);
+    try { setLido(await rsApi("/custos/extras-texto", json({ texto }))); } catch (x) { setErro(mensagemDeErro(x)); }
+  }
+  return (
+    <div className="rs-importar">
+      <div><h3>Outros custos do mês</h3>
+        <p className="mudo">Pagamentos avulsos, como as parcelas do CIM/TLF da prefeitura. Cada um sai como uma linha própria antes do Saldo, só no mês escolhido.</p></div>
+      {ordem.length > 0 && (
+        <ul className="rs-faixas">{ordem.map((e) => (
+          <li key={e.i}><span>{rot(e.mes)} · {e.nome}</span><b className="num">{brl(e.valor)}</b>
+            <button type="button" className="btn leve" aria-label="Apagar" onClick={() => aoMudar(extras.filter((_, j) => j !== e.i))}><Lixo /></button></li>))}
+        </ul>)}
+      <form className="rs-add rs-add-extra" onSubmit={add}>
+        <label>Descrição<input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="CIM 1ª parcela" required /></label>
+        <label>Mês<input type="month" value={mes} onChange={(e) => setMes(e.target.value)} required /></label>
+        <label>Valor<input inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="535,54" required /></label>
+        <button type="submit" className="btn" disabled={!nome.trim() || !mes || v == null}><Mais />Adicionar</button>
+      </form>
+      <textarea rows={3} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={"Vários de uma vez, um por linha:\nCIM 1ª parcela - 10/02/2026 - 535,54\nCIM 2ª parcela - 10/08/2026 - 535,54"} />
+      <div className="rs-linha"><button type="button" className="btn" disabled={!texto.trim()} onClick={ler}>Ler texto</button></div>
+      {erro && <div className="faixa-erro" role="alert">{erro}</div>}
+      {lido && (
+        <div className="rx-previa rs-lido">
+          <div className="rs-lido-corpo">
+            <b>{lido.extras.length ? `Encontrei ${lido.extras.length} custo(s):` : "Não encontrei nenhum custo com mês e valor."}</b>
+            {lido.extras.length > 0 && <p>{lido.extras.map((e) => `${rot(e.mes)} ${e.nome} ${brl(e.valor)}`).join(" · ")}</p>}
+            {lido.ignoradas.length > 0 && <p className="mudo">Linhas ignoradas: {lido.ignoradas.join(" | ")}</p>}
+          </div>
+          {lido.extras.length > 0 && <button type="button" className="btn primario" onClick={() => { aoMudar([...extras, ...lido.extras]); setLido(null); setTexto(""); }}>Adicionar</button>}
+          <button type="button" className="btn leve" aria-label="Descartar" onClick={() => setLido(null)}><Fechar /></button>
+        </div>)}
+    </div>
+  );
+}
+
 function Custos({ custos, salvar, msg }) {
   function aplicar(novas, substituir) {
     const r = { ...custos };
@@ -216,6 +269,7 @@ function Custos({ custos, salvar, msg }) {
         <Categoria key={c} cat={c} titulo={custos.motoristasIguais && c === "motorista1" ? "Motoristas (vale para os dois)" : null}
           faixas={custos[c]} aoMudar={(l) => salvar({ ...custos, [c]: l })} />))}</div>
       <Importar aoAplicar={aplicar} />
+      <Extras extras={custos.extras || []} aoMudar={(l) => salvar({ ...custos, extras: l })} />
       {msg && <p className={"msg " + (msg.ruim ? "ruim" : "ok")} role="status">{msg.t}</p>}
     </section>
   );
@@ -231,9 +285,9 @@ export default function Resumos() {
     setCustos(novo); setMsg({ t: "Salvando…" });
     try {
       const r = await rsApi("/custos", json(novo, "PUT"));
-      if (!("motoristasIguais" in r)) { // backend antigo: não conhece a opção e a resposta viria sem ela (a caixa desmarcava)
+      if (!("motoristasIguais" in r) || !("extras" in r)) { // backend antigo: não conhece a opção e a resposta viria sem ela (a caixa desmarcava)
         setCustos({ ...r, motoristasIguais: novo.motoristasIguais });
-        setMsg({ t: "O servidor está com a versão antiga e não guardou a opção dos motoristas. Reinicie o backend (ou faça o deploy) e tente de novo.", ruim: true });
+        setMsg({ t: "O servidor está com a versão antiga e não guardou tudo (opção dos motoristas / outros custos). Reinicie o backend (ou faça o deploy) e tente de novo.", ruim: true });
         return;
       }
       setCustos(r); setVersao((v) => v + 1); setMsg({ t: "Custos salvos." });
