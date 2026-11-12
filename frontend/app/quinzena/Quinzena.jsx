@@ -90,9 +90,15 @@ export default function Quinzena() {
     setFiles((fs) => [...fs.filter((f) => !nomes.has(f.file.name)), ...lista.map((file) => ({ id: ++seq, file, grupo: "", credito: "", deposito: "" }))]);
   };
 
-  async function criarRegra(padrao, linha) {
-    await api("/quinzena/regras", { method: "POST", body: JSON.stringify({ padrao, linha }) });
+  // Cria várias regras de uma vez. Uma que falhar não derruba as outras: devolve { chave: mensagem } só dos erros.
+  async function criarRegras(itens) {
+    const erros = {};
+    for (const it of itens) {
+      try { await api("/quinzena/regras", { method: "POST", body: JSON.stringify({ padrao: it.padrao, linha: it.linha }) }); }
+      catch (x) { erros[it.chave] = x.message; }
+    }
     await carregar(); reprocessar();
+    return erros;
   }
 
   const problemas = files.reduce((n, f) => n + (res[f.id]?.problemas?.length || 0), 0);
@@ -147,7 +153,7 @@ export default function Quinzena() {
               <QArquivo key={f.id} f={f} r={res[f.id]} aberto={abertos.has(f.id)} grupos={GRUPOS} opcoesLinha={opcoesLinha}
                 aoAlternar={() => setAbertos((s) => { const x = new Set(s); x.has(f.id) ? x.delete(f.id) : x.add(f.id); return x; })}
                 aoRemover={() => setFiles((fs) => fs.filter((x) => x.id !== f.id))}
-                aoMudar={(campo, v) => atualizar(f.id, campo, v)} aoCriarRegra={criarRegra} aoVerCarros={setCarros} />))}
+                aoMudar={(campo, v) => atualizar(f.id, campo, v)} aoCriarRegras={criarRegras} aoVerCarros={setCarros} />))}
           </div>)}
         <div className="gerar">
           <label className="marca"><input type="checkbox" checked={zeradas} onChange={(e) => setZeradas(e.target.checked)} />Incluir linhas com valor zero</label>

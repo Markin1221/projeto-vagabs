@@ -5,7 +5,7 @@ import zipfile
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -88,8 +88,12 @@ def listar_regras(db: Session = Depends(get_db)):
 @router.post("/regras", status_code=201)
 def criar_regra(d: RegraIn, db: Session = Depends(get_db)):
     d = _validar_regra(d, db)
-    if db.scalar(select(RegraQuinzena).where(RegraQuinzena.padrao == d.padrao)):
-        raise HTTPException(409, f"Já existe uma regra para '{d.padrao}'")
+    existente = db.scalar(select(RegraQuinzena).where(RegraQuinzena.padrao == d.padrao))
+    if existente and existente.linha == d.linha:
+        return JSONResponse({**_regra_out(existente), "ja_existia": True}, status_code=200)  # já está como se queria: segue
+    if existente:
+        raise HTTPException(409, f"Já existe uma regra para '{d.padrao}', mas ela leva à linha '{existente.linha}'. "
+                                 "Ajuste essa regra em Regras da quinzena se a linha estiver errada.")
     # regra nova sem ordem vai para o começo: é mais específica que as genéricas do cadastro inicial
     r = RegraQuinzena(padrao=d.padrao, linha=d.linha, ordem=d.ordem if d.ordem is not None else 5)
     db.add(r); db.commit(); db.refresh(r)

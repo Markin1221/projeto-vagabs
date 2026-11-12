@@ -131,3 +131,31 @@ def test_seed_remove_linha_de_estorno_antiga(db):
     db.commit()
     carregar(db)
     assert db.query(LinhaQuinzena).filter_by(codigo="estorno_acordo").count() == 0
+
+
+# ---- regras que "já existem": a tela não pode travar nelas ----
+
+def test_criar_regra_que_ja_existe_na_mesma_linha_passa(client):
+    corpo = {"padrao": "evento novo de teste", "linha": "salario"}
+    a = client.post("/quinzena/regras", json=corpo)
+    b = client.post("/quinzena/regras", json=corpo)
+    assert a.status_code == 201 and b.status_code == 200
+    assert b.json()["id"] == a.json()["id"] and b.json()["ja_existia"] is True
+    assert sum(r["padrao"] == "EVENTO NOVO DE TESTE" for r in client.get("/quinzena/regras").json()) == 1
+
+
+def test_regra_existente_em_outra_linha_explica_onde_esta(client):
+    client.post("/quinzena/regras", json={"padrao": "evento novo de teste", "linha": "salario"})
+    outra = next(r["linha"] for r in client.get("/quinzena/regras").json() if r["linha"] != "salario")
+    r = client.post("/quinzena/regras", json={"padrao": "evento novo de teste", "linha": outra})
+    assert r.status_code == 409 and "EVENTO NOVO DE TESTE" in r.json()["detail"] and "linha" in r.json()["detail"]
+
+
+def test_evento_cortado_no_relatorio_casa_com_regra_mais_longa():
+    from types import SimpleNamespace as R
+    from app import quinzena as q
+    regras = [R(padrao="INVESTIMENTO NO SISTEMA DOS PERMISSIONARIOS", linha="x"), R(padrao="PIX DOS CARROS", linha="y")]
+    assert q.regra_do_evento(regras, "43482 - INVESTIMENTO NO SISTEMA").linha == "x"   # nome cortado
+    assert q.regra_do_evento(regras, "43482 - INVESTIMENTO NO SISTEMA DOS PERMISSIONARIOS - EXTRA").linha == "x"  # o de sempre
+    assert q.regra_do_evento(regras, "43482 - PIX") is None                             # curto demais para adivinhar
+    assert q.regra_do_evento(regras, "43482 - OUTRA COISA") is None

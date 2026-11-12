@@ -3,20 +3,24 @@ import { useState } from "react";
 import { Chevron, Ok, Alerta, Fechar } from "../ui/Icones";
 import { fmt, data as dataBR } from "../lib";
 
-export default function QArquivo({ f, r, aberto, grupos, opcoesLinha, aoAlternar, aoRemover, aoMudar, aoCriarRegra, aoVerCarros }) {
+export default function QArquivo({ f, r, aberto, grupos, opcoesLinha, aoAlternar, aoRemover, aoMudar, aoCriarRegras, aoVerCarros }) {
   const [linhaAberta, setLinhaAberta] = useState(null);
   const [escolha, setEscolha] = useState({});
   const [padroes, setPadroes] = useState({});
-  const [erroRegra, setErroRegra] = useState("");
+  const [erros, setErros] = useState({});   // motivo da falha de cada evento, mostrado no próprio evento
+  const [criando, setCriando] = useState(false);
   const estado = !r ? "lendo" : r.ok ? "ok" : "problema";
   const nProb = r?.problemas?.length || 0;
   const dep = Number(String(f.deposito || "").replace(/\./g, "").replace(",", "."));
   const difDep = f.deposito && r?.total_quinzena != null ? Math.round((r.total_quinzena - dep) * 100) / 100 : null;
 
-  async function criar(p) {
-    const ev = p.evento, linha = escolha[ev.nome];
-    setErroRegra("");
-    try { await aoCriarRegra(padroes[ev.nome] ?? ev.sugestao, linha); } catch (x) { setErroRegra(x.message); }
+  const sugerido = (p) => padroes[p.evento.nome] ?? p.evento.sugestao;
+  const prontos = (r?.problemas || []).filter((p) => p.evento && escolha[p.evento.nome]);
+  async function criar(ps) {
+    setCriando(true);
+    try { setErros(await aoCriarRegras(ps.map((p) => ({ chave: p.evento.nome, padrao: sugerido(p), linha: escolha[p.evento.nome] })))); }
+    catch (x) { setErros({ _geral: x.message }); }
+    setCriando(false);
   }
 
   return (
@@ -57,11 +61,17 @@ export default function QArquivo({ f, r, aberto, grupos, opcoesLinha, aoAlternar
                         <label>Quando o evento contiver<input value={padroes[p.evento.nome] ?? p.evento.sugestao} onChange={(e) => setPadroes({ ...padroes, [p.evento.nome]: e.target.value })} /></label>
                         <label>vai para a linha<select value={escolha[p.evento.nome] || ""} onChange={(e) => setEscolha({ ...escolha, [p.evento.nome]: e.target.value })}>
                           <option value="">Escolha…</option>{opcoesLinha.map((o) => <option key={o.codigo} value={o.codigo}>{o.nome}</option>)}</select></label>
-                        <button type="button" className="btn primario" disabled={!escolha[p.evento.nome]} onClick={() => criar(p)}>Criar regra</button>
+                        <button type="button" className="btn primario" disabled={!escolha[p.evento.nome] || criando} onClick={() => criar([p])}>Criar regra</button>
                         <button type="button" className="btn leve" onClick={() => aoVerCarros({ nome: p.evento.nome, valor: p.evento.total, por_carro: p.evento.por_carro })}>Ver carros</button>
                       </div>)}
+                    {p.evento && erros[p.evento.nome] && <p className="msg ruim" role="alert">{erros[p.evento.nome]}</p>}
                   </div>))}
-                {erroRegra && <p className="msg ruim">{erroRegra}</p>}
+                {erros._geral && <p className="msg ruim" role="alert">{erros._geral}</p>}
+                {prontos.length > 1 && (
+                  <div className="problema-acoes">
+                    <button type="button" className="btn primario" disabled={criando} onClick={() => criar(prontos)}>Criar as {prontos.length} regras escolhidas</button>
+                    <span className="dica-campo">Se alguma falhar, as outras passam e só ela fica aqui com o motivo.</span>
+                  </div>)}
               </div>)}
             {(r.avisos || []).map((a, i) => <p key={i} className="aviso"><Alerta />{a}</p>)}
 

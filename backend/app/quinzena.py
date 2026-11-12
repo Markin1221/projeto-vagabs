@@ -93,9 +93,18 @@ def detectar_grupo(nome_arquivo: str | None, eventos: list[dict]) -> str | None:
 
 
 # ---------- classificação ----------
+MIN_CORTADO = 10  # abaixo disso, um nome curto "combinaria" com regra demais para valer o palpite
+
+
 def regra_do_evento(regras, nome: str):
+    """Primeira regra (na ordem) cujo padrão está dentro do nome do evento.
+    Se nenhuma casar, aceita a regra cujo padrão COMEÇA com o nome do evento: o relatório do sistema às vezes
+    corta o nome da coluna ('INVESTIMENTO NO SISTEMA' para a regra 'INVESTIMENTO NO SISTEMA DOS PERMISSIONARIOS')."""
     n = norm(sem_codigo(nome))
-    return next((r for r in regras if norm(r.padrao) in n), None)
+    achada = next((r for r in regras if norm(r.padrao) in n), None)
+    if achada or len(n) < MIN_CORTADO:
+        return achada
+    return next((r for r in regras if norm(r.padrao).startswith(n)), None)
 
 
 def processar(db: Session, df: pd.DataFrame, grupo: str, data_lanc: date, observacao: str, conta: str | None = None,
