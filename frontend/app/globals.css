@@ -413,3 +413,111 @@ input[type="text"]:focus-visible, input:not([type]):focus-visible, input[type="p
 ::selection { background: color-mix(in srgb, var(--marca) 25%, transparent); }
 * { scrollbar-width: thin; scrollbar-color: var(--linha) transparent; }
 .busca input:focus-visible { box-shadow: none; }
+
+/* ===== Redesenho das abas ===== */
+/* Topo: ícone da ferramenta ao lado do título */
+.topo { align-items: center; padding-top: 30px; padding-bottom: 10px; }
+.topo-tit { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.topo-icone { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: var(--marca-suave); color: var(--marca); border: 1px solid color-mix(in srgb, var(--marca) 22%, transparent); }
+.topo-icone svg { width: 24px; height: 24px; }
+:root[data-theme="dark"] .topo-icone { color: var(--marca-2); }
+
+/* Lateral: item ativo como pílula preenchida, sem a barrinha */
+.lateral { padding: 22px 14px 16px; }
+.marca-app { padding: 2px 8px 26px; }
+.lateral ul { gap: 4px; }
+.lateral button { padding: 10px 12px; border-radius: 9px; font-size: 14.5px; }
+.lateral button.ativa::before { display: none; }
+.lateral button.ativa { background: var(--marca); color: var(--marca-sobre); font-weight: 500; box-shadow: 0 1px 2px rgba(4, 33, 27, .25); }
+.lateral button.ativa svg, :root[data-theme="dark"] .lateral button.ativa svg { color: inherit; opacity: 1; }
+:root[data-theme="dark"] .lateral button.ativa { background: color-mix(in srgb, var(--marca) 22%, transparent); color: #fff; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--marca) 45%, transparent); }
+.lateral-fim { border-top-color: var(--lateral-borda); }
+
+/* Painéis: cabeçalho com mais respiro */
+.painel { padding: 26px 28px; border-radius: 14px; }
+.painel-cab { margin-bottom: 20px; }
+.painel-cab h2, .colapso-cab h2 { font-size: 18px; }
+.painel-cab p { margin-top: 4px; }
+.painel.colapso { padding: 0; }
+.colapso-cab { padding: 20px 28px; border-radius: 14px; }
+.colapso-cab:hover { border-radius: 14px; }
+.painel.colapso .gaveta > div { padding: 0 28px; }
+.colapso-cab .contagem { margin-left: 6px; padding: 1px 10px; border-radius: 99px; background: var(--painel-2); border: 1px solid var(--linha-2); font-size: 12.5px; }
+
+/* Como usar: recolhível, neutro, passos numerados em círculos */
+.dica { padding: 0; background: var(--painel); border: 1px solid var(--linha); border-left: 3px solid var(--marca); border-radius: 14px; box-shadow: 0 1px 2px rgba(15, 26, 36, .04); }
+.dica-cab { width: 100%; display: flex; align-items: center; gap: 10px; padding: 14px 22px; border: 0; background: transparent; text-align: left; border-radius: 14px; color: var(--tinta); }
+.dica-cab:hover { background: var(--painel-2); }
+.dica-cab h3 { margin: 0; font-size: 14.5px; color: var(--tinta); }
+.dica-conta { margin-left: auto; color: var(--tinta-3); font-size: 12.5px; }
+.dica .gaveta > div { padding: 0 22px; }
+.dica.aberto .gaveta { grid-template-rows: 1fr; }
+.dica.aberto .gaveta > div { padding-bottom: 18px; }
+.dica ol { counter-reset: passo; list-style: none; padding: 4px 0 0; gap: 10px; max-width: 96ch; }
+.dica li { counter-increment: passo; position: relative; padding-left: 36px; color: var(--tinta-2); line-height: 1.55; }
+.dica li::before { content: counter(passo); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12.5px; font-weight: 600; background: var(--marca-suave); color: var(--marca); }
+:root[data-theme="dark"] .dica li::before { color: var(--marca-2); }
+.dica-nota { padding-left: 36px; }
+
+/* Área de envio: maior, ícone em ladrilho, duas linhas */
+.soltar { min-height: 128px; gap: 16px; padding: 24px 28px; border-radius: 12px; border-width: 1.5px; text-align: left; }
+.soltar-icone { flex: none; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: var(--painel); border: 1px solid var(--linha); transition: transform .2s ease, border-color .15s; }
+.soltar .soltar-icone svg { width: 22px; height: 22px; transform: none; }
+.soltar:hover .soltar-icone, .soltar.sobre .soltar-icone { border-color: var(--marca); transform: translateY(-2px); }
+.soltar:hover svg, .soltar.sobre svg { transform: none; }
+.soltar-txt { display: grid; gap: 2px; min-width: 0; }
+.soltar-txt b { overflow-wrap: anywhere; }
+.soltar-txt small { color: var(--tinta-3); font-size: 12.5px; }
+.soltar.cheio .soltar-icone { background: var(--ok); border-color: var(--ok); }
+.soltar.cheio .soltar-icone svg { color: #fff; }
+:root[data-theme="dark"] .soltar.cheio .soltar-icone svg { color: var(--marca-sobre); }
+
+/* Barra de geração: faixa própria no pé do painel */
+.gerar { margin: 24px -28px -26px; padding: 16px 28px; border-top: 1px solid var(--linha-2); background: var(--painel-2); border-radius: 0 0 14px 14px; gap: 14px 18px; }
+.gerar .btn.primario.grande { min-height: 44px; }
+
+/* Arquivos enviados */
+.arq { border-radius: 12px; transition: border-color .15s, box-shadow .15s; }
+.arq:hover { box-shadow: 0 2px 10px -6px rgba(15, 26, 36, .25); }
+
+/* Tabelas */
+.tabela-rolo { border-radius: 10px; }
+.tabela th { font-size: 12.5px; padding: 10px 14px; }
+.tabela td { padding: 10px 14px; }
+
+/* Abas internas e filtros */
+.abas { gap: 6px; }
+.abas button[role="tab"] { padding: 9px 14px; }
+.abas button[role="tab"]:hover { color: var(--tinta); background: var(--painel-2); }
+.filtro { padding: 6px 14px; transition: background .15s, border-color .15s; }
+
+@media (max-width: 960px) {
+  .topo-icone { width: 36px; height: 36px; border-radius: 10px; }
+  .topo-icone svg { width: 20px; height: 20px; }
+  .painel { padding: 16px; }
+  .gerar { margin: 18px -16px -16px; padding: 14px 16px; }
+  .colapso-cab { padding: 14px 16px; }
+  .painel.colapso .gaveta > div { padding: 0 16px; }
+  .lateral button.ativa { box-shadow: none; }
+}
+@media (max-width: 720px) {
+  :root[data-theme="dark"] .lateral button.ativa, .lateral button.ativa { background: transparent; box-shadow: none; }
+  .lateral button.ativa { color: var(--marca); }
+  .topo-icone { display: none; }
+  .gerar { margin: 16px -14px -14px; padding: 14px; }
+  .soltar { min-height: 0; }
+  .soltar-txt { text-align: center; justify-items: center; }
+}
+.gerar-msg { min-width: 0; flex: 0 1 auto; text-align: right; }
+@media (max-width: 720px) {
+  html body .dica { padding: 0; }
+  .dica-cab { padding: 12px 14px; }
+  .dica .gaveta > div { padding: 0 14px; }
+  .dica li { padding-left: 32px; }
+}
+.gerar { column-gap: 12px; }
+.gerar .formato select { max-width: 280px; text-overflow: ellipsis; }
+input[type="date"], input[type="number"] { width: 100%; padding: 7px 9px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--painel); color: var(--tinta); min-width: 0; transition: border-color .15s, box-shadow .15s; }
+input[type="date"]:hover, input[type="number"]:hover { border-color: var(--tinta-3); }
+input[type="date"]:focus-visible, input[type="number"]:focus-visible { outline: none; border-color: var(--marca); box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 22%, transparent); }
+:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .7; }

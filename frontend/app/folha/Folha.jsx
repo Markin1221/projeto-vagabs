@@ -170,7 +170,7 @@ export default function Folha() {
           onDragOver={(e) => { e.preventDefault(); setArrastando(true); }} onDragLeave={() => setArrastando(false)}
           onDrop={(e) => { e.preventDefault(); setArrastando(false); adicionar(e.dataTransfer.files); }}>
           <input type="file" accept=".pdf,application/pdf" multiple onChange={(e) => { adicionar(e.target.files); e.target.value = ""; }} />
-          <Pdf /><span><b>Escolha os arquivos</b> ou arraste os PDFs até aqui</span>
+          <span className="soltar-icone"><Pdf /></span><span className="soltar-txt"><span><b>Escolha os arquivos</b> ou arraste os PDFs até aqui</span><small>Resumo Geral de cada departamento, guias do FGTS e DARF do INSS</small></span>
         </label>
 
         {files.length > 0 && (

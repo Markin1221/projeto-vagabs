@@ -70,7 +70,7 @@ export default function LayoutSistema({ children }) {
         </nav>
         <div className="principal">
           <header className="topo">
-            <div><h1>{f.titulo}</h1><p>{f.desc}</p></div>
+            <div className="topo-tit"><span className="topo-icone"><f.Icone /></span><div><h1>{f.titulo}</h1><p>{f.desc}</p></div></div>
             <button type="button" className="btn tema" onClick={alternarTema} aria-label={tema === "dark" ? "Usar tema claro" : "Usar tema escuro"}>
               {tema === "dark" ? <Sol /> : <Lua />}<span>{tema === "dark" ? "Claro" : "Escuro"}</span>
             </button>
