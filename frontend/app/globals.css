@@ -350,3 +350,66 @@ button.parcela:hover svg, .fita-pdf:hover svg, button.parcela:focus-visible svg,
 .senha-secreta label { display: grid; gap: 6px; font-weight: 500; }
 .senha-secreta.erro { animation: sec-treme .35s; }
 @keyframes sec-treme { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+
+/* ===== Entrada (login / conectando) com a fita de soma 3D ===== */
+.entrada { max-width: none; margin: 0; padding: 0; min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(360px, 460px) 1fr; gap: 0; }
+.entrada-lado { display: flex; flex-direction: column; gap: 40px; padding: 40px 48px; background: var(--painel); border-right: 1px solid var(--linha); position: relative; z-index: 1; }
+.entrada-marca { width: 200px; }
+.entrada-corpo { flex: 1; display: grid; align-content: center; }
+.entrada-form { display: grid; gap: 20px; width: 100%; max-width: 340px; }
+.entrada-form h1 { font-size: 28px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; margin-bottom: 4px; }
+.entrada-form label { font-weight: 500; color: var(--tinta); }
+.entrada-form .giro { display: inline-block; vertical-align: -1px; margin-right: 6px; }
+.entrada-rodape { color: var(--tinta-3); font-size: 12.5px; }
+.campo-senha { display: flex; align-items: stretch; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--painel); transition: border-color .15s, box-shadow .15s; }
+.campo-senha:hover { border-color: var(--tinta-3); }
+.campo-senha:focus-within { border-color: var(--marca); box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 22%, transparent); }
+.campo-senha input { border: 0 !important; background: transparent !important; padding: 10px 12px !important; font-size: 15px; box-shadow: none !important; }
+.campo-senha input:focus-visible { outline: none; }
+.campo-senha .btn { margin: 3px; padding: 4px 10px; font-size: 13px; }
+.entrada-cena { position: relative; overflow: hidden; min-height: 320px;
+  background:
+    radial-gradient(120% 90% at 70% 20%, color-mix(in srgb, var(--marca) 16%, transparent), transparent 60%),
+    radial-gradient(80% 60% at 20% 100%, color-mix(in srgb, var(--marca) 10%, transparent), transparent 70%),
+    var(--bg); }
+/* trama de papel quadriculado, bem leve, atrás da fita */
+.entrada-cena::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background-image: linear-gradient(var(--linha-2) 1px, transparent 1px), linear-gradient(90deg, var(--linha-2) 1px, transparent 1px);
+  background-size: 32px 32px; mask-image: radial-gradient(70% 70% at 60% 45%, #000, transparent); -webkit-mask-image: radial-gradient(70% 70% at 60% 45%, #000, transparent); }
+.fita3d { position: absolute; inset: 0; animation: fita-surge .9s ease-out both; }
+.fita3d canvas { display: block; width: 100% !important; height: 100% !important; }
+@keyframes fita-surge { from { opacity: 0; transform: translateY(-12px); } }
+@media (max-width: 860px) {
+  .entrada { grid-template-columns: 1fr; grid-template-rows: 38vh auto; }
+  .entrada-cena { order: -1; min-height: 0; border-bottom: 1px solid var(--linha); }
+  .entrada-lado { border-right: 0; padding: 24px 20px 28px; gap: 24px; padding-bottom: max(28px, env(safe-area-inset-bottom)); }
+  .entrada-marca { width: 150px; }
+  .entrada-corpo { align-content: start; }
+  .entrada-form { max-width: none; }
+}
+
+/* ===== Refinamentos gerais ===== */
+body { background: radial-gradient(1200px 500px at 70% -200px, color-mix(in srgb, var(--marca) 7%, transparent), transparent 70%) no-repeat, var(--bg); }
+.painel { box-shadow: 0 1px 2px rgba(15, 26, 36, .04), 0 4px 14px -8px rgba(15, 26, 36, .10); }
+:root[data-theme="dark"] .painel { box-shadow: 0 1px 0 rgba(255, 255, 255, .02) inset, 0 6px 18px -10px rgba(0, 0, 0, .6); }
+.topo h1 { font-size: 26px; letter-spacing: -.02em; }
+.topo p { max-width: 70ch; }
+.btn { transition: background .15s, border-color .15s, box-shadow .15s, transform .08s; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn.primario { box-shadow: 0 1px 0 rgba(255, 255, 255, .14) inset, 0 1px 2px rgba(4, 33, 27, .25); }
+input[type="text"], input:not([type]), input[type="search"], input[type="password"], select { transition: border-color .15s, box-shadow .15s; }
+input[type="password"] { width: 100%; padding: 7px 9px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--painel); min-width: 0; }
+input[type="text"]:focus-visible, input:not([type]):focus-visible, input[type="password"]:focus-visible, select:focus-visible { outline: none; border-color: var(--marca); box-shadow: 0 0 0 3px color-mix(in srgb, var(--marca) 22%, transparent); }
+.lateral button { min-height: 40px; transition: background .15s, color .15s; }
+.lateral button svg { flex: none; opacity: .85; }
+.lateral button.ativa svg { opacity: 1; color: var(--marca); }
+:root[data-theme="dark"] .lateral button.ativa svg { color: var(--marca-2); }
+.tabela tbody tr:hover td { background: color-mix(in srgb, var(--painel-2) 70%, transparent); }
+.soltar { border-radius: 12px; }
+.soltar:hover svg, .soltar.sobre svg { transform: translateY(-2px); }
+.soltar svg { transition: transform .2s ease; }
+.modal { animation: modal-surge .18s ease-out; }
+@keyframes modal-surge { from { opacity: 0; transform: translateY(6px) scale(.99); } }
+::selection { background: color-mix(in srgb, var(--marca) 25%, transparent); }
+* { scrollbar-width: thin; scrollbar-color: var(--linha) transparent; }
+.busca input:focus-visible { box-shadow: none; }

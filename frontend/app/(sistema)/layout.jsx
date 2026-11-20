@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Login from "../Login";
+import Entrada from "../ui/Entrada";
 import MobileTabelas from "../ui/MobileTabelas";
 import { API, lerToken } from "../lib";
 import { ConfigProvider } from "../config";
@@ -47,11 +48,11 @@ export default function LayoutSistema({ children }) {
     return (
       <ConfigProvider>
         {acesso === "login" ? <Login aoEntrar={() => setAcesso("ok")} /> : (
-          <main className="login"><div className="painel login-caixa">
+          <Entrada>
             {acesso === "conectando"
-              ? <p>Conectando ao servidor… na primeira vez do dia pode levar cerca de um minuto.</p>
-              : <><p className="msg ruim">Não consegui falar com o servidor.</p><button type="button" className="btn primario" onClick={conectar}>Tentar de novo</button></>}
-          </div></main>)}
+              ? <div className="entrada-form" role="status"><h1>Conectando…</h1><p className="mudo"><span className="giro" /> Acordando o servidor. Na primeira vez do dia pode levar cerca de um minuto.</p></div>
+              : <div className="entrada-form"><h1>Sem conexão</h1><p className="msg ruim" role="alert">Não consegui falar com o servidor. Confira a internet e tente de novo.</p><button type="button" className="btn primario grande" onClick={conectar}>Tentar de novo</button></div>}
+          </Entrada>)}
       </ConfigProvider>
     );
   }

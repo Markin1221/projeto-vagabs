@@ -1,9 +1,11 @@
 "use client";
 import { useState } from "react";
 import { API, guardarToken } from "./lib";
+import Entrada from "./ui/Entrada";
 
 export default function Login({ aoEntrar }) {
   const [senha, setSenha] = useState("");
+  const [ver, setVer] = useState(false);
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
   async function entrar(e) {
@@ -17,14 +19,22 @@ export default function Login({ aoEntrar }) {
     setEnviando(false);
   }
   return (
-    <main className="login">
-      <form className="painel login-caixa" onSubmit={entrar}>
-        <img className="logo-img logo-claro" src="/logo-claro.png" alt="VAGABS — Versátil Assistente de Gestão Administrativa, Business e Serviços" />
-        <img className="logo-img logo-escuro" src="/logo-escuro.png" alt="" aria-hidden="true" />
-        <label>Senha de acesso<input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoFocus autoComplete="current-password" required /></label>
-        {erro && <p className="msg ruim" role="alert">{erro}</p>}
+    <Entrada>
+      <form className="entrada-form" onSubmit={entrar}>
+        <div>
+          <h1>Entrar</h1>
+          <p className="mudo">Use a senha de acesso da equipe.</p>
+        </div>
+        <label>Senha de acesso
+          <span className="campo-senha">
+            <input type={ver ? "text" : "password"} value={senha} onChange={(e) => setSenha(e.target.value)}
+              autoFocus autoComplete="current-password" required aria-invalid={!!erro} aria-describedby={erro ? "erro-login" : undefined} />
+            <button type="button" className="btn leve" onClick={() => setVer(!ver)} aria-pressed={ver}>{ver ? "Ocultar" : "Mostrar"}</button>
+          </span>
+        </label>
+        {erro && <p id="erro-login" className="msg ruim" role="alert">{erro}</p>}
         <button type="submit" className="btn primario grande" disabled={enviando || !senha}>{enviando ? "Entrando…" : "Entrar"}</button>
       </form>
-    </main>
+    </Entrada>
   );
 }
