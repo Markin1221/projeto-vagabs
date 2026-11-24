@@ -102,7 +102,7 @@
   "codigo": "acordo",
   "ordem": 12,
   "descricao": "Debitos de Acordo - Empréstimo ao Permissionários",
-  "tipo_lancamento": "DEBITO",
+  "tipo_lancamento": "CREDITO",
   "centro": "CTPAS",
   "item": 580,
   "fonte": null

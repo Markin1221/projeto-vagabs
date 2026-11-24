@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Modal from "../ui/Modal";
 import { Chevron, Lapis, Lixo, Mais } from "../ui/Icones";
 import { api } from "../lib";
@@ -55,8 +55,25 @@ export function Regras({ regras, opcoesLinha, aoMudar }) {
   );
 }
 
-export function Linhas({ linhasCad, cfg, aoSalvarCfg }) {
+export function Linhas({ linhasCad, cfg, aoSalvarCfg, aoMudar }) {
   const [aberto, setAberto] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [erro, setErro] = useState("");
+  const [centros, setCentros] = useState([]);
+  const [itens, setItens] = useState([]);
+  useEffect(() => {
+    if (!edit || centros.length) return;
+    api("/centros-custo").then(setCentros).catch(() => {});
+    api("/itens-despesa").then(setItens).catch(() => {});
+  }, [edit]);
+  const item3 = (n) => (n < 100 ? `*${String(n).padStart(3, "0")}` : String(n));
+  async function salvarLinha(ev) {
+    ev.preventDefault(); setErro("");
+    try {
+      await api(`/quinzena/linhas/${edit.codigo}`, { method: "PUT", body: JSON.stringify({ descricao: edit.descricao, tipo_lancamento: edit.tipo_lancamento, centro: edit.centro, item: edit.item === "" ? null : Number(edit.item), fonte: edit.fonte || null }) });
+      setEdit(null); await aoMudar();
+    } catch (x) { setErro(x.message); }
+  }
   const [form, setForm] = useState(null);
   const [msg, setMsg] = useState(null);
   const f = form || (cfg && { taxa_cooperativa: String(cfg.taxa_cooperativa), taxa_sindicato: String(cfg.taxa_sindicato), conta_quinzena: cfg.conta_quinzena,
@@ -87,12 +104,31 @@ export function Linhas({ linhasCad, cfg, aoSalvarCfg }) {
             <div className="marcas"><button type="submit" className="btn primario" disabled={!form}>Salvar valores</button>{msg && <span className={"msg " + (msg.ok ? "ok" : "ruim")}>{msg.t}</span>}</div>
           </form>)}
         <div className="tabela-rolo"><table className="tabela">
-          <thead><tr><th>Linha</th><th>Tipo</th><th>Centro</th><th>Item</th><th>Fonte</th></tr></thead>
+          <thead><tr><th>Linha</th><th>Tipo</th><th>Centro</th><th>Item</th><th>Fonte</th><th /></tr></thead>
           <tbody>{linhasCad.linhas.map((l) => (
             <tr key={l.codigo}><td>{l.descricao}</td><td><span className={"tipo " + (l.tipo_lancamento === "DEBITO" ? "deb" : "cred")}>{l.tipo_lancamento === "DEBITO" ? "Débito" : "Crédito"}</span></td>
-              <td>{l.centro}</td><td>{l.item || <span className="mudo">—</span>}</td><td>{l.fonte || <span className="mudo">—</span>}</td></tr>))}</tbody>
+              <td>{l.centro}</td><td>{l.item || <span className="mudo">—</span>}</td><td>{l.fonte || <span className="mudo">—</span>}</td>
+              <td className="acoes"><button type="button" className="icone" aria-label={`Editar ${l.descricao}`} onClick={() => { setErro(""); setEdit({ ...l, item: l.item ? String(Number(String(l.item).replace("*", ""))) : "", fonte: l.fonte || "" }); }}><Lapis /></button></td></tr>))}</tbody>
         </table></div>
       </div></div>
+      {edit && (
+        <Modal titulo="Editar linha do lançamento" subtitulo="Vale para as próximas quinzenas processadas." onClose={() => setEdit(null)}
+          rodape={<><button type="button" className="btn" onClick={() => setEdit(null)}>Cancelar</button><button type="submit" form="form-linha-q" className="btn primario">Salvar linha</button></>}>
+          <form id="form-linha-q" className="form-modal" onSubmit={salvarLinha}>
+            <label>Descrição<input value={edit.descricao} onChange={(e) => setEdit({ ...edit, descricao: e.target.value })} required autoFocus /></label>
+            <label>Tipo<select value={edit.tipo_lancamento} onChange={(e) => setEdit({ ...edit, tipo_lancamento: e.target.value })}>
+              <option value="CREDITO">Crédito</option><option value="DEBITO">Débito</option></select></label>
+            <label>Centro de custo<select value={edit.centro} onChange={(e) => setEdit({ ...edit, centro: e.target.value })} required>
+              {!centros.some((c) => c.codigo === edit.centro) && <option value={edit.centro}>{edit.centro}</option>}
+              {centros.map((c) => <option key={c.codigo} value={c.codigo}>{c.codigo} · {c.nome}</option>)}</select></label>
+            <label>Item de despesa<select value={edit.item} onChange={(e) => setEdit({ ...edit, item: e.target.value })}>
+              <option value="">Sem item</option>
+              {edit.item && !itens.some((i) => String(i.codigo) === edit.item) && <option value={edit.item}>{item3(Number(edit.item))}</option>}
+              {itens.map((i) => <option key={i.codigo} value={i.codigo}>{item3(i.codigo)} · {i.nome}</option>)}</select></label>
+            <label>Fonte de recurso <span className="dica-campo">ex.: *05, vazio se não tem</span><input value={edit.fonte} onChange={(e) => setEdit({ ...edit, fonte: e.target.value })} /></label>
+            {erro && <p className="msg ruim">{erro}</p>}
+          </form>
+        </Modal>)}
     </section>
   );
 }

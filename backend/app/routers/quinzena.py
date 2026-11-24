@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from .. import quinzena as q
 from ..db import get_db
-from ..models import Configuracao, LinhaQuinzena, RegraQuinzena
+from ..models import CentroCusto, Configuracao, ItemDespesa, LinhaQuinzena, RegraQuinzena
 
 router = APIRouter(prefix="/quinzena", tags=["quinzena"])
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -52,13 +52,50 @@ def salvar_config(d: ConfigIn, db: Session = Depends(get_db)):
     return ler_config(db)
 
 
+def _linha_out(l):
+    return {"codigo": l.codigo, "ordem": l.ordem, "descricao": l.descricao, "tipo_lancamento": l.tipo_lancamento,
+            "centro": l.centro, "item": q.codigo_item(l.item) if l.item is not None else None, "fonte": l.fonte}
+
+
 @router.get("/linhas")
 def listar_linhas(db: Session = Depends(get_db)):
-    linhas = [{"codigo": l.codigo, "ordem": l.ordem, "descricao": l.descricao, "tipo_lancamento": l.tipo_lancamento,
-               "centro": l.centro, "item": q.codigo_item(l.item) if l.item is not None else None, "fonte": l.fonte}
-              for l in db.scalars(select(LinhaQuinzena).order_by(LinhaQuinzena.ordem))]
+    linhas = [_linha_out(l) for l in db.scalars(select(LinhaQuinzena).order_by(LinhaQuinzena.ordem))]
     especiais = [{"codigo": k, "descricao": v, "especial": True} for k, v in q.ESPECIAIS.items()]
     return {"linhas": linhas, "especiais": especiais}
+
+
+class LinhaIn(BaseModel):
+    descricao: str
+    tipo_lancamento: str
+    centro: str
+    item: int | str | None = None
+    fonte: str | None = None
+
+
+@router.put("/linhas/{codigo}")
+def editar_linha(codigo: str, d: LinhaIn, db: Session = Depends(get_db)):
+    """Edita tipo (crédito/débito), centro, item, fonte e descrição de uma linha do lançamento."""
+    linha = db.scalar(select(LinhaQuinzena).where(LinhaQuinzena.codigo == codigo))
+    if not linha:
+        raise HTTPException(404, "Linha não encontrada")
+    if not d.descricao.strip():
+        raise HTTPException(422, "A descrição não pode ficar vazia")
+    if d.tipo_lancamento not in ("CREDITO", "DEBITO"):
+        raise HTTPException(422, "O tipo precisa ser CREDITO ou DEBITO")
+    if d.centro != linha.centro and not db.scalar(select(CentroCusto).where(CentroCusto.codigo == d.centro)):
+        raise HTTPException(422, f"Centro de custo '{d.centro}' não existe")
+    item = None
+    if d.item not in (None, ""):
+        try:
+            item = int(str(d.item).lstrip("*"))
+        except ValueError:
+            raise HTTPException(422, f"Item '{d.item}' inválido")
+        if item != linha.item and not db.scalar(select(ItemDespesa).where(ItemDespesa.codigo == item)):
+            raise HTTPException(422, f"Item de despesa '{d.item}' não existe")
+    linha.descricao, linha.tipo_lancamento, linha.centro = d.descricao.strip(), d.tipo_lancamento, d.centro
+    linha.item, linha.fonte = item, (d.fonte or "").strip() or None
+    db.commit()
+    return _linha_out(linha)
 
 
 class RegraIn(BaseModel):

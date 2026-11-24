@@ -169,7 +169,7 @@ export default function Quinzena() {
       </section>
 
       <Regras regras={regras} opcoesLinha={opcoesLinha} aoMudar={async () => { await carregar(); reprocessar(); }} />
-      <Linhas linhasCad={linhasCad} cfg={cfg} aoSalvarCfg={async (c) => { await api("/quinzena/config", { method: "PUT", body: JSON.stringify(c) }); setConta(c.conta_quinzena); await carregar(); reprocessar(); }} />
+      <Linhas linhasCad={linhasCad} cfg={cfg} aoMudar={async () => { await carregar(); reprocessar(); }} aoSalvarCfg={async (c) => { await api("/quinzena/config", { method: "PUT", body: JSON.stringify(c) }); setConta(c.conta_quinzena); await carregar(); reprocessar(); }} />
 
       {carros && (
         <Modal titulo={carros.nome} subtitulo={`${carros.por_carro.length} carro(s) · total ${carros.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} onClose={() => setCarros(null)}>

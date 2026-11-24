@@ -43,7 +43,7 @@ def test_formato_das_linhas(client):
     por = {l["codigo"]: l for l in a["linhas"]}
     assert por["tarifas"]["codigo_item_despesa"] == "*048" and por["tarifas"]["codigo_centro_de_custo"] == "ADM01"
     assert por["taxa_coop"]["codigo_item_despesa"] is None and por["taxa_coop"]["codigo_fonte_recurso"] == "*05"
-    assert por["acordo"]["tipo_lancamento"] == "DEBITO" and por["acordo"]["codigo_fonte_recurso"] is None
+    assert por["acordo"]["tipo_lancamento"] == "CREDITO" and por["acordo"]["codigo_fonte_recurso"] is None
     assert "estorno_acordo" not in por and por["acordo"]["data_inicial"] == por["credito"]["data_inicial"] == "2026-03-09"
     assert por["credito"]["titulo"] == "Deposito Permissionários Interbairros"
     assert por["credito"]["numero_conta"] == "46604-2"
@@ -159,3 +159,40 @@ def test_evento_cortado_no_relatorio_casa_com_regra_mais_longa():
     assert q.regra_do_evento(regras, "43482 - INVESTIMENTO NO SISTEMA DOS PERMISSIONARIOS - EXTRA").linha == "x"  # o de sempre
     assert q.regra_do_evento(regras, "43482 - PIX") is None                             # curto demais para adivinhar
     assert q.regra_do_evento(regras, "43482 - OUTRA COISA") is None
+
+
+# ---- "Débitos de Acordo" sempre crédito, e linhas editáveis ----
+
+def test_seed_corrige_acordo_que_estava_como_debito(db):
+    from app.models import LinhaQuinzena
+    from app.seed.carregar import carregar
+    carregar(db)
+    db.query(LinhaQuinzena).filter_by(codigo="acordo").one().tipo_lancamento = "DEBITO"   # como estava no banco antigo
+    db.commit()
+    carregar(db)
+    assert db.query(LinhaQuinzena).filter_by(codigo="acordo").one().tipo_lancamento == "CREDITO"
+
+
+def test_editar_linha_muda_tipo_e_aparece_no_lancamento(client):
+    antes = next(l for l in client.get("/quinzena/linhas").json()["linhas"] if l["codigo"] == "taxa_sind")
+    corpo = {k: antes[k] for k in ("descricao", "centro", "item", "fonte")}
+    r = client.put("/quinzena/linhas/taxa_sind", json={**corpo, "tipo_lancamento": "DEBITO", "descricao": "Taxa Sindicato (editada)"})
+    assert r.status_code == 200 and r.json()["tipo_lancamento"] == "DEBITO"
+    a = processar(client, "quinzena_interbairros.xlsx")[0]
+    por = {l["codigo"]: l for l in a["linhas"]}
+    assert por["taxa_sind"]["tipo_lancamento"] == "DEBITO" and por["taxa_sind"]["descricao"].startswith("Taxa Sindicato (editada)")
+
+
+def test_editar_linha_com_os_proprios_valores_sempre_passa(client):
+    for l in client.get("/quinzena/linhas").json()["linhas"]:
+        corpo = {k: l[k] for k in ("descricao", "tipo_lancamento", "centro", "item", "fonte")}
+        assert client.put(f"/quinzena/linhas/{l['codigo']}", json=corpo).status_code == 200, l["codigo"]
+
+
+def test_editar_linha_recusa_valores_invalidos(client):
+    base = {"descricao": "X", "tipo_lancamento": "CREDITO", "centro": "CTPAS", "item": 580, "fonte": None}
+    assert client.put("/quinzena/linhas/acordo", json={**base, "tipo_lancamento": "TALVEZ"}).status_code == 422
+    assert client.put("/quinzena/linhas/acordo", json={**base, "centro": "NAOEXISTE"}).status_code == 422
+    assert client.put("/quinzena/linhas/acordo", json={**base, "item": 99999}).status_code == 422
+    assert client.put("/quinzena/linhas/acordo", json={**base, "descricao": "  "}).status_code == 422
+    assert client.put("/quinzena/linhas/naoexiste", json=base).status_code == 404

@@ -72,6 +72,8 @@ def carregar(db: Session) -> dict:
     # quinzena dos permissionários: linhas do lançamento, regras dos eventos e valores da taxa
     for l in db.scalars(select(LinhaQuinzena).where(LinhaQuinzena.codigo.in_(LINHAS_REMOVIDAS))):
         db.delete(l)  # linhas que existiam por engano na planilha base
+    for l in db.scalars(select(LinhaQuinzena).where(LinhaQuinzena.codigo == "acordo", LinhaQuinzena.tipo_lancamento == "DEBITO")):
+        l.tipo_lancamento = "CREDITO"  # erro da planilha antiga: acordo é sempre crédito (confirmado pela cooperativa)
     linhas_q = {l.codigo for l in db.scalars(select(LinhaQuinzena))}
     novos["quinzena_linhas"] = 0
     for d in _ler("quinzena_linhas"):
