@@ -20,6 +20,8 @@ function Relogio() {
 }
 
 export default function CascaSecreta({ children }) {
+  // o visual novo (tema.css) vale só para o sistema; aqui volta o visual próprio do Bureau
+  useEffect(() => { const antes = document.documentElement.dataset.v; delete document.documentElement.dataset.v; return () => { if (antes) document.documentElement.dataset.v = antes; }; }, []);
   const caminho = usePathname();
   const router = useRouter();
   const [estado, setEstado] = useState("verificando"); // verificando | ok | negado

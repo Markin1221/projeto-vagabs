@@ -6,9 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import Login from "../Login";
 import Entrada from "../ui/Entrada";
 import MobileTabelas from "../ui/MobileTabelas";
+import Mascote from "../ui/Mascote";
 import { API, lerToken } from "../lib";
 import { ConfigProvider } from "../config";
-import { Folha as IconeFolha, Etiqueta, Comparar, Cofre, Engrenagem, Sol, Lua } from "../ui/Icones";
+import { Folha as IconeFolha, Etiqueta, Comparar, Cofre, Engrenagem, Sol, Lua, Onibus } from "../ui/Icones";
 
 const FERRAMENTAS = [
   { href: "/folha", curto: "Folha", nome: "Folha de pagamento", Icone: IconeFolha, titulo: "Lançamentos da folha", desc: "Converta o Resumo Geral dos PDFs em lançamentos prontos para importar." },
@@ -22,6 +23,7 @@ export default function LayoutSistema({ children }) {
   const caminho = usePathname();
   const router = useRouter();
   const [tema, setTema] = useState("light");
+  const [mascote, setMascote] = useState(true);
   const [acesso, setAcesso] = useState("conectando"); // conectando | login | ok | falha
   const conectar = () => {
     setAcesso("conectando");
@@ -29,19 +31,23 @@ export default function LayoutSistema({ children }) {
       .then((c) => setAcesso(!c.protegido || lerToken() ? "ok" : "login")).catch(() => setAcesso("falha"));
   };
   useEffect(() => { conectar(); const volta = () => setAcesso("login"); window.addEventListener("vagabs-401", volta); return () => window.removeEventListener("vagabs-401", volta); }, []);
-  useEffect(() => { setTema(document.documentElement.dataset.theme || "light"); }, []);
+  useEffect(() => { setTema(document.documentElement.dataset.theme || "light"); try { setMascote(localStorage.getItem("vagabs-mascote") !== "off"); } catch {} }, []);
+  function alternarMascote() {
+    const novo = !mascote; setMascote(novo);
+    try { localStorage.setItem("vagabs-mascote", novo ? "on" : "off"); } catch {}
+  }
   function alternarTema() {
     const novo = tema === "dark" ? "light" : "dark";
     setTema(novo); document.documentElement.dataset.theme = novo;
     try { localStorage.setItem("vagabs-tema", novo); } catch {}
   }
   const f = [...FERRAMENTAS, CONFIG].find((x) => caminho?.startsWith(x.href)) || FERRAMENTAS[0];
-  const Item = ({ t }) => {
+  const Item = ({ t, n }) => {
     const ativa = t.href === f.href;
     return (
       <li><button type="button" className={ativa ? "ativa" : ""} aria-current={ativa ? "page" : undefined}
         onMouseEnter={() => router.prefetch(t.href)} onClick={() => router.push(t.href)}>
-        <t.Icone /><span className="nome">{t.nome}</span><span className="curto">{t.curto}</span></button></li>
+        <span className="parada" aria-hidden="true">{n}</span><t.Icone /><span className="nome">{t.nome}</span><span className="curto">{t.curto}</span></button></li>
     );
   };
   if (acesso !== "ok") {
@@ -59,25 +65,31 @@ export default function LayoutSistema({ children }) {
   return (
     <ConfigProvider>
       <MobileTabelas />
-      <div className="app">
+      <div className="app" data-linha={f.href.slice(1)}>
         <nav className="lateral" aria-label="Ferramentas">
           <div className="marca-app">
             <img className="logo-img logo-claro" src="/logo-claro.png" alt="VAGABS — Versátil Assistente de Gestão Administrativa, Business e Serviços" />
             <img className="logo-img logo-escuro" src="/logo-escuro.png" alt="" aria-hidden="true" />
           </div>
-          <ul>{FERRAMENTAS.map((t) => <Item key={t.href} t={t} />)}</ul>
-          <ul className="lateral-fim"><Item t={CONFIG} /></ul>
+          <ul>{FERRAMENTAS.map((t, i) => <Item key={t.href} t={t} n={i + 1} />)}</ul>
+          <ul className="lateral-fim"><Item t={CONFIG} n="•" /></ul>
         </nav>
         <div className="principal">
           <header className="topo">
             <div className="topo-tit"><span className="topo-icone"><f.Icone /></span><div><h1>{f.titulo}</h1><p>{f.desc}</p></div></div>
+            <div className="topo-botoes">
+            <button type="button" className="btn tema" onClick={alternarMascote} aria-pressed={mascote} aria-label={mascote ? "Esconder o mascote" : "Mostrar o mascote"} title="Mascote">
+              <Onibus /><span>{mascote ? "Mascote" : "Mascote off"}</span>
+            </button>
             <button type="button" className="btn tema" onClick={alternarTema} aria-label={tema === "dark" ? "Usar tema claro" : "Usar tema escuro"}>
               {tema === "dark" ? <Sol /> : <Lua />}<span>{tema === "dark" ? "Claro" : "Escuro"}</span>
             </button>
+            </div>
           </header>
           <main key={f.href}>{children}</main>
         </div>
       </div>
+      {mascote && <Mascote linha={f.href.slice(1)} />}
     </ConfigProvider>
   );
 }

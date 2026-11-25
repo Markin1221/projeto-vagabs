@@ -6,10 +6,23 @@ const CHAVE_TOKEN = "vagabs-token";
 export const lerToken = () => { try { return localStorage.getItem(CHAVE_TOKEN) || ""; } catch { return ""; } };
 export const guardarToken = (t) => { try { t ? localStorage.setItem(CHAVE_TOKEN, t) : localStorage.removeItem(CHAVE_TOKEN); } catch {} };
 
+// Quantas chamadas ao servidor estão em andamento: o mascote (ui/Mascote.jsx) escuta "vagabs-trabalho".
+let emAndamento = 0;
+function sinalizar(delta, erro) {
+  if (typeof window === "undefined") return;
+  emAndamento = Math.max(0, emAndamento + delta);
+  window.dispatchEvent(new CustomEvent("vagabs-trabalho", { detail: { n: emAndamento, erro: !!erro } }));
+}
+
 // fetch que leva a senha de acesso; se a API responder 401, avisa a tela para pedir a senha de novo
 export async function autFetch(url, opcoes = {}) {
   const t = lerToken();
-  const r = await fetch(url, { ...opcoes, headers: { ...(opcoes.headers || {}), ...(t ? { Authorization: `Bearer ${t}` } : {}) } });
+  sinalizar(1);
+  let r;
+  try {
+    r = await fetch(url, { ...opcoes, headers: { ...(opcoes.headers || {}), ...(t ? { Authorization: `Bearer ${t}` } : {}) } });
+  } catch (x) { sinalizar(-1, true); throw x; }
+  sinalizar(-1, !r.ok && r.status !== 401);
   if (r.status === 401 && typeof window !== "undefined") { guardarToken(""); window.dispatchEvent(new Event("vagabs-401")); }
   return r;
 }
