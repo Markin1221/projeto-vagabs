@@ -7,6 +7,7 @@ import Login from "../Login";
 import Entrada from "../ui/Entrada";
 import MobileTabelas from "../ui/MobileTabelas";
 import Mascote from "../ui/Mascote";
+import Cofrinho from "../ui/Cofrinho";
 import { API, lerToken } from "../lib";
 import { ConfigProvider } from "../config";
 import { Folha as IconeFolha, Etiqueta, Comparar, Cofre, Engrenagem, Sol, Lua, Onibus } from "../ui/Icones";
@@ -23,7 +24,8 @@ export default function LayoutSistema({ children }) {
   const caminho = usePathname();
   const router = useRouter();
   const [tema, setTema] = useState("light");
-  const [mascote, setMascote] = useState(true);
+  const [mascote, setMascote] = useState("ambos"); // ambos | onibus | cofrinho | nenhum
+  const [menuMascote, setMenuMascote] = useState(false);
   const [acesso, setAcesso] = useState("conectando"); // conectando | login | ok | falha
   const conectar = () => {
     setAcesso("conectando");
@@ -31,11 +33,18 @@ export default function LayoutSistema({ children }) {
       .then((c) => setAcesso(!c.protegido || lerToken() ? "ok" : "login")).catch(() => setAcesso("falha"));
   };
   useEffect(() => { conectar(); const volta = () => setAcesso("login"); window.addEventListener("vagabs-401", volta); return () => window.removeEventListener("vagabs-401", volta); }, []);
-  useEffect(() => { setTema(document.documentElement.dataset.theme || "light"); try { setMascote(localStorage.getItem("vagabs-mascote") !== "off"); } catch {} }, []);
-  function alternarMascote() {
-    const novo = !mascote; setMascote(novo);
-    try { localStorage.setItem("vagabs-mascote", novo ? "on" : "off"); } catch {}
+  useEffect(() => { setTema(document.documentElement.dataset.theme || "light"); try { const m = localStorage.getItem("vagabs-mascote"); setMascote(["ambos", "onibus", "cofrinho", "nenhum"].includes(m) ? m : m === "off" ? "nenhum" : "ambos"); } catch {} }, []);
+  function escolherMascote(v) {
+    setMascote(v); setMenuMascote(false);
+    try { localStorage.setItem("vagabs-mascote", v); } catch {}
   }
+  useEffect(() => {
+    if (!menuMascote) return;
+    const fora = (e) => { if (!e.target.closest?.(".menu-mascote-caixa")) setMenuMascote(false); };
+    const esc = (e) => e.key === "Escape" && setMenuMascote(false);
+    document.addEventListener("pointerdown", fora); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", fora); document.removeEventListener("keydown", esc); };
+  }, [menuMascote]);
   function alternarTema() {
     const novo = tema === "dark" ? "light" : "dark";
     setTema(novo); document.documentElement.dataset.theme = novo;
@@ -78,9 +87,16 @@ export default function LayoutSistema({ children }) {
           <header className="topo">
             <div className="topo-tit"><span className="topo-icone"><f.Icone /></span><div><h1>{f.titulo}</h1><p>{f.desc}</p></div></div>
             <div className="topo-botoes">
-            <button type="button" className="btn tema" onClick={alternarMascote} aria-pressed={mascote} aria-label={mascote ? "Esconder o mascote" : "Mostrar o mascote"} title="Mascote">
-              <Onibus /><span>{mascote ? "Mascote" : "Mascote off"}</span>
-            </button>
+            <div className="menu-mascote-caixa">
+              <button type="button" className="btn tema" onClick={() => setMenuMascote(!menuMascote)} aria-expanded={menuMascote} aria-haspopup="true" title="Mascotes">
+                <Onibus /><span>Mascote</span>
+              </button>
+              {menuMascote && (
+                <div className="menu-mascote" role="radiogroup" aria-label="Mascotes na tela">
+                  {[["ambos", "Os dois", "Busão na estrada e Cofrinho no canto"], ["onibus", "Só o Busão", "Anda pela estrada e acompanha as contas"], ["cofrinho", "Só o Cofrinho", "Bichinho que você alimenta e leva para outro canto"], ["nenhum", "Nenhum", "Tela limpa"]].map(([v, nome, desc]) => (
+                    <button key={v} type="button" role="radio" aria-checked={mascote === v} className={mascote === v ? "ativo" : ""} onClick={() => escolherMascote(v)}><b>{nome}</b><small>{desc}</small></button>))}
+                </div>)}
+            </div>
             <button type="button" className="btn tema" onClick={alternarTema} aria-label={tema === "dark" ? "Usar tema claro" : "Usar tema escuro"}>
               {tema === "dark" ? <Sol /> : <Lua />}<span>{tema === "dark" ? "Claro" : "Escuro"}</span>
             </button>
@@ -89,7 +105,8 @@ export default function LayoutSistema({ children }) {
           <main key={f.href}>{children}</main>
         </div>
       </div>
-      {mascote && <Mascote linha={f.href.slice(1)} />}
+      {(mascote === "ambos" || mascote === "onibus") && <Mascote linha={f.href.slice(1)} />}
+      {(mascote === "ambos" || mascote === "cofrinho") && <Cofrinho />}
     </ConfigProvider>
   );
 }

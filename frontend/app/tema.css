@@ -189,3 +189,50 @@
   html body main { padding-bottom: 150px; }
   html body .lateral { padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* ---------- Menu dos mascotes ---------- */
+.menu-mascote-caixa { position: relative; }
+.menu-mascote { position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: 292px; display: grid; gap: 2px; padding: 6px; background: var(--painel); border: 1px solid var(--linha); border-radius: 12px; box-shadow: 0 18px 40px -14px rgba(0, 0, 0, .45); animation: modal-mola .25s cubic-bezier(.2, 1.4, .4, 1) both; }
+.menu-mascote button { display: grid; gap: 1px; text-align: left; padding: 9px 12px 9px 34px; border: 0; border-radius: 8px; background: transparent; position: relative; }
+.menu-mascote button:hover { background: var(--painel-2); }
+.menu-mascote button b { font-weight: 600; }
+.menu-mascote button small { color: var(--tinta-3); font-size: 12.5px; }
+.menu-mascote button::before { content: ""; position: absolute; left: 12px; top: 14px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--linha); }
+.menu-mascote button.ativo::before { border-color: var(--marca); background: radial-gradient(var(--marca) 0 40%, transparent 45%); }
+
+/* ---------- Cofrinho ---------- */
+.bicho { position: fixed; left: 0; top: 0; width: 140px; height: 140px; z-index: 36; pointer-events: none; will-change: transform; }
+.bicho-cena, .bicho-cena canvas { position: absolute; inset: 0; display: block; }
+.bicho-toque { position: absolute; left: 28px; top: 40px; width: 84px; height: 92px; border-radius: 42%; pointer-events: auto; cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.bicho-toque:active { cursor: grabbing; }
+.bicho-toque:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+.bicho-balao { position: absolute; left: 70px; top: 6px; width: 0; z-index: 2; }
+.bicho-balao span { position: absolute; left: 0; bottom: 0; transform: translate(-50%, 8px) scale(.6); transform-origin: 50% 100%; width: max-content; max-width: 190px; white-space: normal; text-align: center; padding: 6px 12px; border-radius: 12px; background: #fff; color: #0d1520; font: 600 13px/1.25 "IBM Plex Sans", system-ui, sans-serif; box-shadow: 0 6px 18px -6px rgba(0, 0, 0, .45); opacity: 0; transition: opacity .18s, transform .3s cubic-bezier(.3, 1.7, .5, 1); }
+.bicho-balao span::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 2px; }
+.bicho-balao.on span { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.bicho-painel { position: absolute; left: 70px; bottom: 138px; transform: translateX(-50%); width: min(248px, 86vw); display: grid; gap: 10px; padding: 14px; background: var(--painel); color: var(--tinta); border: 1px solid var(--linha); border-top: 4px solid #ff7fa6; border-radius: 14px; box-shadow: 0 22px 44px -16px rgba(0, 0, 0, .5); pointer-events: auto; z-index: 3; animation: modal-mola .28s cubic-bezier(.2, 1.4, .4, 1) both; }
+.bicho-painel.esq { left: 20px; transform: none; }
+.bicho-painel header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.bicho-painel header b { font: 700 20px/1 var(--titulo, inherit); }
+.bicho-painel .humor { font-size: 12.5px; font-weight: 600; padding: 1px 9px; border-radius: 99px; background: var(--painel-2); color: var(--tinta-2); }
+.bicho-painel .humor.feliz { background: var(--ok-suave); color: var(--ok); }
+.bicho-painel .humor.bravo, .bicho-painel .humor.faminto { background: var(--ruim-suave); color: var(--ruim); }
+.bicho-painel .humor.triste, .bicho-painel .humor.enjoado { background: var(--aviso-suave); color: var(--aviso); }
+.medidor { display: grid; gap: 4px; font-size: 12.5px; color: var(--tinta-2); }
+.medidor i { display: block; height: 8px; border-radius: 99px; background: var(--painel-2); border: 1px solid var(--linha-2); overflow: hidden; }
+.medidor u { display: block; height: 100%; border-radius: 99px; background: #f2b01e; transition: width .5s; }
+.medidor u.h { background: #ff7fa6; }
+.bicho-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bicho-acoes .btn { padding: 7px 8px; }
+.bicho-painel p { color: var(--tinta-3); font-size: 12.5px; line-height: 1.4; }
+.bicho-painel .btn.leve { justify-self: start; padding: 4px 8px; }
+@media (max-width: 720px) {
+  .menu-mascote { position: fixed; left: 12px; right: 12px; top: 64px; width: auto; }
+  html body .topo-botoes .btn.tema span { display: none; }
+}
+
+/* ícone do título: a regra do tema escuro do globals.css deixava o traço quase da cor do ladrilho */
+:root[data-v="2"] .topo-icone, :root[data-v="2"][data-theme="dark"] .topo-icone { color: var(--marca-sobre); }
+:root[data-v="2"] .topo-icone svg { stroke-width: 1.7; }
+
+.bicho:has(.bicho-painel) .bicho-balao { display: none; }
