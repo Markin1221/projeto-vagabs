@@ -5,7 +5,7 @@
 // Decorativo: aria-hidden, parado com prefers-reduced-motion e some sozinho se não houver WebGL.
 import { useEffect, useRef } from "react";
 
-const NOMES = { folha: "Linha 1 · Folha", quinzena: "Linha 2 · Quinzena", extrato: "Linha 3 · Extrato", caixinha: "Linha 4 · Caixinha", config: "Ajustes" };
+const NOMES = { folha: "Folha de pagamento", quinzena: "Quinzena", extrato: "Extrato × DDATA", caixinha: "Caixinha", config: "Configurações" };
 
 export default function Mascote({ linha }) {
   const raiz = useRef(null), cena = useRef(null), balao = useRef(null), ctrl = useRef(null), linhaAtual = useRef(linha);
