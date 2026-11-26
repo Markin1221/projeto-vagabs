@@ -30,7 +30,7 @@
 :where(:root[data-v="2"]) *, :where(:root[data-v="2"]) *::before, :where(:root[data-v="2"]) *::after { scroll-behavior: auto; }
 
 /* ---------- Lateral ---------- */
-:where(:root[data-v="2"]) .lateral { padding: 22px 12px 64px; background: var(--lateral); border-right: 1px solid var(--lateral-borda); z-index: 2; }
+:where(:root[data-v="2"]) .lateral { padding: 22px 12px 16px; background: var(--lateral); border-right: 1px solid var(--lateral-borda); z-index: 2; }
 :where(:root[data-v="2"]) .marca-app { padding: 2px 8px 26px; }
 :where(:root[data-v="2"]) .lateral ul { gap: 2px; }
 :where(:root[data-v="2"]) .lateral button { min-height: 38px; padding: 8px 12px; gap: 10px; border-radius: var(--raio); font-size: 14px; color: var(--lateral-tinta); transition: background .15s, color .15s; }
@@ -40,6 +40,9 @@
 :where(:root[data-v="2"]) .lateral button.ativa { background: var(--marca-suave); color: var(--marca); font-weight: 600; box-shadow: none; }
 :where(:root[data-v="2"]) .lateral button.ativa svg { color: var(--marca); opacity: 1; }
 :where(:root[data-v="2"]) .lateral-fim { border-top: 1px solid var(--lateral-borda); margin-top: auto; padding-top: 12px; }
+/* só reserva espaço no pé da lateral quando a estrada do Busão está na tela */
+@media (min-width: 721px) { :where(:root[data-v="2"]) .app:has(~ .estrada) .lateral { padding-bottom: 56px; } }
+:where(:root[data-v="2"]) .lateral-fim button { min-height: 38px; }
 @media (min-width: 721px) {
   :root[data-v="2"] .lateral button.ativa::before { display: block; content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--marca); }
 }
