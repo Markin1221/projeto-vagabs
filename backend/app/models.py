@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from datetime import date
+
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -158,3 +160,49 @@ class RegraCaixinha(Base):
     centro: Mapped[str] = mapped_column(String(20))
     item: Mapped[int] = mapped_column(Integer)
     tipo: Mapped[str | None] = mapped_column(String(10))  # DEBITO | CREDITO | nulo = o da planilha
+
+
+# ---------- Estoque do administrativo ----------
+class ProdutoEstoque(Base):
+    """Produto do estoque do administrativo (papel, caneta, copo...). `saldo` é atualizado a cada movimento."""
+    __tablename__ = "estoque_produtos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(120), unique=True)
+    unidade: Mapped[str] = mapped_column(String(20), default="un")
+    saldo: Mapped[int] = mapped_column(Integer, default=0)
+    minimo: Mapped[int] = mapped_column(Integer, default=0)  # abaixo disso aparece como "repor"
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class MovimentoEstoque(Base):
+    """Entrada (compra/reposição) ou saída (alguém pegou). Na saída, `pessoa` diz quem pegou."""
+    __tablename__ = "estoque_movimentos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    produto_id: Mapped[int] = mapped_column(ForeignKey("estoque_produtos.id"))
+    tipo: Mapped[str] = mapped_column(String(10))  # ENTRADA | SAIDA
+    quantidade: Mapped[int] = mapped_column(Integer)
+    pessoa: Mapped[str | None] = mapped_column(String(120), index=True)
+    data: Mapped[date] = mapped_column(Date)
+    observacao: Mapped[str | None] = mapped_column(Text)
+    pedido_id: Mapped[int | None] = mapped_column(ForeignKey("estoque_pedidos.id"))
+
+    produto: Mapped[ProdutoEstoque] = relationship()
+
+
+class PedidoEstoque(Base):
+    """Pedido de alguém por um produto. Fica PENDENTE até ser ATENDIDO (vira uma saída) ou CANCELADO."""
+    __tablename__ = "estoque_pedidos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pessoa: Mapped[str] = mapped_column(String(120), index=True)
+    produto_id: Mapped[int | None] = mapped_column(ForeignKey("estoque_produtos.id"))
+    descricao: Mapped[str | None] = mapped_column(String(200))  # quando o produto ainda não está cadastrado
+    quantidade: Mapped[int] = mapped_column(Integer, default=1)
+    data_pedido: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(10), default="PENDENTE")  # PENDENTE | ATENDIDO | CANCELADO
+    data_atendido: Mapped[date | None] = mapped_column(Date)
+    observacao: Mapped[str | None] = mapped_column(Text)
+
+    produto: Mapped[ProdutoEstoque | None] = relationship()
