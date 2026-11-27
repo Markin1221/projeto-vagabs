@@ -16,6 +16,7 @@ contábil, já com centro de custo, item de despesa e conferências.
 | **Quinzena dos permissionários** (`/quinzena`) | Relatórios de remuneração da quinzena (.xlsx), um por grupo (Interbairros, Alimentadora, Intermunicipal) | Lançamentos por linha (crédito, óleo diesel, peças, bandeira, terminais, taxas…), com a composição de cada linha e conferência com o depósito |
 | **Extrato × DDATA** (`/extrato`) | Extrato do banco e planilha do DDATA Sol | O que está no banco e falta no DDATA, valores em outra data e o que só existe no DDATA |
 | **Caixinha** (`/caixinha`) | Planilha da caixinha (.xlsx) com um ou vários meses lado a lado | Um CSV por mês (vários meses saem num .zip), com títulos repetidos numerados (`01`, `02`…) |
+| **Orçado × Realizado** (`/orcamento`) | Relatório Orçado x Realizado (.xlsx) | Painel com totais, destaques (estouros, gastos sem orçamento, economias) e gráficos: orçado × realizado, execução %, economia × estouro, mapa do gasto, dispersão, por grupo e curva ABC; tabela ordenável e CSV |
 | **Configurações** (`/config`) | — | Dicas passo a passo de cada tela (liga/desliga, salvo no navegador) e tema claro/escuro |
 
 Em todas elas o sistema **não chuta**: o que não reconhece aparece como problema na tela e **bloqueia a geração** até

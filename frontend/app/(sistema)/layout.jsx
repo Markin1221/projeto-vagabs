@@ -10,13 +10,14 @@ import Mascote from "../ui/Mascote";
 import Cofrinho from "../ui/Cofrinho";
 import { API, lerToken } from "../lib";
 import { ConfigProvider } from "../config";
-import { Folha as IconeFolha, Etiqueta, Comparar, Cofre, Engrenagem, Sol, Lua, Onibus, Caixa } from "../ui/Icones";
+import { Folha as IconeFolha, Etiqueta, Comparar, Cofre, Engrenagem, Sol, Lua, Onibus, Caixa, Grafico } from "../ui/Icones";
 
 const FERRAMENTAS = [
   { href: "/folha", curto: "Folha", nome: "Folha de pagamento", Icone: IconeFolha, titulo: "Lançamentos da folha", desc: "Converta o Resumo Geral dos PDFs em lançamentos prontos para importar." },
   { href: "/quinzena", curto: "Quinzena", nome: "Quinzena dos permissionários", Icone: Etiqueta, titulo: "Quinzena dos permissionários", desc: "Transforme o relatório de remuneração da quinzena em lançamentos por item." },
   { href: "/extrato", curto: "Extrato", nome: "Extrato × DDATA", Icone: Comparar, titulo: "Extrato × DDATA", desc: "Encontre os pagamentos do banco que ainda não foram lançados no DDATA Sol." },
   { href: "/caixinha", curto: "Caixinha", nome: "Caixinha", Icone: Cofre, titulo: "Caixinha", desc: "Transforme a planilha da caixinha do mês no CSV de importação." },
+  { href: "/orcamento", curto: "Orçamento", nome: "Orçado × Realizado", Icone: Grafico, titulo: "Orçado × Realizado", desc: "Gráficos e destaques do relatório de orçamento: onde estourou, onde sobrou e para onde foi o dinheiro." },
   { href: "/estoque", curto: "Estoque", nome: "Estoque", Icone: Caixa, titulo: "Estoque do administrativo", desc: "Saldo dos produtos, quem pegou e quando, e quem já pediu." },
 ];
 const CONFIG = { href: "/config", curto: "Ajustes", nome: "Configurações", Icone: Engrenagem, titulo: "Configurações", desc: "Ajuste como o sistema se comporta para você." };
