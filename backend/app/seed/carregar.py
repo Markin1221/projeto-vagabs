@@ -6,12 +6,14 @@
 Os JSONs em app/seed/dados/ vêm da planilha base (scripts/gerar_seed_da_planilha.py)."""
 import argparse
 import json
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import Base, engine
+from ..models import PagamentoAgendado
 from ..models import CentroCusto, Evento, EventoApelido, ItemDespesa, RegraClassificacao, LinhaQuinzena, RegraQuinzena, Configuracao, RaioxMes
 
 DADOS = Path(__file__).parent / "dados"
@@ -88,6 +90,7 @@ def carregar(db: Session) -> dict:
         if db.get(Configuracao, chave) is None:
             db.add(Configuracao(chave=chave, valor=valor))
     novos["raiox_base"] = carregar_raiox_base(db, commit=False)
+    novos["pagamentos"] = carregar_pagamentos_base(db)
     db.commit()
     return novos
 
@@ -104,6 +107,20 @@ def carregar_raiox_base(db: Session, commit: bool = True) -> int:
             n += 1
     if commit:
         db.commit()
+    return n
+
+
+def carregar_pagamentos_base(db: Session) -> int:
+    """Pagamentos iniciais do calendário (da planilha calendario.xlsx). Entram uma vez só: se forem editados ou
+    excluídos na tela, não voltam."""
+    if db.get(Configuracao, "pagamentos_base") is not None:
+        return 0
+    n = 0
+    for d in _ler("pagamentos"):
+        d = {**d, "inicio": date.fromisoformat(d["inicio"]), "fim": date.fromisoformat(d["fim"]) if d["fim"] else None}
+        db.add(PagamentoAgendado(**d, ativo=True))
+        n += 1
+    db.add(Configuracao(chave="pagamentos_base", valor="1"))
     return n
 
 
