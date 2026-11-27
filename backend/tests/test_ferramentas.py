@@ -109,3 +109,27 @@ def test_comparador_extrato_cd_com_planilha_de_conferencia(client):
     assert [f["Valor"] for f in r["faltando"]] == [512.18]                 # pago no banco, não está na conferência
     assert [f["Tipo"] for f in r["faltando"]] == ["Débito"] and r["faltando"][0]["Documento"] == "112602"
     assert [s["Valor"] for s in r["so_ddata"]] == [-999.99]                # está na conferência, não saiu do banco
+
+
+def conferencia_dias():
+    """Conferência com uma aba por dia: B = crédito, C = débito, E = justificativa; 'dda' soma vários boletos; há linha de total."""
+    b = io.BytesIO()
+    cab = [[None], ["BANCO DO BRASIL - MATRIS"], [None, "CREDITO ", "DEBITO "], [None]]
+    dia = pd.DataFrame(cab + [[None, 20000.0, None, None, None], [None, None, 1593.68, None, "dda"], [None, None, 512.18 + 0, None, "cap 51"],
+                              [None, None, 2105.86, None, None]])  # última = total
+    with pd.ExcelWriter(b) as w:
+        dia.to_excel(w, sheet_name="26.11.26", index=False, header=False)
+        dia.to_excel(w, sheet_name="27.11.26", index=False, header=False)
+        pd.DataFrame([[1]]).to_excel(w, sheet_name="Planilha1", index=False, header=False)
+    return b.getvalue()
+
+
+def test_comparador_conferencia_por_dia_soma_dda(client):
+    ext = [["Data", "Historico", "Valor R$", "Inf."], ["26/11/2026", "Pagamento de Boleto", "1.000,00 ", "D"],
+           ["26/11/2026", "Pagamento de Boleto", "593,68 ", "D"], ["26/11/2026", "TED", "512,18 ", "D"],
+           ["26/11/2026", "Pix - Recebido", "20.000,00 ", "C"], ["26/11/2026", "Tar DOC/TED", "13,60 ", "D"]]
+    r = client.post("/comparador/comparar", files={"extrato": ("e.xlsx", xlsx(pd.DataFrame(ext), header=False)),
+                                                    "ddata": ("c.xlsx", conferencia_dias())}).json()
+    assert [f["Histórico"] for f in r["faltando"]] == ["Tar DOC/TED"]             # só a tarifa não está na conferência
+    assert len(r["agrupados"]) == 1 and r["agrupados"][0]["Lançamentos no banco"] == 2 and r["agrupados"][0]["Valor"] == -1593.68
+    assert r["so_ddata"] == []                                                     # total do dia descartado; 27/11 ignorada

@@ -9,11 +9,13 @@ router = APIRouter(prefix="/comparador", tags=["comparador"])
 def _rodar(extrato, ddata, rende, creditos, datas):
     try:
         ex = comparador.ler_extrato(extrato.file.read())
-        dd = comparador.ler_ddata(ddata.file.read())
+        dd = comparador.ler_ddata(ddata.file.read(), set(ex["Data"]))
     except Exception as e:
         raise HTTPException(422, f"Erro ao ler os arquivos: {e}")
     if dd is None:
         raise HTTPException(422, "Não encontrei as colunas 'Data' e 'Valor' na planilha do DDATA.")
+    if dd is not None and dd.empty:
+        raise HTTPException(422, "Não encontrei na conferência as abas dos dias do extrato (ex.: '26.11.26') com valores.")
     if ex.empty:
         raise HTTPException(422, "Não encontrei lançamentos no extrato. Confira se o primeiro arquivo é o extrato do banco.")
     return comparador.comparar(ex, dd, rende, creditos, datas)
@@ -28,7 +30,8 @@ def comparar(extrato: UploadFile = File(...), ddata: UploadFile = File(...), ign
                    ignorar_creditos: bool = Form(False), ignorar_datas: bool = Form(False)):
     r = _rodar(extrato, ddata, ignorar_rende, ignorar_creditos, ignorar_datas)
     return {"n_extrato": r["n_extrato"], "n_ddata": r["n_ddata"], "faltando": _json(r["faltando"]),
-            "outra_data": _json(r["outra_data"]), "so_ddata": _json(r["so_ddata"])}
+            "outra_data": _json(r["outra_data"]), "so_ddata": _json(r["so_ddata"]),
+            "agrupados": _json(r["agrupados"])}
 
 
 @router.post("/xlsx")

@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import pandas as pd
 
+JANELA_DIAS = 15  # "valor em outra data" só vale se a diferença for de até 15 dias
 COLS_EXTRATO = ["Data", "Tipo", "Valor", "Histórico", "Documento", "Detalhe", "_chave"]
 
 
@@ -127,7 +128,54 @@ def _ler_conferencia(bruto):
     return pd.DataFrame(dados, columns=["Data", "Valor", "Título", "Descrição"])
 
 
-def ler_ddata(conteudo: bytes):
+def _num_ok(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and not pd.isna(x)
+
+
+def _ler_dias(wb, datas):
+    """Conferência com uma aba por dia ('26.11.26'): bloco do Banco do Brasil = coluna B crédito, C débito, E justificativa.
+    Só lê as abas dos dias do extrato. A linha de total (= soma das outras de débito) é descartada."""
+    dados = []
+    for nome in wb.sheetnames:
+        m = re.fullmatch(r"\s*(\d\d)\.(\d\d)\.(\d\d)\s*", nome)
+        if not m:
+            continue
+        dia = f"{m[1]}/{m[2]}/20{m[3]}"
+        if datas and dia not in datas:
+            continue
+        ws = wb[nome]
+        ws.reset_dimensions()
+        linhas = []
+        for r in ws.iter_rows(min_row=4, max_col=5, values_only=True):
+            r = list(r) + [None] * (5 - len(r))
+            desc = "" if r[4] is None else str(r[4]).strip()
+            if _num_ok(r[1]) and r[1]:
+                linhas.append([round(float(r[1]), 2), desc])
+            if _num_ok(r[2]) and r[2]:
+                linhas.append([-round(float(r[2]), 2), desc])
+        debitos = [l for l in linhas if l[0] < 0]
+        if len(debitos) > 1:
+            soma = round(sum(l[0] for l in debitos), 2)
+            total = next((l for l in debitos if abs(soma - 2 * l[0]) < 0.015), None)  # l = soma dos outros
+            if total is not None:
+                linhas.remove(total)
+        for valor, desc in linhas:
+            dados.append({"Data": dia, "Valor": valor, "Título": nome.strip(), "Descrição": desc or "(sem justificativa)"})
+    return pd.DataFrame(dados, columns=["Data", "Valor", "Título", "Descrição"])
+
+
+def ler_ddata(conteudo: bytes, datas=None):
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(conteudo), read_only=True, data_only=True)
+        if sum(bool(re.fullmatch(r"\s*\d\d\.\d\d\.\d\d\s*", n)) for n in wb.sheetnames) >= 2:
+            try:
+                return _ler_dias(wb, set(datas) if datas else None)
+            finally:
+                wb.close()
+        wb.close()
+    except Exception:
+        pass
     bruto = _bruto(conteudo)
     conf = _ler_conferencia(bruto)
     if conf is not None:
@@ -144,6 +192,49 @@ def ler_ddata(conteudo: bytes):
     df["Data"] = df["Data"].dt.strftime("%d/%m/%Y")
     df["Valor"] = df["Valor"].astype(float).round(2)
     return df
+
+
+def _subconjunto(valores, alvo, limite=200000):
+    """Índices de `valores` (centavos) que somam `alvo`, ou None."""
+    idx = sorted(range(len(valores)), key=lambda i: -valores[i])
+    resto = [0] * (len(idx) + 1)
+    for k in range(len(idx) - 1, -1, -1):
+        resto[k] = resto[k + 1] + valores[idx[k]]
+    passos = [0]
+
+    def dfs(k, falta, esc):
+        passos[0] += 1
+        if falta == 0:
+            return esc
+        if k == len(idx) or passos[0] > limite or resto[k] < falta:
+            return None
+        v = valores[idx[k]]
+        if v <= falta:
+            r = dfs(k + 1, falta - v, esc + [idx[k]])
+            if r is not None:
+                return r
+        return dfs(k + 1, falta, esc)
+    return dfs(0, alvo, [])
+
+
+def _agrupar(faltando, sobras):
+    """Uma linha da planilha pode ser a soma de vários lançamentos do banco (ex.: 'dda' = todos os boletos do dia)."""
+    usados, agrupados, restam = set(), [], []
+    for so in sorted(sobras, key=lambda x: -abs(x["Valor"])):
+        tipo = "Débito" if so["Valor"] < 0 else "Crédito"
+        cand = [i for i in faltando.index if i not in usados and faltando.at[i, "Data"] == so["Data"] and faltando.at[i, "Tipo"] == tipo]
+        if "dda" in str(so["Descrição"]).lower():
+            cand = [i for i in cand if "boleto" in str(faltando.at[i, "Histórico"]).lower()]
+        vals = [int(round(faltando.at[i, "Valor"] * 100)) for i in cand]
+        achou = _subconjunto(vals, int(round(abs(so["Valor"]) * 100))) if 2 <= len(cand) <= 80 else None
+        if achou and len(achou) >= 2:
+            sel = [cand[k] for k in achou]
+            usados.update(sel)
+            agrupados.append({**so, "Lançamentos no banco": len(sel),
+                              "Detalhe": "; ".join(str(faltando.at[i, "Detalhe"]) for i in sel)})
+        else:
+            restam.append(so)
+    return faltando.drop(index=list(usados)), restam, agrupados
 
 
 def comparar(extrato, ddata, ignorar_rende=True, ignorar_creditos=False, ignorar_datas=False) -> dict:
@@ -180,10 +271,11 @@ def comparar(extrato, ddata, ignorar_rende=True, ignorar_creditos=False, ignorar
         for p in restantes:
             por_valor[round(ddata.at[p, "Valor"], 2)].append(p)
         for pos in faltando_pos:
-            candidatos = por_valor.get(round(extrato.at[pos, "_chave"], 2))
+            candidatos = [p for p in por_valor.get(round(extrato.at[pos, "_chave"], 2), [])
+                          if abs((ddata.at[p, "_dt"] - extrato.at[pos, "_dt"]).days) <= JANELA_DIAS]  # só datas próximas
             if candidatos:
                 melhor = min(candidatos, key=lambda p: abs((ddata.at[p, "_dt"] - extrato.at[pos, "_dt"]).days))
-                candidatos.remove(melhor)
+                por_valor[round(extrato.at[pos, "_chave"], 2)].remove(melhor)
                 consumidos.add(melhor)
                 linha = extrato.loc[pos].drop(["_chave", "_dt"]).to_dict()
                 linha["Data no DDATA"] = ddata.at[melhor, "Data"]
@@ -197,9 +289,10 @@ def comparar(extrato, ddata, ignorar_rende=True, ignorar_creditos=False, ignorar
                "Título": ddata.at[p, "Título"] if "Título" in ddata.columns else "",
                "Descrição": ddata.at[p, "Descrição"] if "Descrição" in ddata.columns else ""}
               for p in restantes if p not in consumidos]
-    return {"n_extrato": len(extrato), "n_ddata": len(ddata),
-            "faltando": extrato.loc[faltando_real].drop(columns=["_chave", "_dt"]),
-            "outra_data": pd.DataFrame(outra_data), "so_ddata": pd.DataFrame(sobras)}
+    faltando_df, sobras, agrupados = _agrupar(extrato.loc[faltando_real].drop(columns=["_chave", "_dt"]), sobras)
+    return {"n_extrato": len(extrato), "n_ddata": len(ddata), "faltando": faltando_df,
+            "outra_data": pd.DataFrame(outra_data), "so_ddata": pd.DataFrame(sobras),
+            "agrupados": pd.DataFrame(agrupados)}
 
 
 def para_xlsx(r: dict) -> bytes:
@@ -208,6 +301,8 @@ def para_xlsx(r: dict) -> bytes:
         r["faltando"].to_excel(w, sheet_name="Faltando no DDATA", index=False)
         if not r["outra_data"].empty:
             r["outra_data"].to_excel(w, sheet_name="Valor existe em outra data", index=False)
+        if not r["agrupados"].empty:
+            r["agrupados"].to_excel(w, sheet_name="Soma de varios lancamentos", index=False)
         if not r["so_ddata"].empty:
             r["so_ddata"].to_excel(w, sheet_name="So no DDATA", index=False)
     return buf.getvalue()
