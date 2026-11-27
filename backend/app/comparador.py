@@ -31,6 +31,7 @@ def ler_extrato(conteudo: bytes) -> pd.DataFrame:
 def _layout_colunas(df, linha_cab, cab):
     c_data, c_hist, c_deb = cab.index("Data"), cab.index("Historico"), cab.index("Valor R$")
     c_cred = c_deb + 1  # a coluna seguinte (sem título) tem os créditos
+    c_inf = c_cred if c_cred < len(cab) and cab[c_cred] in ("Inf.", "Inf", "D/C", "C/D") else None  # layout com C/D
     c_doc = cab.index("Numero Documento") if "Numero Documento" in cab else None
     c_det = next((i for i, v in enumerate(cab) if v.startswith("Detalhamento")), None)
     dados = []
@@ -40,7 +41,11 @@ def _layout_colunas(df, linha_cab, cab):
         historico = str(linha[c_hist]).strip()
         if pd.isna(data) or "SALDO" in historico.upper().replace(" ", ""):
             continue
-        deb, cred = _numero(linha[c_deb]), _numero(linha[c_cred])
+        if c_inf is not None:  # um só valor + letra C/D
+            v, cd = _numero(linha[c_deb]), str(linha[c_inf]).strip().upper()
+            deb, cred = (v, None) if cd == "D" else (None, v) if cd == "C" else (None, None)
+        else:
+            deb, cred = _numero(linha[c_deb]), _numero(linha[c_cred])
         if deb is None and cred is None:  # ex.: BB Rende Fácil (sem valor na linha)
             continue
         valor = deb if deb is not None else cred
@@ -86,8 +91,32 @@ def _layout_antigo(df):
     return pd.DataFrame(dados, columns=COLS_EXTRATO)
 
 
+def _ler_conferencia(bruto):
+    """Planilha de conferência (primeira aba): cabeçalho com 'Situação'; cada pagamento = data, descrição, valor, situação,
+    sequencial. Tudo é pagamento (débito)."""
+    if not any("Situação" in {str(v).strip() for v in bruto.iloc[i].values} for i in range(min(10, len(bruto)))):
+        return None
+    dados = []
+    for _, linha in bruto.iterrows():
+        v = list(linha.values)
+        pos = next((i for i, x in enumerate(v) if isinstance(x, (pd.Timestamp, __import__("datetime").datetime))), None)
+        if pos is None or pos + 2 >= len(v):
+            continue
+        valor = _numero(v[pos + 2]) if not pd.isna(v[pos + 2]) else None
+        if valor is None:
+            continue
+        sit = next((str(x).strip() for x in v[pos + 3:] if isinstance(x, str)), "")
+        seq = next((str(int(x)) for x in v[pos + 3:] if isinstance(x, (int, float)) and not pd.isna(x) and float(x).is_integer() and x > 1000), "")
+        dados.append({"Data": pd.Timestamp(v[pos]).strftime("%d/%m/%Y"), "Valor": -abs(valor),
+                      "Título": seq, "Descrição": f"{str(v[pos + 1]).strip()} ({sit})" if sit else str(v[pos + 1]).strip()})
+    return pd.DataFrame(dados, columns=["Data", "Valor", "Título", "Descrição"])
+
+
 def ler_ddata(conteudo: bytes):
     bruto = pd.read_excel(io.BytesIO(conteudo), header=None)
+    conf = _ler_conferencia(bruto)
+    if conf is not None:
+        return conf
     linha_cab = next((i for i in range(min(15, len(bruto)))
                       if {"Data", "Valor"} <= {str(v).strip() for v in bruto.iloc[i].values}), None)
     if linha_cab is None:
@@ -105,7 +134,9 @@ def comparar(extrato, ddata, ignorar_rende=True, ignorar_creditos=False, ignorar
     """Cada lançamento do extrato 'consome' um do DDATA (mesma data e valor). O que sobra no extrato está faltando;
     desses, os que têm o valor no DDATA em outra data vão para `outra_data`. O que sobra no DDATA vai para `so_ddata`."""
     if ignorar_rende:
-        extrato = extrato[~extrato["Histórico"].str.contains("Rende", case=False, na=False)]
+        extrato = extrato[~extrato["Histórico"].str.contains("Rende|RF Simples|Invest", case=False, na=False)]
+    if (ddata["Valor"] <= 0).all():  # conferência da equipe só traz pagamentos: créditos do banco não entram
+        ignorar_creditos = True
     if ignorar_creditos:
         extrato, ddata = extrato[extrato["Tipo"] == "Débito"], ddata[ddata["Valor"] < 0]
     extrato, ddata = extrato.reset_index(drop=True), ddata.reset_index(drop=True)

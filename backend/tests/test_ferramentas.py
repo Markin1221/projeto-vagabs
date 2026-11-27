@@ -76,3 +76,36 @@ def test_regras_crud(client):
     rid = nova.json()["id"]
     assert client.post("/classificador/processar", files={"arquivo": ("s.xlsx", sol())}).json()["resumo"]["manual"] == 0
     assert client.delete(f"/regras/{rid}").status_code == 204
+
+
+def extrato_cd():
+    """Extrato do banco com coluna 'Inf.' (C/D), datas em texto e valor '1.234,56 '."""
+    linhas = [["Extrato Conta Corrente"], ["Agencia", "06971"],
+              ["Data", "observacao", "Data balancete", "Agencia Origem", "Lote", "Numero Documento", "Cod. Historico", "Historico", "Valor R$ ", "Inf.", "Detalhamento Hist."],
+              ["25/11/2026", " ", "25/11/2026", "0000", "0", "0", "0", "Saldo Anterior   ", "2.410,40 ", "C", " "],
+              ["26/11/2026", " ", "26/11/2026", "0", "1", "00000000000112601", "109", "Pagamento de Boleto", "1.081,50 ", "D", "REDIESEL"],
+              ["26/11/2026", " ", "26/11/2026", "0", "1", "00000000000112602", "109", "Pagamento de Boleto", "512,18 ", "D", "CUMMINS"],
+              ["26/11/2026", " ", "26/11/2026", "0", "1", "00000000000112603", "821", "Pix - Recebido", "20.000,00 ", "C", "COOPERNORTE"],
+              ["26/11/2026", " ", "26/11/2026", "0", "0", "0", "848", "BB RF Simples Ágil", "10.924,16 ", "C", " "],
+              ["27/11/2026", " ", "27/11/2026", "0", "0", "0", "999", "S A L D O", "130,00 ", "D", " "],
+              [None], ["Saldo", "33.656,52", "C"]]
+    return xlsx(pd.DataFrame(linhas), header=False)
+
+
+def conferencia():
+    """Planilha da conferência: cabeçalho com 'Situação', uma linha por pagamento (colunas deslocadas, como a original)."""
+    from datetime import datetime
+    d = datetime(2026, 11, 26)
+    linhas = [[None] * 5, [None] * 5, [None, None, None, "Valor", "Total diário", "Situação", "Documento", "Sequencial"],
+              [None, None, None, None, d, "Cobranca 1", 1081.5, None, "DEBITADO", 82601, 1],
+              [None, None, None, None, d, "TED BCO:004", 999.99, None, "DEBITADO", 82602, 2],
+              [None, None, None, None, None, None, 2000.0]]
+    return xlsx(pd.DataFrame(linhas), header=False)
+
+
+def test_comparador_extrato_cd_com_planilha_de_conferencia(client):
+    r = client.post("/comparador/comparar", files={"extrato": ("e.xlsx", extrato_cd()), "ddata": ("c.xlsx", conferencia())}).json()
+    assert r["n_extrato"] == 2 and r["n_ddata"] == 2                       # saldo, crédito e RF Simples ficam de fora
+    assert [f["Valor"] for f in r["faltando"]] == [512.18]                 # pago no banco, não está na conferência
+    assert [f["Tipo"] for f in r["faltando"]] == ["Débito"] and r["faltando"][0]["Documento"] == "112602"
+    assert [s["Valor"] for s in r["so_ddata"]] == [-999.99]                # está na conferência, não saiu do banco

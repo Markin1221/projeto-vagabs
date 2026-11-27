@@ -51,19 +51,19 @@ export default function Comparador() {
   return (
     <>
       <Dica passos={[
-        "Envie o extrato do banco (.xlsx) no primeiro campo e a planilha do DDATA Sol (.xlsx) no segundo.",
+        "Envie o extrato do banco (.xlsx) no primeiro campo e, no segundo, a planilha do DDATA Sol ou a planilha de conferência dos pagamentos (.xlsx).",
         "Escolha as opções: ignorar as aplicações automáticas (BB Rende Fácil), comparar só os débitos, ou ignorar as datas.",
         "Clique em Comparar. As abas mostram o que está no banco e falta no DDATA, o que existe com data diferente e o que só tem no DDATA.",
         "Clique em Baixar planilha para levar o resultado para o Excel."]} />
       <section className="painel">
-        <div className="painel-cab"><h2>Comparar extrato e DDATA</h2><p>Descubra quais pagamentos do banco ainda não foram lançados no DDATA Sol.</p></div>
+        <div className="painel-cab"><h2>Comparar extrato e DDATA</h2><p>Descubra quais pagamentos do banco não aparecem na planilha e quais da planilha não saíram do banco. Na conferência só entram os débitos.</p></div>
         {erro && <div className="faixa-erro" role="alert" style={{ marginBottom: 14 }}>{erro}</div>}
         <div className="duas-colunas">
           <div><p className="rotulo-campo">Extrato do banco</p><Soltar rotulo="Escolha o extrato do banco" arquivo={extrato} aoEscolher={setExtrato} /></div>
-          <div><p className="rotulo-campo">Planilha do DDATA Sol</p><Soltar rotulo="Escolha a planilha do DDATA" arquivo={ddata} aoEscolher={setDdata} /></div>
+          <div><p className="rotulo-campo">Planilha do DDATA Sol ou conferência</p><Soltar rotulo="Escolha a planilha do DDATA" arquivo={ddata} aoEscolher={setDdata} /></div>
         </div>
         <div className="opcoes">
-          <label className="marca"><input type="checkbox" checked={rende} onChange={(e) => setRende(e.target.checked)} />Ignorar aplicações e resgates automáticos (BB Rende Fácil)</label>
+          <label className="marca"><input type="checkbox" checked={rende} onChange={(e) => setRende(e.target.checked)} />Ignorar aplicações e resgates automáticos (BB Rende Fácil, RF Simples)</label>
           <label className="marca"><input type="checkbox" checked={creditos} onChange={(e) => setCreditos(e.target.checked)} />Comparar só débitos (ignorar créditos)</label>
           <label className="marca"><input type="checkbox" checked={datas} onChange={(e) => setDatas(e.target.checked)} />Ignorar as datas e procurar só pelos valores</label>
         </div>
