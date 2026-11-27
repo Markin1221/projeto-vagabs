@@ -2,6 +2,10 @@
 import { useEffect, useRef } from "react";
 import { Fechar } from "./Icones";
 
+// Modais abertos, do mais antigo ao mais novo: com um modal por cima de outro, só o de cima responde ao Esc
+// e a rolagem da página só volta quando o último fecha.
+const pilha = [];
+
 export default function Modal({ titulo, subtitulo, onClose, largo, children, rodape }) {
   const ref = useRef(null);
   // onClose chega como função nova a cada render (ex.: () => setEdit(null)). Se ele fosse dependência do efeito,
@@ -11,10 +15,17 @@ export default function Modal({ titulo, subtitulo, onClose, largo, children, rod
   useEffect(() => {
     const anterior = document.activeElement;
     if (!ref.current?.contains(document.activeElement)) ref.current?.focus();
-    const tecla = (e) => e.key === "Escape" && fechar.current();
+    const eu = {};
+    pilha.push(eu);
+    const tecla = (e) => e.key === "Escape" && pilha[pilha.length - 1] === eu && fechar.current();
     document.addEventListener("keydown", tecla);
     document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", tecla); document.body.style.overflow = ""; anterior?.focus?.(); };
+    return () => {
+      document.removeEventListener("keydown", tecla);
+      pilha.splice(pilha.indexOf(eu), 1);
+      if (!pilha.length) document.body.style.overflow = "";
+      anterior?.focus?.();
+    };
   }, []);
   return (
     <div className="modal-fundo" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>

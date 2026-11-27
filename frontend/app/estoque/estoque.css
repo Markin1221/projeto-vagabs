@@ -11,7 +11,7 @@
 .est-acao small { color: var(--tinta-3); }
 .est-acao:hover { border-color: var(--marca); }
 .est-acao:active { transform: scale(.98); }
-.est-acao:focus-visible, .est-numero:focus-visible, .est-pessoa:focus-visible, .est-chips button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+.est-acao:focus-visible, .est-numero:focus-visible, .est-chips button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 .est-acao.principal { background: var(--marca); border-color: var(--marca); color: var(--marca-sobre); }
 .est-acao.principal > span { background: color-mix(in srgb, var(--marca-sobre) 18%, transparent); color: var(--marca-sobre); }
 .est-acao.principal small { color: color-mix(in srgb, var(--marca-sobre) 78%, transparent); }
@@ -64,8 +64,14 @@ input.est-busca, .est-busca-pessoa input { flex: 1 1 240px; max-width: 340px; mi
 
 /* Pessoas */
 .est-grade.pessoas { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-.est-pessoa { grid-template-columns: auto 1fr; align-items: center; gap: 12px; cursor: pointer; font: inherit; transition: border-color .15s; }
+.est-pessoa { grid-template-columns: 1fr auto; align-items: start; gap: 8px; transition: border-color .15s; }
 .est-pessoa:hover { border-color: var(--marca); }
+.est-pessoa-abrir { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--raio); }
+.est-pessoa-abrir:focus-visible { outline: 2px solid var(--foco); outline-offset: 4px; }
+.est-ficha-acoes { display: flex; gap: 8px; }
+.est-renomear { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--painel-2); }
+.est-renomear label { display: grid; gap: 6px; }
+.est-renomear-botoes { display: flex; justify-content: flex-end; gap: 8px; }
 .est-pessoa p { color: var(--tinta-3); font-size: 13px; margin: 2px 0 4px; }
 .est-avatar { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--marca-suave); color: var(--marca); font-weight: 600; font-size: 14px; letter-spacing: .02em; }
 
@@ -75,8 +81,14 @@ input.est-busca, .est-busca-pessoa input { flex: 1 1 240px; max-width: 340px; mi
 .est-feed { list-style: none; margin: 0; padding: 0; display: grid; }
 .est-feed li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--linha-2); }
 .est-feed li:last-child { border-bottom: 0; }
-.est-feed li .icone { opacity: 0; transition: opacity .15s; }
-.est-feed li:hover .icone, .est-feed li:focus-within .icone { opacity: 1; }
+.est-feed-acoes { display: flex; gap: 2px; opacity: .55; transition: opacity .15s; }
+.est-feed li:hover .est-feed-acoes, .est-feed li:focus-within .est-feed-acoes { opacity: 1; }
+.btn.est-btn-perigo { margin-left: auto; color: var(--ruim); }
+.btn.est-btn-perigo:hover { border-color: var(--ruim); background: var(--ruim-suave); }
+.btn.perigo-cheio { background: var(--ruim); border-color: var(--ruim); color: #fff; }
+.btn.perigo-cheio:disabled { opacity: .45; cursor: not-allowed; }
+.est-limpar { display: grid; gap: 12px; }
+.est-limpar label:not(.marca) { display: grid; gap: 6px; }
 .est-feed-icone { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; }
 .est-feed-icone.sai { background: var(--ruim-suave); color: var(--ruim); }
 .est-feed-icone.entra { background: var(--ok-suave); color: var(--ok); }
@@ -134,6 +146,6 @@ input.est-busca, .est-busca-pessoa input { flex: 1 1 240px; max-width: 340px; mi
   .est-pedido-acoes { grid-column: 1 / -1; justify-content: flex-end; }
   .est-ficha-numeros { grid-template-columns: 1fr 1fr; }
   .est-ficha-numeros > div:first-child { grid-column: 1 / -1; }
-  .est-feed li .icone, .est-card-menu { opacity: 1; }
+  .est-feed-acoes, .est-card-menu { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .est-acao, .est-nivel i { transition: none; } }

@@ -71,3 +71,46 @@ def test_mesma_pessoa_escrita_diferente(client):
     assert client.post("/estoque/pedidos", json={"pessoa": "JOAO DA SILVA", "descricao": "Clips"}).json()["pessoa"] == "João da Silva"
     assert [x["pessoa"] for x in client.get("/estoque/pessoas").json()] == ["João da Silva"]
     assert client.get("/estoque/pessoas/joao silva").json()["resumo"]["retiradas"] == 2
+
+
+def test_editar_movimento_recalcula_saldo(client):
+    p = _produto(client)  # entrada de 10
+    s = client.post("/estoque/movimentos", json={"produto_id": p["id"], "tipo": "SAIDA", "quantidade": 2, "pessoa": "Ana"}).json()
+    r = client.put(f"/estoque/movimentos/{s['id']}", json={"quantidade": 5, "pessoa": "bia", "data": "2026-11-01"})
+    assert r.status_code == 200 and r.json()["pessoa"] == "Bia" and r.json()["data"] == "2026-11-01"
+    assert client.get("/estoque/produtos").json()[0]["saldo"] == 5
+    assert client.put(f"/estoque/movimentos/{s['id']}", json={"quantidade": 11, "pessoa": "Bia", "data": "2026-11-01"}).status_code == 422
+    assert client.put(f"/estoque/movimentos/{s['id']}", json={"quantidade": 1, "pessoa": "", "data": "2026-11-01"}).status_code == 422
+
+
+def test_limpar_tudo(client):
+    p = _produto(client)
+    client.post("/estoque/pedidos", json={"pessoa": "Ana", "produto_id": p["id"]})
+    assert client.post("/estoque/limpar", json={}).json() == {"movimentos": 1, "pedidos": 0, "produtos": 0}
+    assert client.get("/estoque/produtos").json()[0]["saldo"] == 0 and client.get("/estoque/movimentos").json() == []
+    assert client.post("/estoque/limpar", json={"produtos": True}).json() == {"movimentos": 0, "pedidos": 1, "produtos": 1}
+    assert client.get("/estoque/produtos").json() == [] and client.get("/estoque/pessoas").json() == []
+
+
+def test_renomear_e_juntar_pessoas(client):
+    p = _produto(client)
+    for n in ("Ana Lima", "Aninha"):
+        client.post("/estoque/movimentos", json={"produto_id": p["id"], "tipo": "SAIDA", "quantidade": 1, "pessoa": n})
+    client.post("/estoque/pedidos", json={"pessoa": "Aninha", "descricao": "Clips"})
+    assert client.put("/estoque/pessoas/ana lima", json={"nome": "Ána Lima"}).json() == {"pessoa": "Ána Lima", "juntou": False}
+    r = client.put("/estoque/pessoas/Aninha", json={"nome": "ana lima"}).json()
+    assert r == {"pessoa": "Ána Lima", "juntou": True}
+    (so,) = client.get("/estoque/pessoas").json()
+    assert so["pessoa"] == "Ána Lima" and so["retiradas"] == 2 and so["pendentes"] == 1
+    assert client.put("/estoque/pessoas/Ninguem", json={"nome": "X"}).status_code == 404
+
+
+def test_apagar_pessoa_devolve_estoque(client):
+    p = _produto(client)  # 10
+    client.post("/estoque/movimentos", json={"produto_id": p["id"], "tipo": "SAIDA", "quantidade": 3, "pessoa": "Ana"})
+    ped = client.post("/estoque/pedidos", json={"pessoa": "Ana", "produto_id": p["id"], "quantidade": 2}).json()
+    client.post(f"/estoque/pedidos/{ped['id']}/atender", json={})
+    assert client.get("/estoque/produtos").json()[0]["saldo"] == 5
+    assert client.delete("/estoque/pessoas/ana").json() == {"pessoa": "Ana", "retiradas": 2, "pedidos": 1}
+    assert client.get("/estoque/produtos").json()[0]["saldo"] == 10
+    assert client.get("/estoque/pessoas").json() == [] and client.get("/estoque/pedidos").json() == []

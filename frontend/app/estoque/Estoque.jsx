@@ -291,7 +291,61 @@ function Produtos({ produtos, aoMudar, aoMovimentar }) {
 }
 
 // ---------- Histórico (entradas e saídas) ----------
-function Movimentos({ movimentos, aoMudar, aoMovimentar }) {
+function ModalEditarMov({ edit, setEdit, pessoas, aoSalvar }) {
+  const [erro, setErro] = useState("");
+  const muda = (k) => (e) => setEdit({ ...edit, [k]: e.target.value });
+  const sai = edit.tipo === "SAIDA";
+  async function salvar(ev) {
+    ev.preventDefault(); setErro("");
+    try {
+      await api(`/estoque/movimentos/${edit.id}`, { method: "PUT", body: JSON.stringify({ quantidade: Number(edit.quantidade), pessoa: sai ? edit.pessoa : null, data: edit.data, observacao: edit.observacao || null }) });
+      setEdit(null); await aoSalvar();
+    } catch (x) { setErro(mensagemDeErro(x)); }
+  }
+  return (
+    <Modal titulo={sai ? "Editar saída" : "Editar entrada"} subtitulo={`${edit.produto} · o saldo é recalculado com a diferença`} onClose={() => setEdit(null)}
+      rodape={<><button type="button" className="btn" onClick={() => setEdit(null)}>Cancelar</button><button type="submit" form="form-edit-mov" className="btn primario">Salvar</button></>}>
+      <form id="form-edit-mov" className="form-modal" onSubmit={salvar}>
+        {sai && <label style={{ gridColumn: "1 / -1" }}>Quem pegou<CampoPessoa valor={edit.pessoa || ""} aoMudar={(v) => setEdit({ ...edit, pessoa: v })} pessoas={pessoas} required autoFocus /></label>}
+        <label>Quantidade ({edit.unidade})<input type="number" min="1" value={edit.quantidade} onChange={muda("quantidade")} required /></label>
+        <label>Data<input type="date" value={edit.data} onChange={muda("data")} required /></label>
+        <label style={{ gridColumn: "1 / -1" }}>Observação<input value={edit.observacao || ""} onChange={muda("observacao")} /></label>
+        {erro && <p className="msg ruim">{erro}</p>}
+      </form>
+    </Modal>
+  );
+}
+
+// Apaga o histórico inteiro (e, se marcado, pedidos e produtos). Pede para digitar APAGAR porque não tem volta.
+function ModalLimpar({ aoFechar, aoSalvar }) {
+  const [pedidos, setPedidos] = useState(false);
+  const [produtos, setProdutos] = useState(false);
+  const [txt, setTxt] = useState("");
+  const [erro, setErro] = useState("");
+  const [indo, setIndo] = useState(false);
+  async function apagar(ev) {
+    ev.preventDefault(); setErro(""); setIndo(true);
+    try { await api("/estoque/limpar", { method: "POST", body: JSON.stringify({ pedidos: pedidos || produtos, produtos }) }); aoFechar(); await aoSalvar(); }
+    catch (x) { setErro(mensagemDeErro(x)); setIndo(false); }
+  }
+  return (
+    <Modal titulo="Apagar histórico" subtitulo="Bom para recomeçar depois de testar. Não dá para desfazer." onClose={aoFechar}
+      rodape={<><button type="button" className="btn" onClick={aoFechar}>Cancelar</button>
+        <button type="submit" form="form-limpar" className="btn perigo-cheio" disabled={txt.trim().toUpperCase() !== "APAGAR" || indo}>{indo ? "Apagando…" : "Apagar tudo"}</button></>}>
+      <form id="form-limpar" className="est-limpar" onSubmit={apagar}>
+        <p>Todas as entradas e saídas vão ser apagadas e o saldo de todos os produtos volta para <b>0</b>.</p>
+        <label className="marca"><input type="checkbox" checked={pedidos || produtos} disabled={produtos} onChange={(e) => setPedidos(e.target.checked)} />Apagar também os pedidos</label>
+        <label className="marca"><input type="checkbox" checked={produtos} onChange={(e) => setProdutos(e.target.checked)} />Apagar também os produtos (começar do zero)</label>
+        <label><span>Para confirmar, digite <b>APAGAR</b></span><input value={txt} onChange={(e) => setTxt(e.target.value)} autoFocus autoComplete="off" /></label>
+        {erro && <p className="msg ruim">{erro}</p>}
+      </form>
+    </Modal>
+  );
+}
+
+function Movimentos({ movimentos, pessoas, aoMudar, aoMovimentar }) {
+  const [edit, setEdit] = useState(null);
+  const [limpar, setLimpar] = useState(false);
   const [busca, setBusca] = useState("");
   const [tipo, setTipo] = useState("");
   const [erro, setErro] = useState("");
@@ -299,7 +353,7 @@ function Movimentos({ movimentos, aoMudar, aoMovimentar }) {
   const lista = movimentos.filter((m) => (!tipo || m.tipo === tipo) && (!b || norm(`${m.produto} ${m.pessoa || ""}`).includes(b)));
   const dias = lista.reduce((acc, m) => { (acc[m.data] ||= []).push(m); return acc; }, {});
   async function desfazer(m) {
-    if (!confirm(`Desfazer ${m.tipo === "SAIDA" ? "a saída" : "a entrada"} de ${m.quantidade} ${m.unidade} de ${m.produto}? O saldo volta ao que era.`)) return;
+    if (!confirm(`Apagar ${m.tipo === "SAIDA" ? "a saída" : "a entrada"} de ${m.quantidade} ${m.unidade} de ${m.produto}? O saldo volta ao que era.`)) return;
     setErro(""); try { await api(`/estoque/movimentos/${m.id}`, { method: "DELETE" }); await aoMudar(); } catch (x) { setErro(mensagemDeErro(x)); }
   }
   return (
@@ -307,6 +361,7 @@ function Movimentos({ movimentos, aoMudar, aoMovimentar }) {
       <div className="est-barra-ferr">
         <input className="est-busca" type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Procurar produto ou pessoa…" aria-label="Procurar no histórico" />
         <Chips rotulo="Tipo" valor={tipo} aoMudar={setTipo} opcoes={[["", "Tudo", null], ["SAIDA", "Saídas", null], ["ENTRADA", "Entradas", null]]} />
+        {movimentos.length > 0 && <button type="button" className="btn est-btn-perigo" onClick={() => setLimpar(true)}><Lixo />Apagar histórico</button>}
       </div>
       {erro && <p className="msg ruim">{erro}</p>}
       {lista.length ? Object.entries(dias).map(([dia, ms]) => (
@@ -321,31 +376,77 @@ function Movimentos({ movimentos, aoMudar, aoMovimentar }) {
                   <p>{sai ? <><b>{m.pessoa}</b> pegou <b>{m.quantidade} {m.unidade}</b> de {m.produto}</> : <>Entraram <b>{m.quantidade} {m.unidade}</b> de {m.produto}</>}</p>
                   {m.observacao && <small>{m.observacao}</small>}
                 </div>
-                <button type="button" className="icone perigo" aria-label="Desfazer" title="Desfazer" onClick={() => desfazer(m)}><Lixo /></button>
+                <div className="est-feed-acoes">
+                  <button type="button" className="icone" aria-label="Editar" title="Editar" onClick={() => setEdit({ ...m })}><Lapis /></button>
+                  <button type="button" className="icone perigo" aria-label="Apagar" title="Apagar (o saldo volta)" onClick={() => desfazer(m)}><Lixo /></button>
+                </div>
               </li>);
           })}</ul>
         </section>
       )) : movimentos.length ? <Vazio titulo="Nada encontrado" texto="Tente outro nome ou limpe o filtro." />
         : <Vazio titulo="Nenhuma movimentação ainda" texto="Tudo que entrar ou sair do estoque aparece aqui, do mais novo ao mais antigo.">
             <button type="button" className="btn primario" onClick={() => aoMovimentar({ tipo: "SAIDA" })}><SetaSai />Alguém pegou</button></Vazio>}
+      {edit && <ModalEditarMov edit={edit} setEdit={setEdit} pessoas={pessoas} aoSalvar={aoMudar} />}
+      {limpar && <ModalLimpar aoFechar={() => setLimpar(false)} aoSalvar={aoMudar} />}
     </>
   );
 }
 
 // ---------- Pessoas ----------
-function FichaPessoa({ nome, aoFechar, aoMovimentar, aoPedir }) {
+async function apagarPessoa(nome, retiradas, pedidos) {
+  if (!confirm(`Apagar ${nome}?\n\nSome junto: ${plural(retiradas, "retirada", "retiradas")} (o que pegou volta para o estoque) e ${plural(pedidos, "pedido", "pedidos")}.\nNão dá para desfazer.`)) return false;
+  await api(`/estoque/pessoas/${encodeURIComponent(nome)}`, { method: "DELETE" });
+  return true;
+}
+
+function FichaPessoa({ nome, renomear, pessoas, aoFechar, aoMovimentar, aoPedir, aoMudar, aoRenomeado }) {
   const [ficha, setFicha] = useState(null);
   const [erro, setErro] = useState("");
-  useEffect(() => { api(`/estoque/pessoas/${encodeURIComponent(nome)}`).then(setFicha).catch((x) => setErro(mensagemDeErro(x))); }, [nome]);
+  const [novoNome, setNovoNome] = useState(renomear ? nome : null);
+  const [edit, setEdit] = useState(null);
+  const carregar = () => api(`/estoque/pessoas/${encodeURIComponent(nome)}`).then(setFicha).catch((x) => setErro(mensagemDeErro(x)));
+  useEffect(() => { carregar(); }, [nome]);
+  const atual = ficha?.pessoa || nome;
   const r = ficha?.resumo;
   const pendentes = ficha?.pedidos.filter((p) => p.status === "PENDENTE") || [];
-  return (
-    <Modal titulo={ficha?.pessoa || nome} onClose={aoFechar}
-      rodape={<><button type="button" className="btn" onClick={() => aoPedir(ficha?.pessoa || nome)}><Mais />Novo pedido</button>
-        <button type="button" className="btn primario" onClick={() => aoMovimentar({ tipo: "SAIDA", pessoa: ficha?.pessoa || nome })}><SetaSai />Registrar que pegou</button></>}>
+  const outra = novoNome != null && pessoas.find((p) => p.pessoa !== atual && chavePessoa(p.pessoa) === chavePessoa(novoNome));
+  async function salvarNome(e) {
+    e.preventDefault(); setErro("");
+    try {
+      const res = await api(`/estoque/pessoas/${encodeURIComponent(atual)}`, { method: "PUT", body: JSON.stringify({ nome: novoNome }) });
+      setNovoNome(null); await aoMudar(); aoRenomeado(res.pessoa);
+    } catch (x) { setErro(mensagemDeErro(x)); }
+  }
+  async function apagar() {
+    setErro("");
+    try { if (await apagarPessoa(atual, r.retiradas, ficha.pedidos.length)) { aoFechar(); await aoMudar(); } } catch (x) { setErro(mensagemDeErro(x)); }
+  }
+  async function apagarMov(m) {
+    if (!confirm(`Apagar a retirada de ${m.quantidade} ${m.unidade} de ${m.produto}? Volta para o estoque.`)) return;
+    setErro(""); try { await api(`/estoque/movimentos/${m.id}`, { method: "DELETE" }); await carregar(); await aoMudar(); } catch (x) { setErro(mensagemDeErro(x)); }
+  }
+  return (<>
+    <Modal titulo={atual} onClose={aoFechar}
+      rodape={<><button type="button" className="btn" onClick={() => aoPedir(atual)}><Mais />Novo pedido</button>
+        <button type="button" className="btn primario" onClick={() => aoMovimentar({ tipo: "SAIDA", pessoa: atual })}><SetaSai />Registrar que pegou</button></>}>
       {erro && <p className="msg ruim">{erro}</p>}
       {!ficha ? <p className="mudo"><span className="giro" /> Carregando…</p> : (
         <div className="est-ficha">
+          {novoNome != null ? (
+            <form className="est-renomear" onSubmit={salvarNome}>
+              <label>Nome da pessoa<CampoPessoa valor={novoNome} aoMudar={setNovoNome} pessoas={pessoas.filter((p) => p.pessoa !== atual)} aviso={false} required autoFocus /></label>
+              {outra ? <small className="msg ruim">Já existe “{outra.pessoa}”. Salvando, as duas viram uma pessoa só (histórico e pedidos juntos).</small>
+                : <small className="mudo">Troca o nome em todo o histórico e nos pedidos.</small>}
+              <div className="est-renomear-botoes">
+                <button type="button" className="btn" onClick={() => setNovoNome(null)}>Cancelar</button>
+                <button type="submit" className="btn primario" disabled={!novoNome.trim()}>{outra ? "Juntar as duas" : "Salvar nome"}</button>
+              </div>
+            </form>
+          ) : ficha.existe && (
+            <div className="est-ficha-acoes">
+              <button type="button" className="btn" onClick={() => setNovoNome(atual)}><Lapis />Renomear</button>
+              <button type="button" className="btn est-btn-perigo" onClick={apagar}><Lixo />Apagar pessoa</button>
+            </div>)}
           <div className="est-ficha-numeros">
             <div><small>Última vez que pegou</small><b>{r.ultima_retirada ? ha(r.ultima_retirada) : "Nunca"}</b>{r.ultima_retirada && <span>{data(r.ultima_retirada)} · {r.ultimo_produto}</span>}</div>
             <div><small>Retiradas</small><b>{r.retiradas}</b></div>
@@ -358,20 +459,30 @@ function FichaPessoa({ nome, aoFechar, aoMovimentar, aoPedir }) {
           {ficha.retiradas.length ? (
             <ul className="est-feed compacto">{ficha.retiradas.map((m) => (
               <li key={m.id}><span className="est-feed-icone sai"><SetaSai /></span>
-                <div className="est-feed-txt"><p><b>{m.quantidade} {m.unidade}</b> de {m.produto}</p><small>{data(m.data)} · {ha(m.data)}{m.observacao ? ` · ${m.observacao}` : ""}</small></div></li>))}</ul>
+                <div className="est-feed-txt"><p><b>{m.quantidade} {m.unidade}</b> de {m.produto}</p><small>{data(m.data)} · {ha(m.data)}{m.observacao ? ` · ${m.observacao}` : ""}</small></div>
+                <div className="est-feed-acoes">
+                  <button type="button" className="icone" aria-label="Editar" title="Editar" onClick={() => setEdit({ ...m })}><Lapis /></button>
+                  <button type="button" className="icone perigo" aria-label="Apagar" title="Apagar (volta para o estoque)" onClick={() => apagarMov(m)}><Lixo /></button>
+                </div></li>))}</ul>
           ) : <p className="mudo">Ainda não pegou nada.</p>}
         </div>)}
     </Modal>
-  );
+    {edit && <ModalEditarMov edit={edit} setEdit={setEdit} pessoas={pessoas} aoSalvar={async () => { await aoMudar(); await carregar(); }} />}
+  </>);
 }
 
-function Pessoas({ pessoas, aoAbrir }) {
+function Pessoas({ pessoas, aoAbrir, aoMudar }) {
   const [nome, setNome] = useState("");
   const [filtro, setFiltro] = useState("");
+  const [erro, setErro] = useState("");
   const lista = pessoas
     .filter((p) => !filtro || p.pendentes > 0)
     .filter((p) => !nome.trim() || parecido(nome, p.pessoa) >= 0.55)
     .sort((a, b) => (b.ultima_retirada || "").localeCompare(a.ultima_retirada || "") || a.pessoa.localeCompare(b.pessoa));
+  async function apagar(p) {
+    setErro("");
+    try { if (await apagarPessoa(p.pessoa, p.retiradas, p.pedidos)) await aoMudar(); } catch (x) { setErro(mensagemDeErro(x)); }
+  }
   return (
     <>
       <form className="est-barra-ferr" onSubmit={(e) => { e.preventDefault(); if (nome.trim()) aoAbrir(nome.trim()); }}>
@@ -379,16 +490,23 @@ function Pessoas({ pessoas, aoAbrir }) {
         <Chips rotulo="Filtrar pessoas" valor={filtro} aoMudar={setFiltro} opcoes={[["", "Todas", pessoas.length], ["pendentes", "Com pedido esperando", pessoas.filter((p) => p.pendentes).length]]} />
         <button type="submit" className="btn" disabled={!nome.trim()}>Ver ficha</button>
       </form>
+      {erro && <p className="msg ruim">{erro}</p>}
       {lista.length ? (
         <div className="est-grade pessoas">{lista.map((p) => (
-          <button key={p.pessoa} type="button" className="est-card est-pessoa" onClick={() => aoAbrir(p.pessoa)}>
-            <Avatar nome={p.pessoa} />
-            <div>
-              <h3>{p.pessoa}</h3>
-              <p>{p.ultima_retirada ? <>Pegou {ha(p.ultima_retirada)} · {p.ultimo_produto}</> : "Nunca pegou nada"}</p>
-              {p.pendentes > 0 && <span className="tipo deb">{plural(p.pendentes, "pedido esperando", "pedidos esperando")}</span>}
+          <article key={p.pessoa} className="est-card est-pessoa">
+            <button type="button" className="est-pessoa-abrir" onClick={() => aoAbrir(p.pessoa)}>
+              <Avatar nome={p.pessoa} />
+              <div>
+                <h3>{p.pessoa}</h3>
+                <p>{p.ultima_retirada ? <>Pegou {ha(p.ultima_retirada)} · {p.ultimo_produto}</> : "Nunca pegou nada"}</p>
+                {p.pendentes > 0 && <span className="tipo deb">{plural(p.pendentes, "pedido esperando", "pedidos esperando")}</span>}
+              </div>
+            </button>
+            <div className="est-card-menu">
+              <button type="button" className="icone" aria-label={`Renomear ${p.pessoa}`} title="Renomear" onClick={() => aoAbrir(p.pessoa, true)}><Lapis /></button>
+              <button type="button" className="icone perigo" aria-label={`Apagar ${p.pessoa}`} title="Apagar" onClick={() => apagar(p)}><Lixo /></button>
             </div>
-          </button>))}</div>
+          </article>))}</div>
       ) : pessoas.length ? (
         <Vazio titulo={nome ? `Ninguém parecido com “${nome}”` : "Ninguém aqui"} texto={nome ? "Pode ser a primeira vez dessa pessoa." : null}>
           {nome && <button type="button" className="btn" onClick={() => aoAbrir(nome.trim())}>Ver ficha de “{nome.trim()}”</button>}</Vazio>
@@ -462,6 +580,7 @@ export default function Estoque() {
   useEffect(() => { carregar(); }, []);
   const abrirMov = (m) => { setFicha(null); setMov({ produto_id: "", produto_nome: produtos.find((p) => p.id === m.produto_id)?.nome ?? "", unidade: "un", quantidade: 1, pessoa: "", data: hoje(), observacao: "", ...m }); };
   const abrirPedido = (pessoa) => { setFicha(null); setPed({ pessoa: pessoa || "", produto_id: "", descricao: "", quantidade: 1, data_pedido: hoje(), observacao: "" }); };
+  const abrirFicha = (nome, renomear = false) => setFicha({ nome, renomear });
   const pendentes = useMemo(() => pedidos.filter((p) => p.status === "PENDENTE").length, [pedidos]);
   const repor = produtos.filter((p) => p.ativo && p.saldo <= p.minimo).length;
   const mes = hoje().slice(0, 7);
@@ -491,12 +610,13 @@ export default function Estoque() {
         {erro && <p className="msg ruim">{erro}</p>}
         {carregando ? <p className="mudo"><span className="giro" /> Carregando o estoque…</p> : <>
           {aba === "produtos" && <Produtos produtos={produtos} aoMudar={carregar} aoMovimentar={abrirMov} />}
-          {aba === "movimentos" && <Movimentos movimentos={movimentos} aoMudar={carregar} aoMovimentar={abrirMov} />}
-          {aba === "pessoas" && <Pessoas pessoas={pessoas} aoAbrir={setFicha} />}
-          {aba === "pedidos" && <Pedidos pedidos={pedidos} aoMudar={carregar} aoPedir={abrirPedido} aoAbrirPessoa={setFicha} />}
+          {aba === "movimentos" && <Movimentos movimentos={movimentos} pessoas={pessoas} aoMudar={carregar} aoMovimentar={abrirMov} />}
+          {aba === "pessoas" && <Pessoas pessoas={pessoas} aoAbrir={abrirFicha} aoMudar={carregar} />}
+          {aba === "pedidos" && <Pedidos pedidos={pedidos} aoMudar={carregar} aoPedir={abrirPedido} aoAbrirPessoa={abrirFicha} />}
         </>}
       </section>
-      {ficha && <FichaPessoa nome={ficha} aoFechar={() => setFicha(null)} aoMovimentar={abrirMov} aoPedir={abrirPedido} />}
+      {ficha && <FichaPessoa key={ficha.nome} nome={ficha.nome} renomear={ficha.renomear} pessoas={pessoas} aoFechar={() => setFicha(null)} aoMovimentar={abrirMov} aoPedir={abrirPedido}
+        aoMudar={carregar} aoRenomeado={(n) => setFicha({ nome: n, renomear: false })} />}
       {mov && <ModalMovimento mov={mov} setMov={setMov} produtos={produtos} pessoas={pessoas} aoSalvar={carregar} />}
       {ped && <ModalPedido ped={ped} setPed={setPed} produtos={produtos} pessoas={pessoas} aoSalvar={carregar} />}
     </div>

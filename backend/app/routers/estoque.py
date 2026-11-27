@@ -4,7 +4,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -165,6 +165,54 @@ def criar_movimento(d: MovimentoIn, db: Session = Depends(get_db)):
     return _mov_out(m)
 
 
+class MovimentoEdit(BaseModel):
+    quantidade: int = Field(gt=0)
+    pessoa: str | None = None
+    data: date
+    observacao: str | None = None
+
+
+@router.put("/movimentos/{mid}", response_model=MovimentoOut)
+def editar_movimento(mid: int, d: MovimentoEdit, db: Session = Depends(get_db)):
+    """Corrige quantidade, pessoa, data ou observação. O saldo do produto é recalculado com a diferença."""
+    m = db.get(MovimentoEstoque, mid)
+    if not m:
+        raise HTTPException(404, "Movimento não encontrado")
+    sinal = 1 if m.tipo == "ENTRADA" else -1
+    novo_saldo = m.produto.saldo + sinal * (d.quantidade - m.quantidade)
+    if novo_saldo < 0:
+        raise HTTPException(422, f"Com essa quantidade o saldo de '{m.produto.nome}' ficaria negativo ({novo_saldo})")
+    pessoa = pessoa_canonica(db, d.pessoa) or None
+    if m.tipo == "SAIDA" and not pessoa:
+        raise HTTPException(422, "Na saída, informe quem pegou")
+    m.produto.saldo = novo_saldo
+    m.quantidade, m.data, m.observacao = d.quantidade, d.data, (d.observacao or "").strip() or None
+    m.pessoa = pessoa if m.tipo == "SAIDA" else None
+    db.commit(); db.refresh(m)
+    return _mov_out(m)
+
+
+class LimparIn(BaseModel):
+    pedidos: bool = False
+    produtos: bool = False  # apagar os produtos também apaga os pedidos
+
+
+@router.post("/limpar")
+def limpar(d: LimparIn, db: Session = Depends(get_db)):
+    """Apaga TODO o histórico de entradas e saídas e zera os saldos (para recomeçar depois de testar).
+    Opcionalmente apaga também os pedidos e os produtos. Não tem volta."""
+    movimentos = db.execute(delete(MovimentoEstoque)).rowcount
+    pedidos = db.execute(delete(PedidoEstoque)).rowcount if d.pedidos or d.produtos else 0
+    if d.produtos:
+        produtos = db.execute(delete(ProdutoEstoque)).rowcount
+    else:
+        produtos = 0
+        for p in db.scalars(select(ProdutoEstoque)).all():
+            p.saldo = 0
+    db.commit()
+    return {"movimentos": movimentos, "pedidos": pedidos, "produtos": produtos}
+
+
 @router.delete("/movimentos/{mid}", status_code=204)
 def desfazer_movimento(mid: int, db: Session = Depends(get_db)):
     """Apaga o movimento e devolve o saldo. Se veio de um pedido, o pedido volta a ficar pendente."""
@@ -281,7 +329,7 @@ def excluir_pedido(pid: int, db: Session = Depends(get_db)):
 def _resumo_pessoas(db: Session) -> dict[str, dict]:
     pessoas: dict[str, dict] = {}
     novo = lambda n: {"pessoa": n, "ultima_retirada": None, "ultimo_produto": None, "retiradas": 0, "pendentes": 0,
-                      "ultimo_pedido": None}
+                      "pedidos": 0, "ultimo_pedido": None}
     saidas = db.scalars(select(MovimentoEstoque).where(MovimentoEstoque.tipo == "SAIDA", MovimentoEstoque.pessoa.is_not(None))
                         .order_by(MovimentoEstoque.data.desc(), MovimentoEstoque.id.desc())).all()
     for m in saidas:
@@ -293,6 +341,7 @@ def _resumo_pessoas(db: Session) -> dict[str, dict]:
         r = pessoas.setdefault(p.pessoa, novo(p.pessoa))
         r["ultimo_pedido"] = r["ultimo_pedido"] or p.data_pedido
         r["pendentes"] += p.status == "PENDENTE"
+        r["pedidos"] += 1
     return pessoas
 
 
@@ -308,6 +357,52 @@ def ficha_pessoa(nome: str, db: Session = Depends(get_db)):
     n = pessoa_canonica(db, nome)
     resumo = _resumo_pessoas(db).get(n)
     return {"pessoa": n, "existe": resumo is not None,
-            "resumo": resumo or {"pessoa": n, "ultima_retirada": None, "ultimo_produto": None, "retiradas": 0, "pendentes": 0, "ultimo_pedido": None},
+            "resumo": resumo or {"pessoa": n, "ultima_retirada": None, "ultimo_produto": None, "retiradas": 0, "pendentes": 0, "pedidos": 0, "ultimo_pedido": None},
             "retiradas": listar_movimentos(pessoa=n, tipo="SAIDA", db=db),
             "pedidos": listar_pedidos(pessoa=n, db=db)}
+
+
+def _registros_da_pessoa(db: Session, n: str) -> tuple[list[MovimentoEstoque], list[PedidoEstoque]]:
+    movs = db.scalars(select(MovimentoEstoque).where(MovimentoEstoque.pessoa == n)).all()
+    peds = db.scalars(select(PedidoEstoque).where(PedidoEstoque.pessoa == n)).all()
+    if not movs and not peds:
+        raise HTTPException(404, f"Não encontrei '{n}'")
+    return movs, peds
+
+
+class RenomearIn(BaseModel):
+    nome: str
+
+
+@router.put("/pessoas/{nome}")
+def renomear_pessoa(nome: str, d: RenomearIn, db: Session = Depends(get_db)):
+    """Troca o nome em todo o histórico e pedidos. Se o nome novo já é de outra pessoa, as duas viram uma só."""
+    atual = pessoa_canonica(db, nome)
+    movs, peds = _registros_da_pessoa(db, atual)
+    novo = nome_pessoa(d.nome)
+    if not novo:
+        raise HTTPException(422, "Informe o nome")
+    # mesma pessoa escrita de outro jeito (ex.: corrigir acento): usa o que foi digitado; senão, junta se já existir
+    destino = novo if chave_pessoa(novo) == chave_pessoa(atual) else pessoa_canonica(db, novo)
+    juntou = destino != atual and bool(
+        db.scalar(select(MovimentoEstoque.id).where(MovimentoEstoque.pessoa == destino).limit(1))
+        or db.scalar(select(PedidoEstoque.id).where(PedidoEstoque.pessoa == destino).limit(1)))
+    for r in [*movs, *peds]:
+        r.pessoa = destino
+    db.commit()
+    return {"pessoa": destino, "juntou": juntou}
+
+
+@router.delete("/pessoas/{nome}")
+def apagar_pessoa(nome: str, db: Session = Depends(get_db)):
+    """Apaga a pessoa: as retiradas dela somem (o que pegou volta para o estoque) e os pedidos dela também."""
+    n = pessoa_canonica(db, nome)
+    movs, peds = _registros_da_pessoa(db, n)
+    for m in movs:
+        m.produto.saldo += m.quantidade  # só saída tem pessoa
+        db.delete(m)
+    db.flush()
+    for p in peds:
+        db.delete(p)
+    db.commit()
+    return {"pessoa": n, "retiradas": len(movs), "pedidos": len(peds)}
