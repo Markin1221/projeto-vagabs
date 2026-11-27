@@ -8,6 +8,21 @@ import pandas as pd
 COLS_EXTRATO = ["Data", "Tipo", "Valor", "Histórico", "Documento", "Detalhe", "_chave"]
 
 
+def _bruto(conteudo: bytes) -> pd.DataFrame:
+    """Lê só a primeira aba (a conferência tem centenas de abas por dia; carregar todas deixava tudo lento)."""
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(conteudo), read_only=True, data_only=True)
+        ws = wb.worksheets[0]
+        ws.reset_dimensions()  # alguns bancos gravam a dimensão errada
+        linhas = [list(r) for r in ws.iter_rows(values_only=True)]
+        wb.close()
+        largura = max((len(r) for r in linhas), default=0)
+        return pd.DataFrame([r + [None] * (largura - len(r)) for r in linhas])
+    except Exception:
+        return pd.read_excel(io.BytesIO(conteudo), header=None)
+
+
 def _numero(v):
     """'1.015.951,19' -> 1015951.19 ; 1429.42 -> 1429.42 ; vazio -> None"""
     if pd.isna(v) or str(v).strip() == "":
@@ -20,7 +35,7 @@ def _numero(v):
 def ler_extrato(conteudo: bytes) -> pd.DataFrame:
     """Dois layouts: (B) novo, 1 linha por lançamento com 'Data / Historico / Valor R$'; (A) antigo, 2 linhas por
     lançamento (a segunda traz o detalhe)."""
-    df = pd.read_excel(io.BytesIO(conteudo), header=None)
+    df = _bruto(conteudo)
     for i in range(min(15, len(df))):
         valores = [str(v).strip() for v in df.iloc[i].values]
         if "Historico" in valores and "Valor R$" in valores:
@@ -113,7 +128,7 @@ def _ler_conferencia(bruto):
 
 
 def ler_ddata(conteudo: bytes):
-    bruto = pd.read_excel(io.BytesIO(conteudo), header=None)
+    bruto = _bruto(conteudo)
     conf = _ler_conferencia(bruto)
     if conf is not None:
         return conf
@@ -121,7 +136,8 @@ def ler_ddata(conteudo: bytes):
                       if {"Data", "Valor"} <= {str(v).strip() for v in bruto.iloc[i].values}), None)
     if linha_cab is None:
         return None
-    df = pd.read_excel(io.BytesIO(conteudo), header=linha_cab)
+    df = bruto.iloc[linha_cab + 1:].copy()
+    df.columns = [str(v).strip() for v in bruto.iloc[linha_cab].values]
     df = df[df["Data"].notna() & df["Valor"].notna()].copy()
     df["Data"] = pd.to_datetime(df["Data"], dayfirst=True, errors="coerce")
     df = df[df["Data"].notna()]
