@@ -354,11 +354,16 @@ function ModalMovimento({ mov, setMov, produtos, aoSalvar }) {
           <div className="est-campo"><span>Quantidade{prod || novo ? ` (${prod?.unidade || mov.unidade || "un"})` : ""}</span><Qtd valor={mov.quantidade} aoMudar={(v) => muda("quantidade", v)} /></div>
           {novo && <label className="est-campo"><span>Unidade <span className="dica-campo">un, cx, resma…</span></span><input value={mov.unidade ?? "un"} onChange={(e) => muda("unidade", e.target.value)} /></label>}
         </div>
-        {(comTamanho(prod) || ((novo || (prod && !prod.saldo)) && mov.temTam)) && (
-          <div className="est-campo"><span>Tamanho{comTamanho(prod) ? "" : " (o produto passa a ser separado por tamanho)"}</span>
-            <EscolherTamanho produto={prod} valor={mov.tamanho || ""} aoMudar={(t) => muda("tamanho", t)} outro /></div>)}
-        {!comTamanho(prod) && (novo || (prod && !prod.saldo)) && !mov.temTam && (
-          <button type="button" className="btn est-link" onClick={() => muda("temTam", true)}>+ Esse produto tem tamanho</button>)}
+        {(() => {
+          // tamanho: sempre à vista. Produto com tamanhos mostra os botões; produto novo (ou zerado) pode passar a ter.
+          const podeTer = !prod || !prod.saldo;
+          if (comTamanho(prod) || (podeTer && mov.temTam)) return (
+            <div className="est-campo"><span>Tamanho{comTamanho(prod) ? "" : " (o produto passa a ser separado por tamanho)"}</span>
+              <EscolherTamanho produto={prod} valor={mov.tamanho || ""} aoMudar={(t) => muda("tamanho", t)} outro />
+              {!comTamanho(prod) && <button type="button" className="btn est-link" onClick={() => setMov({ ...mov, temTam: false, tamanho: "" })}>Não tem tamanho</button>}</div>);
+          if (podeTer) return <button type="button" className="btn est-link" onClick={() => muda("temTam", true)}>+ Tem tamanho (P, M, G, 38, 40…)</button>;
+          return <small className="mudo">{prod.nome} não é separado por tamanho. Para separar, zere o estoque dele e edite o produto.</small>;
+        })()}
         {prod && Number(mov.quantidade) > 0 && (!comTamanho(prod) || mov.tamanho) && <small className="mudo">
           Vai ficar com {saldoDe(prod, mov.tamanho) + Number(mov.quantidade)} {prod.unidade}{mov.tamanho ? ` no ${mov.tamanho}` : ""}.</small>}
         <div className="est-campo"><span>Quando</span><CampoData valor={mov.data} aoMudar={(v) => muda("data", v)} /></div>
