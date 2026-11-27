@@ -1,6 +1,7 @@
 from datetime import date
+from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -223,3 +224,36 @@ class PedidoEstoque(Base):
     observacao: Mapped[str | None] = mapped_column(Text)
 
     produto: Mapped[ProdutoEstoque | None] = relationship()
+
+
+class PagamentoAgendado(Base):
+    """Pagamento que se repete (calendário do financeiro). `frequencia` DIARIO | SEMANAL | MENSAL e `dias` diz em
+    quais dias cai: dias da semana (0=segunda ... 6=domingo) no diário/semanal, dias do mês (1-31) no mensal.
+    Dia 31 (ou 29/30) em mês mais curto cai no último dia do mês. `fim` vazio = sem prazo (infinito)."""
+    __tablename__ = "pagamentos_agendados"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    titulo: Mapped[str] = mapped_column(String(160))
+    detalhes: Mapped[str | None] = mapped_column(String(240))  # ex.: "PIX 041.207.404-47"
+    valor: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    frequencia: Mapped[str] = mapped_column(String(10))
+    dias: Mapped[str] = mapped_column(String(120), default="")  # "1,15" ou "0,2,4"
+    inicio: Mapped[date] = mapped_column(Date)
+    fim: Mapped[date | None] = mapped_column(Date)
+    observacao: Mapped[str | None] = mapped_column(Text)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    baixas: Mapped[list["BaixaPagamento"]] = relationship(back_populates="pagamento", cascade="all, delete-orphan")
+
+
+class BaixaPagamento(Base):
+    """Marca que o pagamento do dia `data` já foi feito."""
+    __tablename__ = "pagamentos_baixas"
+    __table_args__ = (UniqueConstraint("pagamento_id", "data"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pagamento_id: Mapped[int] = mapped_column(ForeignKey("pagamentos_agendados.id"))
+    data: Mapped[date] = mapped_column(Date)
+    pago_em: Mapped[date] = mapped_column(Date)
+
+    pagamento: Mapped[PagamentoAgendado] = relationship(back_populates="baixas")

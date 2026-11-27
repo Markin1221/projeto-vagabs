@@ -10,7 +10,7 @@ import Mascote from "../ui/Mascote";
 import Cofrinho from "../ui/Cofrinho";
 import { API, lerToken } from "../lib";
 import { ConfigProvider } from "../config";
-import { Folha as IconeFolha, Etiqueta, Comparar, Cofre, Engrenagem, Sol, Lua, Onibus, Caixa, Grafico } from "../ui/Icones";
+import { Folha as IconeFolha, Etiqueta, Comparar, Cofre, Engrenagem, Sol, Lua, Onibus, Caixa, Grafico, Calendario } from "../ui/Icones";
 
 const FERRAMENTAS = [
   { href: "/folha", curto: "Folha", nome: "Folha de pagamento", Icone: IconeFolha, titulo: "Lançamentos da folha", desc: "Converta o Resumo Geral dos PDFs em lançamentos prontos para importar." },
@@ -19,6 +19,7 @@ const FERRAMENTAS = [
   { href: "/caixinha", curto: "Caixinha", nome: "Caixinha", Icone: Cofre, titulo: "Caixinha", desc: "Transforme a planilha da caixinha do mês no CSV de importação." },
   { href: "/orcamento", curto: "Orçamento", nome: "Orçado × Realizado", Icone: Grafico, titulo: "Orçado × Realizado", desc: "Gráficos e destaques do relatório de orçamento: onde estourou, onde sobrou e para onde foi o dinheiro." },
   { href: "/estoque", curto: "Estoque", nome: "Estoque", Icone: Caixa, titulo: "Estoque do administrativo", desc: "Saldo dos produtos, quem pegou e quando, e quem já pediu." },
+  { href: "/calendario", curto: "Pagamentos", nome: "Calendário de pagamentos", Icone: Calendario, titulo: "Calendário de pagamentos", desc: "O que tem para pagar hoje, o que ficou para trás e os pagamentos que se repetem." },
 ];
 const CONFIG = { href: "/config", curto: "Ajustes", nome: "Configurações", Icone: Engrenagem, titulo: "Configurações", desc: "Ajuste como o sistema se comporta para você." };
 
