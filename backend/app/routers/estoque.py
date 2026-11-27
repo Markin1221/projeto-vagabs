@@ -1,4 +1,5 @@
 """Estoque do administrativo: produtos, entradas/saídas (quem pegou e quando) e pedidos (quem já pediu)."""
+import unicodedata
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,6 +19,23 @@ def nome_pessoa(p: str | None) -> str:
     """'  joão  DA silva ' -> 'João da Silva' (assim a mesma pessoa não aparece duas vezes)."""
     partes = (p or "").split()
     return " ".join(w.lower() if i and w.lower() in PARTICULAS else w.capitalize() for i, w in enumerate(partes))
+
+
+def chave_pessoa(p: str | None) -> str:
+    """Para comparar nomes: sem acento, minúsculo e sem 'da/de/do'. 'Joao Silva' == 'João da Silva'."""
+    s = unicodedata.normalize("NFD", p or "").encode("ascii", "ignore").decode().lower()
+    return " ".join(w for w in s.split() if w not in PARTICULAS)
+
+
+def pessoa_canonica(db: Session, p: str | None) -> str:
+    """Se já existe alguém com o mesmo nome escrito de outro jeito, usa a grafia que já está gravada."""
+    n = nome_pessoa(p)
+    if not n:
+        return ""
+    k = chave_pessoa(n)
+    gravados = set(db.scalars(select(MovimentoEstoque.pessoa).where(MovimentoEstoque.pessoa.is_not(None)).distinct())) | \
+        set(db.scalars(select(PedidoEstoque.pessoa).distinct()))
+    return next((g for g in sorted(gravados) if chave_pessoa(g) == k), n)
 
 
 # ---------- produtos ----------
@@ -114,7 +132,7 @@ def _movimentar(db: Session, p: ProdutoEstoque, tipo: str, qtd: int, pessoa: str
                 obs: str | None = None, pedido_id: int | None = None) -> MovimentoEstoque:
     if tipo not in ("ENTRADA", "SAIDA"):
         raise HTTPException(422, "Tipo deve ser ENTRADA ou SAIDA")
-    pessoa = nome_pessoa(pessoa) or None
+    pessoa = pessoa_canonica(db, pessoa) or None
     if tipo == "SAIDA":
         if not pessoa:
             raise HTTPException(422, "Na saída, informe quem pegou")
@@ -132,7 +150,7 @@ def listar_movimentos(pessoa: str | None = None, produto_id: int | None = None, 
                       limite: int = 300, db: Session = Depends(get_db)):
     q = select(MovimentoEstoque).order_by(MovimentoEstoque.data.desc(), MovimentoEstoque.id.desc()).limit(limite)
     if pessoa:
-        q = q.where(MovimentoEstoque.pessoa == nome_pessoa(pessoa))
+        q = q.where(MovimentoEstoque.pessoa == pessoa_canonica(db, pessoa))
     if produto_id:
         q = q.where(MovimentoEstoque.produto_id == produto_id)
     if tipo:
@@ -203,13 +221,13 @@ def listar_pedidos(status: str | None = None, pessoa: str | None = None, db: Ses
     if status:
         q = q.where(PedidoEstoque.status == status)
     if pessoa:
-        q = q.where(PedidoEstoque.pessoa == nome_pessoa(pessoa))
+        q = q.where(PedidoEstoque.pessoa == pessoa_canonica(db, pessoa))
     return [_ped_out(p) for p in db.scalars(q).all()]
 
 
 @router.post("/pedidos", response_model=PedidoOut, status_code=201)
 def criar_pedido(d: PedidoIn, db: Session = Depends(get_db)):
-    pessoa = nome_pessoa(d.pessoa)
+    pessoa = pessoa_canonica(db, d.pessoa)
     if not pessoa:
         raise HTTPException(422, "Informe quem está pedindo")
     if d.produto_id:
@@ -287,7 +305,7 @@ def listar_pessoas(db: Session = Depends(get_db)):
 @router.get("/pessoas/{nome}")
 def ficha_pessoa(nome: str, db: Session = Depends(get_db)):
     """Ficha de uma pessoa: resumo, histórico de retiradas e pedidos (para ver se já pediu)."""
-    n = nome_pessoa(nome)
+    n = pessoa_canonica(db, nome)
     resumo = _resumo_pessoas(db).get(n)
     return {"pessoa": n, "existe": resumo is not None,
             "resumo": resumo or {"pessoa": n, "ultima_retirada": None, "ultimo_produto": None, "retiradas": 0, "pendentes": 0, "ultimo_pedido": None},

@@ -1,4 +1,4 @@
-from app.routers.estoque import nome_pessoa
+from app.routers.estoque import chave_pessoa, nome_pessoa
 
 
 def _produto(client, nome="Caneta azul", qtd=10):
@@ -60,3 +60,14 @@ def test_nao_exclui_produto_com_movimento(client):
     p = _produto(client)
     assert client.delete(f"/estoque/produtos/{p['id']}").status_code == 409
     assert client.post("/estoque/produtos", json={"nome": "Caneta  azul"}).status_code == 409
+
+
+def test_mesma_pessoa_escrita_diferente(client):
+    assert chave_pessoa("Joao Silva") == chave_pessoa("JOÃO  da silva")
+    p = _produto(client)
+    client.post("/estoque/movimentos", json={"produto_id": p["id"], "tipo": "SAIDA", "quantidade": 1, "pessoa": "João da Silva"})
+    r = client.post("/estoque/movimentos", json={"produto_id": p["id"], "tipo": "SAIDA", "quantidade": 1, "pessoa": "joao silva"})
+    assert r.json()["pessoa"] == "João da Silva"
+    assert client.post("/estoque/pedidos", json={"pessoa": "JOAO DA SILVA", "descricao": "Clips"}).json()["pessoa"] == "João da Silva"
+    assert [x["pessoa"] for x in client.get("/estoque/pessoas").json()] == ["João da Silva"]
+    assert client.get("/estoque/pessoas/joao silva").json()["resumo"]["retiradas"] == 2
