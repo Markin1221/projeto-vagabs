@@ -110,17 +110,33 @@ def carregar_raiox_base(db: Session, commit: bool = True) -> int:
     return n
 
 
+PAGAMENTOS_VERSAO = "2"  # 1: só a Allana (dia 1, errado); 2: todos os pagamentos das caixas de texto da planilha
+
+
 def carregar_pagamentos_base(db: Session) -> int:
-    """Pagamentos iniciais do calendário (da planilha calendario.xlsx). Entram uma vez só: se forem editados ou
-    excluídos na tela, não voltam."""
-    if db.get(Configuracao, "pagamentos_base") is not None:
+    """Pagamentos iniciais do calendário (da planilha calendario.xlsx). Cada versão entra uma vez só: o que for
+    editado ou excluído na tela não volta. Na versão 2, o "Allana Fenatral" da versão 1 vira "ADVOGADA FENATRAL"
+    (dia 4) e só entram os pagamentos cujo nome ainda não existe."""
+    flag = db.get(Configuracao, "pagamentos_base")
+    if flag is not None and flag.valor >= PAGAMENTOS_VERSAO:
         return 0
+    base = _ler("pagamentos")
+    antigo = db.scalar(select(PagamentoAgendado).where(PagamentoAgendado.titulo == "Allana Fenatral"))
+    if antigo:
+        novo = next(d for d in base if d["titulo"] == "ADVOGADA FENATRAL")
+        antigo.titulo, antigo.detalhes, antigo.dias, antigo.observacao = novo["titulo"], novo["detalhes"], novo["dias"], None
+    existentes = {t.casefold() for t in db.scalars(select(PagamentoAgendado.titulo))}
     n = 0
-    for d in _ler("pagamentos"):
+    for d in base:
+        if d["titulo"].casefold() in existentes:
+            continue
         d = {**d, "inicio": date.fromisoformat(d["inicio"]), "fim": date.fromisoformat(d["fim"]) if d["fim"] else None}
         db.add(PagamentoAgendado(**d, ativo=True))
         n += 1
-    db.add(Configuracao(chave="pagamentos_base", valor="1"))
+    if flag is None:
+        db.add(Configuracao(chave="pagamentos_base", valor=PAGAMENTOS_VERSAO))
+    else:
+        flag.valor = PAGAMENTOS_VERSAO
     return n
 
 
