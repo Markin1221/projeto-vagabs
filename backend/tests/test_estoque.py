@@ -114,3 +114,57 @@ def test_apagar_pessoa_devolve_estoque(client):
     assert client.delete("/estoque/pessoas/ana").json() == {"pessoa": "Ana", "retiradas": 2, "pedidos": 1}
     assert client.get("/estoque/produtos").json()[0]["saldo"] == 10
     assert client.get("/estoque/pessoas").json() == [] and client.get("/estoque/pedidos").json() == []
+
+
+def test_saida_com_varios_itens_tudo_ou_nada(client):
+    a, b = _produto(client, "Caneta", 10), _produto(client, "Papel", 2)
+    r = client.post("/estoque/saidas", json={"pessoa": "ana", "itens": [{"produto_id": a["id"], "quantidade": 3},
+                                                                         {"produto_id": b["id"], "quantidade": 1}]})
+    assert r.status_code == 201 and [m["pessoa"] for m in r.json()] == ["Ana", "Ana"]
+    falha = client.post("/estoque/saidas", json={"pessoa": "Ana", "itens": [{"produto_id": a["id"], "quantidade": 1},
+                                                                            {"produto_id": b["id"], "quantidade": 5}]})
+    assert falha.status_code == 422
+    saldos = {p["nome"]: p["saldo"] for p in client.get("/estoque/produtos").json()}
+    assert saldos == {"Caneta": 7, "Papel": 1}  # a caneta da saída que falhou não saiu
+
+
+def test_produto_com_tamanhos(client):
+    p = client.post("/estoque/produtos", json={"nome": "Camiseta", "tamanhos": ["p", "M", "g", "m"]}).json()
+    assert [t["tamanho"] for t in p["tamanhos"]] == ["P", "M", "G"]
+    mov = lambda **k: client.post("/estoque/movimentos", json={"produto_id": p["id"], **k})
+    assert mov(tipo="ENTRADA", quantidade=5).status_code == 422                     # sem tamanho
+    assert mov(tipo="ENTRADA", quantidade=5, tamanho="m").json()["tamanho"] == "M"
+    assert mov(tipo="ENTRADA", quantidade=2, tamanho="gg").status_code == 201       # tamanho novo na entrada
+    assert mov(tipo="SAIDA", quantidade=1, tamanho="P", pessoa="Ana").status_code == 422  # P está zerado
+    s = mov(tipo="SAIDA", quantidade=2, tamanho="M", pessoa="Ana").json()
+    prod = client.get("/estoque/produtos").json()[0]
+    assert prod["saldo"] == 5 and {t["tamanho"]: t["saldo"] for t in prod["tamanhos"]} == {"P": 0, "M": 3, "G": 0, "GG": 2}
+    assert client.get("/estoque/pessoas/Ana").json()["resumo"]["ultimo_produto"] == "Camiseta (M)"
+    # editar e desfazer mexem no tamanho certo
+    client.put(f"/estoque/movimentos/{s['id']}", json={"quantidade": 3, "pessoa": "Ana", "data": "2026-11-27"})
+    assert {t["tamanho"]: t["saldo"] for t in client.get("/estoque/produtos").json()[0]["tamanhos"]}["M"] == 2
+    client.delete(f"/estoque/movimentos/{s['id']}")
+    assert client.get("/estoque/produtos").json()[0]["saldo"] == 7
+    # não tira tamanho com estoque; tira o zerado
+    base = {"nome": "Camiseta", "unidade": "un", "minimo": 0, "ativo": True}
+    assert client.put(f"/estoque/produtos/{p['id']}", json={**base, "tamanhos": ["P", "G"]}).status_code == 422
+    r = client.put(f"/estoque/produtos/{p['id']}", json={**base, "tamanhos": ["M", "GG"]}).json()
+    assert [t["tamanho"] for t in r["tamanhos"]] == ["M", "GG"]
+
+
+def test_pedido_com_tamanho(client):
+    p = client.post("/estoque/produtos", json={"nome": "Bota", "tamanhos": ["38", "40"]}).json()
+    client.post("/estoque/movimentos", json={"produto_id": p["id"], "tipo": "ENTRADA", "quantidade": 1, "tamanho": "40"})
+    assert client.post("/estoque/pedidos", json={"pessoa": "Rui", "produto_id": p["id"]}).status_code == 422
+    ped = client.post("/estoque/pedidos", json={"pessoa": "Rui", "produto_id": p["id"], "tamanho": "40"}).json()
+    assert ped["tamanho"] == "40"
+    client.post(f"/estoque/pedidos/{ped['id']}/atender", json={})
+    prod = client.get("/estoque/produtos").json()[0]
+    assert prod["saldo"] == 0 and client.get("/estoque/movimentos").json()[0]["tamanho"] == "40"
+
+
+def test_nao_separa_por_tamanho_com_estoque_sem_tamanho(client):
+    p = _produto(client)  # 10 sem tamanho
+    base = {"nome": p["nome"], "unidade": "un", "minimo": 0, "ativo": True}
+    assert client.put(f"/estoque/produtos/{p['id']}", json={**base, "tamanhos": ["P"]}).status_code == 422
+    assert client.get("/estoque/produtos").json()[0]["tamanhos"] == []

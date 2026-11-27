@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import MovimentoEstoque, PedidoEstoque, ProdutoEstoque
+from ..models import MovimentoEstoque, PedidoEstoque, ProdutoEstoque, TamanhoEstoque
 
 router = APIRouter(prefix="/estoque", tags=["estoque"])
 
@@ -44,12 +44,83 @@ class ProdutoIn(BaseModel):
     unidade: str = "un"
     minimo: int = Field(0, ge=0)
     ativo: bool = True
+    tamanhos: list[str] | None = None  # None = não mexe; [] = produto sem tamanho
 
 
-class ProdutoOut(ProdutoIn):
-    id: int
+class TamanhoOut(BaseModel):
+    tamanho: str
     saldo: int
     model_config = {"from_attributes": True}
+
+
+class ProdutoOut(BaseModel):
+    id: int
+    nome: str
+    unidade: str
+    minimo: int
+    ativo: bool
+    saldo: int
+    tamanhos: list[TamanhoOut]
+    model_config = {"from_attributes": True}
+
+
+def nome_tamanho(t: str | None) -> str:
+    """' gg ' -> 'GG'; '38' fica '38'."""
+    return " ".join((t or "").split()).upper()
+
+
+def _tam(p: ProdutoEstoque, t: str | None, criar: bool = False) -> TamanhoEstoque | None:
+    """O tamanho `t` do produto. Produto sem tamanhos: None (e não aceita tamanho, a não ser que `criar`).
+    Com tamanhos: o tamanho é obrigatório; se `criar` (entrada), um tamanho novo é cadastrado na hora."""
+    t = nome_tamanho(t)
+    if not p.tamanhos and not (criar and t):
+        if t:
+            raise HTTPException(422, f"'{p.nome}' não tem tamanhos")
+        return None
+    if not t:
+        raise HTTPException(422, f"Escolha o tamanho de '{p.nome}' ({', '.join(x.tamanho for x in p.tamanhos)})")
+    achado = next((x for x in p.tamanhos if x.tamanho == t), None)
+    if achado:
+        return achado
+    if not criar:
+        raise HTTPException(422, f"'{p.nome}' não tem o tamanho {t}")
+    if not p.tamanhos and p.saldo:
+        raise HTTPException(422, f"'{p.nome}' tem {p.saldo} {p.unidade} sem tamanho. Zere o estoque dele antes de separar por tamanho.")
+    novo = TamanhoEstoque(tamanho=t, saldo=0, ordem=len(p.tamanhos))
+    p.tamanhos.append(novo)
+    return novo
+
+
+def _ajustar(p: ProdutoEstoque, tam: TamanhoEstoque | None, delta: int, acao: str = "") -> None:
+    """Único lugar que mexe no saldo: no produto e, se tiver, no tamanho. Nunca deixa ficar negativo."""
+    atual = tam.saldo if tam else p.saldo
+    if atual + delta < 0:
+        onde = f"{p.nome} ({tam.tamanho})" if tam else p.nome
+        raise HTTPException(422, f"Só tem {atual} {p.unidade} de '{onde}' no estoque{acao}")
+    if tam:
+        tam.saldo += delta
+    p.saldo += delta
+
+
+def _sincronizar_tamanhos(p: ProdutoEstoque, lista: list[str] | None) -> None:
+    if lista is None:
+        return
+    nomes = list(dict.fromkeys(n for n in (nome_tamanho(t) for t in lista) if n))
+    if nomes and not p.tamanhos and p.saldo:
+        raise HTTPException(422, f"'{p.nome}' tem {p.saldo} {p.unidade} sem tamanho. Zere o estoque dele antes de separar por tamanho.")
+    for t in list(p.tamanhos):
+        if t.tamanho not in nomes:
+            if t.saldo:
+                raise HTTPException(422, f"O tamanho {t.tamanho} ainda tem {t.saldo} no estoque. Só dá para tirar tamanho zerado.")
+            p.tamanhos.remove(t)
+    existentes = {t.tamanho: t for t in p.tamanhos}
+    for i, n in enumerate(nomes):
+        t = existentes.get(n)
+        if not t:
+            t = TamanhoEstoque(tamanho=n, saldo=0)
+            p.tamanhos.append(t)
+        t.ordem = i
+    p.tamanhos.sort(key=lambda t: t.ordem)
 
 
 def _produto(db: Session, pid: int) -> ProdutoEstoque:
@@ -78,6 +149,7 @@ def _validar_produto(d: ProdutoIn, db: Session, pid: int | None = None) -> str:
 @router.post("/produtos", response_model=ProdutoOut, status_code=201)
 def criar_produto(d: ProdutoIn, db: Session = Depends(get_db)):
     p = ProdutoEstoque(nome=_validar_produto(d, db), unidade=d.unidade.strip() or "un", minimo=d.minimo, ativo=d.ativo, saldo=0)
+    _sincronizar_tamanhos(p, d.tamanhos)
     db.add(p); db.commit(); db.refresh(p)
     return p
 
@@ -86,6 +158,11 @@ def criar_produto(d: ProdutoIn, db: Session = Depends(get_db)):
 def atualizar_produto(pid: int, d: ProdutoIn, db: Session = Depends(get_db)):
     p = _produto(db, pid)
     p.nome, p.unidade, p.minimo, p.ativo = _validar_produto(d, db, pid), d.unidade.strip() or "un", d.minimo, d.ativo
+    try:
+        _sincronizar_tamanhos(p, d.tamanhos)
+    except HTTPException:
+        db.rollback()
+        raise
     db.commit(); db.refresh(p)
     return p
 
@@ -105,6 +182,7 @@ class MovimentoIn(BaseModel):
     produto_id: int
     tipo: str  # ENTRADA | SAIDA
     quantidade: int = Field(gt=0)
+    tamanho: str | None = None
     pessoa: str | None = None
     data: date | None = None
     observacao: str | None = None
@@ -117,6 +195,7 @@ class MovimentoOut(BaseModel):
     unidade: str
     tipo: str
     quantidade: int
+    tamanho: str | None
     pessoa: str | None
     data: date
     observacao: str | None
@@ -125,21 +204,24 @@ class MovimentoOut(BaseModel):
 
 def _mov_out(m: MovimentoEstoque) -> dict:
     return {"id": m.id, "produto_id": m.produto_id, "produto": m.produto.nome, "unidade": m.produto.unidade, "tipo": m.tipo,
-            "quantidade": m.quantidade, "pessoa": m.pessoa, "data": m.data, "observacao": m.observacao, "pedido_id": m.pedido_id}
+            "quantidade": m.quantidade, "tamanho": m.tamanho, "pessoa": m.pessoa, "data": m.data, "observacao": m.observacao, "pedido_id": m.pedido_id}
+
+
+def _tam_do_mov(m: MovimentoEstoque) -> TamanhoEstoque | None:
+    return next((t for t in m.produto.tamanhos if t.tamanho == m.tamanho), None) if m.tamanho else None
 
 
 def _movimentar(db: Session, p: ProdutoEstoque, tipo: str, qtd: int, pessoa: str | None, dt: date | None,
-                obs: str | None = None, pedido_id: int | None = None) -> MovimentoEstoque:
+                obs: str | None = None, pedido_id: int | None = None, tamanho: str | None = None) -> MovimentoEstoque:
     if tipo not in ("ENTRADA", "SAIDA"):
         raise HTTPException(422, "Tipo deve ser ENTRADA ou SAIDA")
     pessoa = pessoa_canonica(db, pessoa) or None
-    if tipo == "SAIDA":
-        if not pessoa:
-            raise HTTPException(422, "Na saída, informe quem pegou")
-        if qtd > p.saldo:
-            raise HTTPException(422, f"Só tem {p.saldo} {p.unidade} de '{p.nome}' no estoque")
-    p.saldo += qtd if tipo == "ENTRADA" else -qtd
-    m = MovimentoEstoque(produto=p, tipo=tipo, quantidade=qtd, pessoa=pessoa, data=dt or date.today(),
+    if tipo == "SAIDA" and not pessoa:
+        raise HTTPException(422, "Na saída, informe quem pegou")
+    tam = _tam(p, tamanho, criar=tipo == "ENTRADA")  # entrada de um tamanho novo já cadastra o tamanho
+    _ajustar(p, tam, qtd if tipo == "ENTRADA" else -qtd)
+    m = MovimentoEstoque(produto=p, tipo=tipo, quantidade=qtd, tamanho=tam.tamanho if tam else None,
+                         pessoa=pessoa, data=dt or date.today(),
                          observacao=(obs or "").strip() or None, pedido_id=pedido_id)
     db.add(m)
     return m
@@ -160,9 +242,39 @@ def listar_movimentos(pessoa: str | None = None, produto_id: int | None = None, 
 
 @router.post("/movimentos", response_model=MovimentoOut, status_code=201)
 def criar_movimento(d: MovimentoIn, db: Session = Depends(get_db)):
-    m = _movimentar(db, _produto(db, d.produto_id), d.tipo, d.quantidade, d.pessoa, d.data, d.observacao)
+    try:
+        m = _movimentar(db, _produto(db, d.produto_id), d.tipo, d.quantidade, d.pessoa, d.data, d.observacao, tamanho=d.tamanho)
+    except HTTPException:
+        db.rollback()
+        raise
     db.commit(); db.refresh(m)
     return _mov_out(m)
+
+
+class ItemSaida(BaseModel):
+    produto_id: int
+    quantidade: int = Field(gt=0)
+    tamanho: str | None = None
+
+
+class SaidaIn(BaseModel):
+    pessoa: str
+    data: date | None = None
+    observacao: str | None = None
+    itens: list[ItemSaida] = Field(min_length=1)
+
+
+@router.post("/saidas", response_model=list[MovimentoOut], status_code=201)
+def registrar_saida(d: SaidaIn, db: Session = Depends(get_db)):
+    """Uma pessoa pegou vários produtos de uma vez. Ou registra tudo, ou nada (se faltar estoque de algum)."""
+    try:
+        movs = [_movimentar(db, _produto(db, it.produto_id), "SAIDA", it.quantidade, d.pessoa, d.data, d.observacao,
+                            tamanho=it.tamanho) for it in d.itens]
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    return [_mov_out(m) for m in movs]
 
 
 class MovimentoEdit(BaseModel):
@@ -178,14 +290,11 @@ def editar_movimento(mid: int, d: MovimentoEdit, db: Session = Depends(get_db)):
     m = db.get(MovimentoEstoque, mid)
     if not m:
         raise HTTPException(404, "Movimento não encontrado")
-    sinal = 1 if m.tipo == "ENTRADA" else -1
-    novo_saldo = m.produto.saldo + sinal * (d.quantidade - m.quantidade)
-    if novo_saldo < 0:
-        raise HTTPException(422, f"Com essa quantidade o saldo de '{m.produto.nome}' ficaria negativo ({novo_saldo})")
     pessoa = pessoa_canonica(db, d.pessoa) or None
     if m.tipo == "SAIDA" and not pessoa:
         raise HTTPException(422, "Na saída, informe quem pegou")
-    m.produto.saldo = novo_saldo
+    sinal = 1 if m.tipo == "ENTRADA" else -1
+    _ajustar(m.produto, _tam_do_mov(m), sinal * (d.quantidade - m.quantidade), " para essa quantidade")
     m.quantidade, m.data, m.observacao = d.quantidade, d.data, (d.observacao or "").strip() or None
     m.pessoa = pessoa if m.tipo == "SAIDA" else None
     db.commit(); db.refresh(m)
@@ -204,11 +313,14 @@ def limpar(d: LimparIn, db: Session = Depends(get_db)):
     movimentos = db.execute(delete(MovimentoEstoque)).rowcount
     pedidos = db.execute(delete(PedidoEstoque)).rowcount if d.pedidos or d.produtos else 0
     if d.produtos:
+        db.execute(delete(TamanhoEstoque))
         produtos = db.execute(delete(ProdutoEstoque)).rowcount
     else:
         produtos = 0
         for p in db.scalars(select(ProdutoEstoque)).all():
             p.saldo = 0
+            for t in p.tamanhos:
+                t.saldo = 0
     db.commit()
     return {"movimentos": movimentos, "pedidos": pedidos, "produtos": produtos}
 
@@ -219,9 +331,8 @@ def desfazer_movimento(mid: int, db: Session = Depends(get_db)):
     m = db.get(MovimentoEstoque, mid)
     if not m:
         raise HTTPException(404, "Movimento não encontrado")
-    if m.tipo == "ENTRADA" and m.quantidade > m.produto.saldo:
-        raise HTTPException(422, "Não dá para desfazer essa entrada: parte dela já saiu do estoque")
-    m.produto.saldo += -m.quantidade if m.tipo == "ENTRADA" else m.quantidade
+    _ajustar(m.produto, _tam_do_mov(m), -m.quantidade if m.tipo == "ENTRADA" else m.quantidade,
+             ". Não dá para desfazer essa entrada: parte dela já saiu")
     if m.pedido_id:
         ped = db.get(PedidoEstoque, m.pedido_id)
         ped.status, ped.data_atendido = "PENDENTE", None
@@ -234,6 +345,7 @@ class PedidoIn(BaseModel):
     produto_id: int | None = None
     descricao: str | None = None
     quantidade: int = Field(1, gt=0)
+    tamanho: str | None = None
     data_pedido: date | None = None
     observacao: str | None = None
 
@@ -244,6 +356,7 @@ class PedidoOut(BaseModel):
     produto_id: int | None
     produto: str | None
     quantidade: int
+    tamanho: str | None
     data_pedido: date
     status: str
     data_atendido: date | None
@@ -252,7 +365,7 @@ class PedidoOut(BaseModel):
 
 def _ped_out(p: PedidoEstoque) -> dict:
     return {"id": p.id, "pessoa": p.pessoa, "produto_id": p.produto_id, "produto": p.produto.nome if p.produto else p.descricao,
-            "quantidade": p.quantidade, "data_pedido": p.data_pedido, "status": p.status, "data_atendido": p.data_atendido,
+            "quantidade": p.quantidade, "tamanho": p.tamanho, "data_pedido": p.data_pedido, "status": p.status, "data_atendido": p.data_atendido,
             "observacao": p.observacao}
 
 
@@ -278,12 +391,14 @@ def criar_pedido(d: PedidoIn, db: Session = Depends(get_db)):
     pessoa = pessoa_canonica(db, d.pessoa)
     if not pessoa:
         raise HTTPException(422, "Informe quem está pedindo")
+    tamanho = nome_tamanho(d.tamanho) or None
     if d.produto_id:
-        _produto(db, d.produto_id)
+        tam = _tam(_produto(db, d.produto_id), tamanho)  # produto com tamanhos exige um tamanho que existe
+        tamanho = tam.tamanho if tam else None
     elif not (d.descricao or "").strip():
         raise HTTPException(422, "Escolha o produto ou descreva o que foi pedido")
     p = PedidoEstoque(pessoa=pessoa, produto_id=d.produto_id, descricao=(d.descricao or "").strip() or None,
-                      quantidade=d.quantidade, data_pedido=d.data_pedido or date.today(), status="PENDENTE",
+                      quantidade=d.quantidade, tamanho=tamanho, data_pedido=d.data_pedido or date.today(), status="PENDENTE",
                       observacao=(d.observacao or "").strip() or None)
     db.add(p); db.commit(); db.refresh(p)
     return _ped_out(p)
@@ -301,7 +416,7 @@ def atender_pedido(pid: int, d: AtenderIn | None = None, db: Session = Depends(g
         raise HTTPException(409, "Esse pedido não está pendente")
     dt = (d.data if d else None) or date.today()
     if p.produto_id:
-        _movimentar(db, p.produto, "SAIDA", p.quantidade, p.pessoa, dt, f"Pedido de {p.data_pedido:%d/%m/%Y}", p.id)
+        _movimentar(db, p.produto, "SAIDA", p.quantidade, p.pessoa, dt, f"Pedido de {p.data_pedido:%d/%m/%Y}", p.id, p.tamanho)
     p.status, p.data_atendido = "ATENDIDO", dt
     db.commit(); db.refresh(p)
     return _ped_out(p)
@@ -336,7 +451,7 @@ def _resumo_pessoas(db: Session) -> dict[str, dict]:
         r = pessoas.setdefault(m.pessoa, novo(m.pessoa))
         r["retiradas"] += 1
         if not r["ultima_retirada"]:
-            r["ultima_retirada"], r["ultimo_produto"] = m.data, m.produto.nome
+            r["ultima_retirada"], r["ultimo_produto"] = m.data, m.produto.nome + (f" ({m.tamanho})" if m.tamanho else "")
     for p in db.scalars(select(PedidoEstoque).order_by(PedidoEstoque.data_pedido.desc())).all():
         r = pessoas.setdefault(p.pessoa, novo(p.pessoa))
         r["ultimo_pedido"] = r["ultimo_pedido"] or p.data_pedido
@@ -399,7 +514,7 @@ def apagar_pessoa(nome: str, db: Session = Depends(get_db)):
     n = pessoa_canonica(db, nome)
     movs, peds = _registros_da_pessoa(db, n)
     for m in movs:
-        m.produto.saldo += m.quantidade  # só saída tem pessoa
+        _ajustar(m.produto, _tam_do_mov(m), m.quantidade)  # só saída tem pessoa: devolve ao estoque
         db.delete(m)
     db.flush()
     for p in peds:

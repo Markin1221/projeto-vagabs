@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import models  # noqa: F401  (registra as tabelas)
 from . import acesso, config
 from .config import CORS_ORIGENS
-from .db import Base, engine
+from .db import Base, engine, criar_colunas_novas
 from .routers import caixinha, centros_custo, estoque, classificador, comparador, eventos, folha, quinzena, raiox, resumos
 
 @asynccontextmanager
@@ -14,6 +14,7 @@ async def ciclo_de_vida(_):
     """Cria as tabelas que ainda não existem (ex.: tabela nova após uma atualização), sem apagar dados."""
     try:
         Base.metadata.create_all(engine)
+        criar_colunas_novas(engine)
     except Exception as e:  # banco fora do ar: a API sobe mesmo assim e os erros aparecem nas rotas
         print("Aviso: não consegui criar as tabelas:", e)
     yield

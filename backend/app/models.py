@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -174,6 +174,21 @@ class ProdutoEstoque(Base):
     minimo: Mapped[int] = mapped_column(Integer, default=0)  # abaixo disso aparece como "repor"
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # Produto com tamanhos (camiseta P/M/G, bota 38/40...): o estoque fica por tamanho e `saldo` é a soma deles.
+    tamanhos: Mapped[list["TamanhoEstoque"]] = relationship(order_by="TamanhoEstoque.ordem", cascade="all, delete-orphan")
+
+
+class TamanhoEstoque(Base):
+    """Estoque de um tamanho de um produto."""
+    __tablename__ = "estoque_tamanhos"
+    __table_args__ = (UniqueConstraint("produto_id", "tamanho"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    produto_id: Mapped[int] = mapped_column(ForeignKey("estoque_produtos.id"))
+    tamanho: Mapped[str] = mapped_column(String(20))
+    saldo: Mapped[int] = mapped_column(Integer, default=0)
+    ordem: Mapped[int] = mapped_column(Integer, default=0)
+
 
 class MovimentoEstoque(Base):
     """Entrada (compra/reposição) ou saída (alguém pegou). Na saída, `pessoa` diz quem pegou."""
@@ -183,6 +198,7 @@ class MovimentoEstoque(Base):
     produto_id: Mapped[int] = mapped_column(ForeignKey("estoque_produtos.id"))
     tipo: Mapped[str] = mapped_column(String(10))  # ENTRADA | SAIDA
     quantidade: Mapped[int] = mapped_column(Integer)
+    tamanho: Mapped[str | None] = mapped_column(String(20))  # só em produto com tamanhos
     pessoa: Mapped[str | None] = mapped_column(String(120), index=True)
     data: Mapped[date] = mapped_column(Date)
     observacao: Mapped[str | None] = mapped_column(Text)
@@ -200,6 +216,7 @@ class PedidoEstoque(Base):
     produto_id: Mapped[int | None] = mapped_column(ForeignKey("estoque_produtos.id"))
     descricao: Mapped[str | None] = mapped_column(String(200))  # quando o produto ainda não está cadastrado
     quantidade: Mapped[int] = mapped_column(Integer, default=1)
+    tamanho: Mapped[str | None] = mapped_column(String(20))
     data_pedido: Mapped[date] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String(10), default="PENDENTE")  # PENDENTE | ATENDIDO | CANCELADO
     data_atendido: Mapped[date | None] = mapped_column(Date)
