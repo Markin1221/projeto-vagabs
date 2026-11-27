@@ -170,7 +170,9 @@ def ler_ddata(conteudo: bytes, datas=None):
         wb = openpyxl.load_workbook(io.BytesIO(conteudo), read_only=True, data_only=True)
         if sum(bool(re.fullmatch(r"\s*\d\d\.\d\d\.\d\d\s*", n)) for n in wb.sheetnames) >= 2:
             try:
-                return _ler_dias(wb, set(datas) if datas else None)
+                df = _ler_dias(wb, set(datas) if datas else None)
+                df.attrs["origem"] = "Conferência"
+                return df
             finally:
                 wb.close()
         wb.close()
@@ -179,6 +181,7 @@ def ler_ddata(conteudo: bytes, datas=None):
     bruto = _bruto(conteudo)
     conf = _ler_conferencia(bruto)
     if conf is not None:
+        conf.attrs["origem"] = "Conferência"
         return conf
     linha_cab = next((i for i in range(min(15, len(bruto)))
                       if {"Data", "Valor"} <= {str(v).strip() for v in bruto.iloc[i].values}), None)
@@ -237,9 +240,10 @@ def _agrupar(faltando, sobras):
     return faltando.drop(index=list(usados)), restam, agrupados
 
 
-def comparar(extrato, ddata, ignorar_rende=True, ignorar_creditos=False, ignorar_datas=False) -> dict:
+def comparar(extrato, ddata, ignorar_rende=True, ignorar_creditos=False, ignorar_datas=False, origem=None) -> dict:
     """Cada lançamento do extrato 'consome' um do DDATA (mesma data e valor). O que sobra no extrato está faltando;
     desses, os que têm o valor no DDATA em outra data vão para `outra_data`. O que sobra no DDATA vai para `so_ddata`."""
+    origem = origem or ddata.attrs.get("origem", "DDATA")  # "Conferência" ou "DDATA", pelo padrão do arquivo
     if ignorar_rende:
         extrato = extrato[~extrato["Histórico"].str.contains("Rende|RF Simples|Invest", case=False, na=False)]
     if (ddata["Valor"] <= 0).all():  # conferência da equipe só traz pagamentos: créditos do banco não entram
@@ -278,9 +282,9 @@ def comparar(extrato, ddata, ignorar_rende=True, ignorar_creditos=False, ignorar
                 por_valor[round(extrato.at[pos, "_chave"], 2)].remove(melhor)
                 consumidos.add(melhor)
                 linha = extrato.loc[pos].drop(["_chave", "_dt"]).to_dict()
-                linha["Data no DDATA"] = ddata.at[melhor, "Data"]
-                linha["Título no DDATA"] = ddata.at[melhor, "Título"] if "Título" in ddata.columns else ""
-                linha["Descrição no DDATA"] = ddata.at[melhor, "Descrição"] if "Descrição" in ddata.columns else ""
+                linha["Data na planilha"] = ddata.at[melhor, "Data"]
+                linha["Título na planilha"] = ddata.at[melhor, "Título"] if "Título" in ddata.columns else ""
+                linha["Descrição na planilha"] = ddata.at[melhor, "Descrição"] if "Descrição" in ddata.columns else ""
                 linha["Diferença (dias)"] = int((ddata.at[melhor, "_dt"] - extrato.at[pos, "_dt"]).days)
                 outra_data.append(linha)
             else:
@@ -290,19 +294,22 @@ def comparar(extrato, ddata, ignorar_rende=True, ignorar_creditos=False, ignorar
                "Descrição": ddata.at[p, "Descrição"] if "Descrição" in ddata.columns else ""}
               for p in restantes if p not in consumidos]
     faltando_df, sobras, agrupados = _agrupar(extrato.loc[faltando_real].drop(columns=["_chave", "_dt"]), sobras)
-    return {"n_extrato": len(extrato), "n_ddata": len(ddata), "faltando": faltando_df,
+    return {"origem": origem, "n_extrato": len(extrato), "n_ddata": len(ddata), "faltando": faltando_df,
             "outra_data": pd.DataFrame(outra_data), "so_ddata": pd.DataFrame(sobras),
             "agrupados": pd.DataFrame(agrupados)}
 
 
 def para_xlsx(r: dict) -> bytes:
+    o = r.get("origem", "DDATA")
+    na = f"{'na' if o == 'Conferência' else 'no'} {o}"
+    ren = {"Data na planilha": f"Data {na}", "Título na planilha": f"Título {na}", "Descrição na planilha": f"Descrição {na}"}
     buf = io.BytesIO()
     with pd.ExcelWriter(buf) as w:
-        r["faltando"].to_excel(w, sheet_name="Faltando no DDATA", index=False)
+        r["faltando"].to_excel(w, sheet_name=f"Faltando {na}"[:31], index=False)
         if not r["outra_data"].empty:
-            r["outra_data"].to_excel(w, sheet_name="Valor existe em outra data", index=False)
+            r["outra_data"].rename(columns=ren).to_excel(w, sheet_name="Valor existe em outra data", index=False)
         if not r["agrupados"].empty:
             r["agrupados"].to_excel(w, sheet_name="Soma de varios lancamentos", index=False)
         if not r["so_ddata"].empty:
-            r["so_ddata"].to_excel(w, sheet_name="So no DDATA", index=False)
+            r["so_ddata"].to_excel(w, sheet_name=f"So {na}"[:31], index=False)
     return buf.getvalue()

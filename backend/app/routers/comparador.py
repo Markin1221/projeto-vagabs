@@ -29,7 +29,7 @@ def _json(df):
 def comparar(extrato: UploadFile = File(...), ddata: UploadFile = File(...), ignorar_rende: bool = Form(True),
                    ignorar_creditos: bool = Form(False), ignorar_datas: bool = Form(False)):
     r = _rodar(extrato, ddata, ignorar_rende, ignorar_creditos, ignorar_datas)
-    return {"n_extrato": r["n_extrato"], "n_ddata": r["n_ddata"], "faltando": _json(r["faltando"]),
+    return {"n_extrato": r["n_extrato"], "n_ddata": r["n_ddata"], "origem": r["origem"], "faltando": _json(r["faltando"]),
             "outra_data": _json(r["outra_data"]), "so_ddata": _json(r["so_ddata"]),
             "agrupados": _json(r["agrupados"])}
 
@@ -39,4 +39,4 @@ def baixar(extrato: UploadFile = File(...), ddata: UploadFile = File(...), ignor
                  ignorar_creditos: bool = Form(False), ignorar_datas: bool = Form(False)):
     r = _rodar(extrato, ddata, ignorar_rende, ignorar_creditos, ignorar_datas)
     return Response(comparador.para_xlsx(r), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    headers={"Content-Disposition": 'attachment; filename="transferencias_faltando_ddata.xlsx"'})
+                    headers={"Content-Disposition": f'attachment; filename="pagamentos_faltando_{"conferencia" if r["origem"] == "Conferência" else "ddata"}.xlsx"'})

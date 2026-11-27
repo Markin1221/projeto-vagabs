@@ -22,7 +22,7 @@ def ddata():
 def test_comparador(client):
     r = client.post("/comparador/comparar", files={"extrato": ("e.xlsx", extrato_banco()), "ddata": ("d.xlsx", ddata())},
                     data={"ignorar_rende": "true"}).json()
-    assert [f["Histórico"] for f in r["faltando"]] == ["Tarifa"]                      # Rende ignorado
+    assert r["origem"] == "DDATA" and [f["Histórico"] for f in r["faltando"]] == ["Tarifa"]   # Rende ignorado
     assert [o["Histórico"] for o in r["outra_data"]] == ["Boleto"] and r["outra_data"][0]["Diferença (dias)"] == 7
     assert r["so_ddata"] == []
     x = client.post("/comparador/xlsx", files={"extrato": ("e.xlsx", extrato_banco()), "ddata": ("d.xlsx", ddata())})
@@ -130,6 +130,9 @@ def test_comparador_conferencia_por_dia_soma_dda(client):
            ["26/11/2026", "Pix - Recebido", "20.000,00 ", "C"], ["26/11/2026", "Tar DOC/TED", "13,60 ", "D"]]
     r = client.post("/comparador/comparar", files={"extrato": ("e.xlsx", xlsx(pd.DataFrame(ext), header=False)),
                                                     "ddata": ("c.xlsx", conferencia_dias())}).json()
+    assert r["origem"] == "Conferência"
+    x = client.post("/comparador/xlsx", files={"extrato": ("e.xlsx", xlsx(pd.DataFrame(ext), header=False)), "ddata": ("c.xlsx", conferencia_dias())})
+    assert "conferencia" in x.headers["content-disposition"] and pd.ExcelFile(io.BytesIO(x.content)).sheet_names[0] == "Faltando na Conferência"
     assert [f["Histórico"] for f in r["faltando"]] == ["Tar DOC/TED"]             # só a tarifa não está na conferência
     assert len(r["agrupados"]) == 1 and r["agrupados"][0]["Lançamentos no banco"] == 2 and r["agrupados"][0]["Valor"] == -1593.68
     assert r["so_ddata"] == []                                                     # total do dia descartado; 27/11 ignorada
