@@ -1,0 +1,139 @@
+/* Estoque do administrativo: cartões em vez de planilha. Usa só os tokens de globals.css (claro e escuro). */
+.est { display: grid; gap: 16px; }
+
+/* Ações rápidas */
+.est-acoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.est-acao { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; text-align: left;
+  padding: 14px 16px; min-height: 64px; border: 1px solid var(--linha); border-radius: var(--raio-g); background: var(--painel); color: var(--tinta);
+  cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.est-acao > span { grid-row: 1 / 3; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--marca-suave); color: var(--marca); }
+.est-acao b { font-size: 15px; font-weight: 600; }
+.est-acao small { color: var(--tinta-3); }
+.est-acao:hover { border-color: var(--marca); }
+.est-acao:active { transform: scale(.98); }
+.est-acao:focus-visible, .est-numero:focus-visible, .est-pessoa:focus-visible, .est-chips button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
+.est-acao.principal { background: var(--marca); border-color: var(--marca); color: var(--marca-sobre); }
+.est-acao.principal > span { background: color-mix(in srgb, var(--marca-sobre) 18%, transparent); color: var(--marca-sobre); }
+.est-acao.principal small { color: color-mix(in srgb, var(--marca-sobre) 78%, transparent); }
+.est-acao.principal:hover { background: var(--marca-2); }
+
+/* Números do topo */
+.est-numeros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.est-numero { display: grid; gap: 2px; text-align: left; padding: 12px 16px; border: 1px solid var(--linha); border-radius: var(--raio-g); background: var(--painel); color: var(--tinta); cursor: pointer; transition: border-color .15s; }
+.est-numero:hover { border-color: var(--tinta-3); }
+.est-numero small { color: var(--tinta-3); font-size: 12.5px; }
+.est-numero b { font-size: 26px; font-weight: 600; line-height: 1.15; }
+.est-numero span { color: var(--tinta-3); font-size: 12.5px; }
+.est-numero.alerta { border-color: color-mix(in srgb, var(--aviso) 45%, var(--linha)); background: var(--aviso-suave); }
+.est-numero.alerta b, .est-numero.alerta span { color: var(--aviso); }
+
+.est-painel { padding-top: 14px; }
+
+/* Barra de ferramentas e filtros */
+.est-barra-ferr { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.est-barra-ferr > .btn:last-child { margin-left: auto; }
+input.est-busca, .est-busca-pessoa input { flex: 1 1 240px; max-width: 340px; min-height: 38px; padding: 8px 12px; border-radius: 99px; }
+.est-busca-pessoa { flex: 1 1 240px; max-width: 340px; }
+.est-busca-pessoa input { max-width: none; width: 100%; }
+.est-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.est-chips button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 12px; border: 1px solid var(--linha); border-radius: 99px; background: var(--painel); color: var(--tinta-2); cursor: pointer; }
+.est-chips button span { font-size: 12px; padding: 0 7px; border-radius: 99px; background: var(--painel-2); color: var(--tinta-3); }
+.est-chips button.ativo { background: var(--marca-suave); border-color: var(--marca); color: var(--marca); font-weight: 500; }
+.est-chips button.ativo span { background: var(--painel); color: var(--marca); }
+
+/* Cartões */
+.est-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.est-card { position: relative; display: grid; gap: 8px; align-content: start; padding: 14px 16px; border: 1px solid var(--linha); border-radius: var(--raio-g); background: var(--painel); color: var(--tinta); text-align: left; }
+.est-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.est-card h3 { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.est-card-menu { display: flex; gap: 2px; opacity: .55; transition: opacity .15s; }
+.est-card:hover .est-card-menu, .est-card:focus-within .est-card-menu { opacity: 1; }
+.est-card.falta { border-color: color-mix(in srgb, var(--ruim) 40%, var(--linha)); }
+.est-card.inativo { opacity: .6; }
+.est-saldo { display: flex; align-items: baseline; gap: 6px; }
+.est-saldo b { font-size: 30px; font-weight: 600; line-height: 1; }
+.est-saldo span { color: var(--tinta-3); }
+.est-card.falta .est-saldo b { color: var(--ruim); }
+.est-nivel { height: 6px; border-radius: 99px; background: var(--painel-2); overflow: hidden; }
+.est-nivel i { display: block; height: 100%; border-radius: inherit; background: var(--ok); transition: width .3s ease; }
+.est-card.falta .est-nivel i { background: var(--ruim); }
+.est-status { font-size: 12.5px; color: var(--tinta-3); }
+.est-status.ruim { color: var(--ruim); font-weight: 500; }
+.est-card footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.est-card footer .btn { min-height: 38px; }
+
+/* Pessoas */
+.est-grade.pessoas { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.est-pessoa { grid-template-columns: auto 1fr; align-items: center; gap: 12px; cursor: pointer; font: inherit; transition: border-color .15s; }
+.est-pessoa:hover { border-color: var(--marca); }
+.est-pessoa p { color: var(--tinta-3); font-size: 13px; margin: 2px 0 4px; }
+.est-avatar { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--marca-suave); color: var(--marca); font-weight: 600; font-size: 14px; letter-spacing: .02em; }
+
+/* Histórico em linha do tempo */
+.est-dia + .est-dia { margin-top: 18px; }
+.est-dia h3 { font-size: 12.5px; font-weight: 600; color: var(--tinta-3); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.est-feed { list-style: none; margin: 0; padding: 0; display: grid; }
+.est-feed li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--linha-2); }
+.est-feed li:last-child { border-bottom: 0; }
+.est-feed li .icone { opacity: 0; transition: opacity .15s; }
+.est-feed li:hover .icone, .est-feed li:focus-within .icone { opacity: 1; }
+.est-feed-icone { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; }
+.est-feed-icone.sai { background: var(--ruim-suave); color: var(--ruim); }
+.est-feed-icone.entra { background: var(--ok-suave); color: var(--ok); }
+.est-feed-txt small { color: var(--tinta-3); }
+.est-feed.compacto li { padding: 8px 0; }
+
+/* Pedidos */
+.est-pedidos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.est-pedido { grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; }
+.est-pedido.pendente { border-left: 4px solid var(--aviso); }
+.est-pedido.atendido { border-left: 4px solid var(--ok); }
+.est-pedido.cancelado { opacity: .65; }
+.est-pedido-quem { padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; }
+.est-pedido-txt .chip { margin-left: 8px; }
+.est-pedido-txt small { color: var(--tinta-3); }
+.est-pedido-acoes { display: flex; gap: 8px; align-items: center; }
+.est-pedido-acoes .btn { min-height: 38px; }
+
+/* Ficha da pessoa */
+.est-ficha { display: grid; gap: 14px; }
+.est-ficha h4 { margin: 4px 0 -8px; font-size: 13px; color: var(--tinta-3); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.est-ficha-numeros { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+.est-ficha-numeros > div { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--raio); background: var(--painel-2); }
+.est-ficha-numeros small { color: var(--tinta-3); font-size: 12px; }
+.est-ficha-numeros b { font-size: 20px; font-weight: 600; }
+.est-ficha-numeros span { color: var(--tinta-3); font-size: 12.5px; }
+.est-ficha-numeros .ruim b { color: var(--ruim); }
+.est-alerta { padding: 10px 14px; border-radius: var(--raio); background: var(--aviso-suave); color: var(--aviso); }
+.est-alerta ul { margin: 4px 0 0; padding-left: 18px; color: var(--tinta); }
+
+/* Vazio */
+.est-vazio { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 40px 16px; border: 1.5px dashed var(--linha); border-radius: var(--raio-g); color: var(--tinta-2); }
+.est-vazio b { font-size: 15px; color: var(--tinta); }
+.est-vazio p { max-width: 380px; color: var(--tinta-3); }
+.est-vazio .btn { margin-top: 8px; }
+
+/* Lista de sugestões dos campos de produto e pessoa */
+.est-sugestoes { position: absolute; top: 100%; left: 0; right: 0; z-index: 5; margin: 4px 0 0; padding: 4px; list-style: none; background: var(--painel); border: 1px solid var(--linha); border-radius: var(--raio); box-shadow: 0 8px 22px rgba(0, 0, 0, .14); max-height: 240px; overflow: auto; }
+.est-sugestoes li > .btn { width: 100%; justify-content: space-between; border: 0; min-height: 38px; }
+.est-sugestoes li > .btn:hover { background: var(--painel-2); }
+.est-sugestoes .mudo { padding: 6px 8px; font-size: 12.5px; }
+
+@media (max-width: 860px) {
+  .est-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .est-acoes { grid-template-columns: 1fr 1fr; }
+  .est-acao.principal { grid-column: 1 / -1; }
+  .est-acao:not(.principal) { grid-template-columns: auto 1fr; padding: 10px 12px; min-height: 52px; }
+  .est-acao:not(.principal) small { display: none; }
+  .est-acao:not(.principal) > span { grid-row: auto; width: 32px; height: 32px; }
+}
+@media (max-width: 560px) {
+  .est-barra-ferr > .btn:last-child { margin-left: 0; }
+  input.est-busca, .est-busca-pessoa { max-width: none; }
+  .est-pedido { grid-template-columns: auto 1fr; }
+  .est-pedido-acoes { grid-column: 1 / -1; justify-content: flex-end; }
+  .est-ficha-numeros { grid-template-columns: 1fr 1fr; }
+  .est-ficha-numeros > div:first-child { grid-column: 1 / -1; }
+  .est-feed li .icone, .est-card-menu { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .est-acao, .est-nivel i { transition: none; } }
